@@ -5,6 +5,8 @@ import functools
 
 import scipy.linalg as scl
 import scipy.sparse as scs
+import scipy.sparse.linalg as scsl
+
 
 # import pandas as pd
 # import matplotlib.pylab as plt
@@ -102,6 +104,10 @@ P_g_min = -2e6
 P_g_max = 2e6
 eps = np.finfo(float).eps
 
+C_imp = 0.9 # R/kwh
+C_exp = 0.1
+C_imp_sub_exp = C_imp-C_exp
+
 ## INDIVIDUAL SYSTEM MATRIXES
 
 A = A_h_D_eval(ts, C_w, A_h, U_h, m_h, D_h)
@@ -127,9 +133,9 @@ d_p = d_p_eval(P_g_min, P_g_max, eps)
 
 # Construct Full System
 
-Nh = 100 # Number of dewh's
+Nh = 2 # Number of dewh's
 Nb = 0  # Number of bess's
-Np = 96  # Prediction horizon
+Np = 4  # Prediction horizon
 
 ## SPARSE COMBIMNNED SYSTEM MATRICES
 
@@ -223,6 +229,19 @@ F4x = scs.vstack([Hsx, scs.coo_matrix((d_p_tilde.shape[0],Hsx.shape[1]))])
 ## OBJECTIVE VECTOR
 
 
+C_exp_tilde = np.vstack([C_exp*1.001**i for i in range(Np)])
+C_imp_sub_exp_tilde = np.vstack([C_imp_sub_exp*1.001**i for i in range(Np)])
+
+Cost_vec_vs = (C_exp_tilde*sum_load_vec).reshape((-1,1))
+Cost_vec_vp = (C_imp_sub_exp_tilde*np.array([[0,1]])).reshape((-1,1))
+
+Cost_vec_ws = np.zeros((Hsw.shape[1],1))
+Cost_vec_wp = (C_exp_tilde*np.array([[1,-1]])).reshape((-1,1))
+
+Cost_vec_V_tilde = np.vstack([Cost_vec_vs, Cost_vec_vp])
+Cost_vec_W_tilde = np.vstack([Cost_vec_ws, Cost_vec_wp])
+
+scs.lin
 
 def fun():
     def clos():
@@ -234,5 +253,5 @@ def fun():
 if __name__ == '__main__':
     import timeit
 
-    t1 = timeit.timeit(fun(), number=100)
+    t1 = timeit.timeit(fun(), number=1)
     print(t1)
