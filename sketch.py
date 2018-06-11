@@ -7,7 +7,6 @@ import scipy.linalg as scl
 import scipy.sparse as scs
 import scipy.sparse.linalg as scsl
 
-
 # import pandas as pd
 # import matplotlib.pylab as plt
 
@@ -104,9 +103,9 @@ P_g_min = -2e6
 P_g_max = 2e6
 eps = np.finfo(float).eps
 
-C_imp = 0.9 # R/kwh
+C_imp = 0.9  # R/kwh
 C_exp = 0.1
-C_imp_sub_exp = C_imp-C_exp
+C_imp_sub_exp = C_imp - C_exp
 
 ## INDIVIDUAL SYSTEM MATRIXES
 
@@ -133,9 +132,11 @@ d_p = d_p_eval(P_g_min, P_g_max, eps)
 
 # Construct Full System
 
-Nh = 2 # Number of dewh's
+Nh = 1  # Number of Dewh_Sys's
 Nb = 0  # Number of bess's
 Np = 4  # Prediction horizon
+
+## Sparse matrices - vstack fast for csr, hstack fast for csc, toeplitz method could be improved
 
 ## SPARSE COMBIMNNED SYSTEM MATRICES
 
@@ -160,6 +161,8 @@ B123s_s = scs.hstack([B1s_s, B2s_s, B3s_s])
 As_s_pow = [(As_s ** i) for i in range(Np + 1)]
 
 Phi_xs_s = scs.vstack(As_s_pow)
+
+
 
 Phi_vs_s = scs.bmat(scl.toeplitz([scs.coo_matrix(B123s_s.shape)] + [As_s_pow[i] * B123s_s for i in range(Np)],
                                  [scs.coo_matrix(B123s_s.shape)] * (Np)))
@@ -214,37 +217,114 @@ E_p34_tilde = scs.block_diag([E_p34] * Np)
 
 d_p_tilde = np.vstack([d_p] * Np)
 
-H_pvs = E_p2_tilde*Gam_pv
-H_pwp = E_p2_tilde*Gam_pw
+H_pvs = E_p2_tilde * Gam_pv
+H_pwp = E_p2_tilde * Gam_pw
 H_pvp = E_p34_tilde
 H_dp = d_p_tilde
 
-## OVERALL CONSTRAINT MATRICES AND VECTORS A*v <= b  ==
+## OVERALL CONSTRAINT MATRICES AND VECTORS A*V <= b ==> F1*V <= F2 + F3w*W + F4x*x
 
 F1 = scs.bmat(np.array([[Hsv, None], [H_pvs, H_pvp]]))
 F2 = scs.bmat(np.array([[Hs5], [H_dp]]))
 F3w = scs.block_diag([-Hsw, -H_pvp])
-F4x = scs.vstack([Hsx, scs.coo_matrix((d_p_tilde.shape[0],Hsx.shape[1]))])
+F4x = scs.vstack([Hsx, scs.coo_matrix((d_p_tilde.shape[0], Hsx.shape[1]))])
+
 
 ## OBJECTIVE VECTOR
 
 
-C_exp_tilde = np.vstack([C_exp*1.001**i for i in range(Np)])
-C_imp_sub_exp_tilde = np.vstack([C_imp_sub_exp*1.001**i for i in range(Np)])
+C_exp_tilde = np.vstack([C_exp * 1.001 ** i for i in range(Np)])
+C_imp_sub_exp_tilde = np.vstack([C_imp_sub_exp * 1.001 ** i for i in range(Np)])
 
-Cost_vec_vs = (C_exp_tilde*sum_load_vec).reshape((-1,1))
-Cost_vec_vp = (C_imp_sub_exp_tilde*np.array([[0,1]])).reshape((-1,1))
+Cost_vec_vs = (C_exp_tilde * sum_load_vec).reshape((-1, 1))
+Cost_vec_vp = (C_imp_sub_exp_tilde * np.array([[0, 1]])).reshape((-1, 1))
 
-Cost_vec_ws = np.zeros((Hsw.shape[1],1))
-Cost_vec_wp = (C_exp_tilde*np.array([[1,-1]])).reshape((-1,1))
+Cost_vec_ws = np.zeros((Hsw.shape[1], 1))
+Cost_vec_wp = (C_exp_tilde * np.array([[1, -1]])).reshape((-1, 1))
 
 Cost_vec_V_tilde = np.vstack([Cost_vec_vs, Cost_vec_vp])
 Cost_vec_W_tilde = np.vstack([Cost_vec_ws, Cost_vec_wp])
 
-scs.lin
+
+
+
+################################################################
+##############################  SOLVER SETUP    ##################################
+################################################################
+
+import numpy as np
+import scipy as sc
+import timeit
+import functools
+
+import scipy.linalg as scl
+import scipy.sparse as scs
+import scipy.sparse.linalg as scsl
+
+# import pandas as pd
+# import matplotlib.pylab as plt
+
+
+import pyomo.environ as pe
+
+
+model = pe.ConcreteModel()
+
+
+A = F1
+numvar = F1.shape[1]
+numcon = F1.shape[0]
+b = scs.csc_matrix(F2)+F4x*60
+
+index_List = [i for i in range(numvar)]
+
+model.V_index = pe.Set(initialize=index_List, ordered=True)
+
+
+def V_Var_dom(model, i):
+    if i<1000:
+        return pe.Binary
+    else:
+        return pe.Reals
+
+model.V_var = pe.Var(model.V_index, domain=V_Var_dom, initialize=0)
+
+def Mod_obj(model):
+    expr = model.V_var[2]
+    return expr
+
+model.Obj = pe.Objective(rule=Mod_obj)
+
+
+A_csr = scs.csr_matrix(A)
+
+con_Index_list = list(range(b.shape[0]))
+model.Con_index = pe.Set(initialize=con_Index_list, ordered=True)
+
+
+def Mod_con(Model,ri):
+    row = A_csr.getrow(ri)
+    if row.data.size == 0:
+        return pe.Constraint.Skip
+    else:
+        return sum(coeff*model.V_var[index] for (index, coeff) in zip(row.indices,row.data)) <= -b[ri,0]
+model.ConF1 = pe.Constraint(model.Con_index, rule=Mod_con)
+
+
+model.write("s.lp", "lp", io_options={"symbolic_solver_labels":True})
+
+
+
+
+
+
+
+
+
 
 def fun():
     def clos():
+        model.Con2 = pe.Constraint(list(range(b.shape[0])), rule=Mod_con)
         return 1
 
     return clos
