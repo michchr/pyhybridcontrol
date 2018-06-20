@@ -132,7 +132,7 @@ d_p = d_p_eval(P_g_min, P_g_max, eps)
 
 # Construct Full System
 
-Nh = 1  # Number of Dewh_Sys's
+Nh = 1  # Number of DewhSys's
 Nb = 0  # Number of bess's
 Np = 4  # Prediction horizon
 
