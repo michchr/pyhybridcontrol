@@ -3,7 +3,7 @@ import numpy as np
 
 __all__= ['dewh_p', 'grid_p']
 
-control_ts = 60
+control_ts = 15*60
 dewh_p = StructDict()
 dewh_p.C_w = 4.1816 * 10 ** 3
 dewh_p.A_h = 1

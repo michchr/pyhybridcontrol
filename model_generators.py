@@ -29,25 +29,16 @@ class DewhModelGenerator():
             'ts, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
 
-        if default_time_units == 'sec':
-            divisor = 1
-        elif default_time_units == 'min':
-            divisor = 60
-        elif default_time_units == 'hour':
-            divisor = 3600
-        else:
-            raise ValueError("default_time_units = %s, not a valid argument" % default_time_units)
-
-        p1 = U_h * divisor * A_h
+        p1 = U_h * A_h
         p2 = m_h * C_w
 
         # Define continuous system matrices
         if const_heat:  # assume heat demand constant over sampling period
             A_h_c = -p1 / p2
-            B_h_c = sp.Matrix([[P_h_Nom * divisor, -1, p1 * T_inf]]) * (p2 ** -1)
+            B_h_c = sp.Matrix([[P_h_Nom, -1, p1 * T_inf]]) * (p2 ** -1)
         else:  # assume water demand volume constant over sampling period
-            A_h_c = -(D_h / divisor * C_w + p1) / p2
-            B_h_c = sp.Matrix([[P_h_Nom * divisor, C_w * T_w, p1 * T_inf]]) * (p2 ** -1)
+            A_h_c = -(D_h * C_w + p1) / p2
+            B_h_c = sp.Matrix([[P_h_Nom, C_w * T_w, p1 * T_inf]]) * (p2 ** -1)
 
         # Compute discretized system matrices
         A_h = sp.exp(A_h_c * ts)
@@ -87,7 +78,6 @@ class DewhModelGenerator():
 
 
 # END_CLASS DewhModelGenerator
-
 
 
 class GridModelGenerator():
@@ -181,6 +171,7 @@ if __name__ == '__main__':
 
     dewh_gen = DewhModelGenerator()
     grid_gen = GridModelGenerator()
+
 
     def func():
         def closure():

@@ -1,6 +1,8 @@
 from model_generators import DewhModelGenerator
 from structdict import StructDict, StructDictAliased
 
+from copy import deepcopy
+
 import bisect
 
 from sortedcontainers import SortedDict
@@ -10,66 +12,74 @@ V_h_s_ind = collections.namedtuple('V_ind', ['u_s', 'delta_s', 'z_s'])
 W_h_s_ind = collections.namedtuple('W_ind', ['omega_s'])
 d_h_s_ind = collections.namedtuple('d_ind', ['d_s'])
 
+class DeviceRepository(SortedDict):
+    def __init__(self, device_type, device_model_generator=None):
+        super(DeviceRepository, self).__init__()
+        self.repository = self
 
-class DewhRepository(SortedDict):
-    def __init__(self, dewh_model_generator=DewhModelGenerator):
-        super(DewhRepository, self).__init__()
-        self.repository = self  # Empty dictionary for storing individual water heaters
-        self.model_generator = dewh_model_generator()
-        self.device_type = 'dewh'
-        self._N_h = 0  # Number of water heaters
-        self._required_param_list = self.model_generator.required_param_list
-        self._default_dewh_param_struct = StructDict.fromkeys(self._required_param_list)
-        self._default_dewh_param_struct_set = False
+        if device_model_generator:
+            self.model_generator = device_model_generator()
+            self._required_param_list = self.model_generator.required_param_list
+            self._default_param_struct = StructDict.fromkeys(self._required_param_list)
+        else:
+            self.model_generator = None
+            self._required_param_list = None
+            self._default_param_struct = None
+
+        self.device_type = device_type
+        self._N_dev = 0
 
     @property
-    def N_h(self):
-        return self._N_h
+    def N_dev(self):
+        return self._N_dev
 
     @property
-    def default_dewh_param_struct(self):
-        return self._default_dewh_param_struct
+    def default_param_struct(self):
+        return self._default_param_struct
 
-    @default_dewh_param_struct.setter
-    def default_dewh_param_struct(self, dewh_param_struct):
-        if isinstance(dewh_param_struct, StructDict):
-            if set(set(self._required_param_list)).issubset(set(dewh_param_struct.keys())):
-                self._default_dewh_param_struct = dewh_param_struct
-                self._default_dewh_param_struct_set = True
+    @default_param_struct.setter
+    def default_param_struct(self, device_param_struct):
+        if isinstance(device_param_struct, StructDict):
+            if set(set(self._required_param_list)).issubset(set(device_param_struct.keys())):
+                self._default_param_struct = device_param_struct
             else:
                 raise ValueError("All required parameters not included, need {}".format(self._required_param_list))
         else:
             raise ValueError("Invalid argument, requires type==Struct_dict")
 
-    def add_dewh_by_default_data(self, dewh_id=None):
-        self._add_dewh(self._default_dewh_param_struct, dewh_id)
+    #### Methods for adding devices to repository
 
-    def add_dewh_by_custom_data(self, dewh_param_struct, dewh_id=None):
-        self._add_dewh(dewh_param_struct, dewh_id)
+    def add_device_by_default_data(self, dev_id=None):
+        self._add_device(self.default_param_struct, dev_id=dev_id)
 
-    def update_dewh_param(self, dewh_param_struct, dewh_id):
-        pass
-
-    def _add_dewh(self, dewh_param_struct, dewh_id=None):
-        if dewh_id == None:
-            dewh_id = self.repository.keys()[-1] + 1 if self.repository.keys() else 1
-        elif dewh_id in self.repository.keys():
-            raise ValueError("Id {} already exists in dewh_repository".format(dewh_id))
-        elif not self._default_dewh_param_struct_set:
+    def _add_device(self, device_param_struct, dev_id=None):
+        if dev_id == None:
+            dev_id = self.repository.keys()[-1] + 1 if self.repository.keys() else 1
+        elif dev_id in self.repository.keys():
+            raise ValueError("Id {} already exists in dewh_repository".format(dev_id))
+        elif not self.default_param_struct:
             raise ValueError(
                 "Default parameter list not set, need Struct_dict with {}".format(self._required_param_list))
 
-        self.repository[dewh_id] = DewhSys(self.model_generator, dewh_param_struct, dewh_id)
-        self._N_h += 1
+        self.repository[dev_id] = self._device_creator(device_param_struct, dev_id)
+        self._N_dev += 1
 
-    def get_dewh_dyn_con(self, dewh_id):
-        dewh = self.get(dewh_id)
-        return dewh.mld_mat_stuct
+    def _device_creator(self, device_param_struct, dev_id):
+        return dev_id
+
+
+class DewhRepository(DeviceRepository):
+    def __init__(self, dewh_model_generator=None):
+        device_type = 'dewh'
+        super(DewhRepository, self).__init__(device_type, dewh_model_generator)
+
+    def _device_creator(self, device_param_struct, dev_id):
+        return DewhSys(self.model_generator, device_param_struct, dev_id)
 
 
 class DewhSys(object):
     def __init__(self, model_generator, dewh_param_struct, dewh_id):
-        self.dewh_param_struct = dewh_param_struct
+        self.dewh_param_struct = deepcopy(dewh_param_struct)
         self.dewh_id = dewh_id
         self.mld_mat_struct = StructDictAliased(A_h=[], B_h1=[], B_h2=[], B_h3=[], B_h4=[], b_h5=[], E_h1=[], E_h2=[],
                                                 E_h3=[], E_h4=[], E_h5=[], d_h=[])
@@ -107,23 +117,20 @@ if __name__ == '__main__':
     import random
 
     dewh_repo = DewhRepository(DewhModelGenerator)
+    dewh_repo.default_param_struct = dewh_p
 
-
-
-    dewh_repo.default_dewh_param_struct = dewh_p
+    N_h = 10
 
     import random
 
-    a_rnd = random.sample(range(1000), 1000)
-
-    b = [i for i in range(1, 10000)]
+    a_rnd = random.sample(range(N_h), N_h)
 
 
     def func():
         def closure():
             for i in a_rnd:
-                dewh_repo.add_dewh_by_default_data(i)
-            # print(dewh_repo.get(2).mld_mat_struct)
+                dewh_repo.add_device_by_default_data(i)
+            print(dewh_repo.N_dev)
             return 1
 
         return closure

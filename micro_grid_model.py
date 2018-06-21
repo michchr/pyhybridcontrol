@@ -1,4 +1,4 @@
-from dewh_repository import DewhRepository
+from dewh_repository import DeviceRepository, DewhRepository
 from structdict import StructDict, StructDictAliased
 from model_generators import DewhModelGenerator, GridModelGenerator
 import pprint
@@ -12,12 +12,29 @@ class MicroGridModel():
 
     def __init__(self):
         self.device_repositories = []
-        self.device_mld_mat_struct = None
+        self._device_mld_mat_struct = None
 
         self._grid_param_struct = None
-        self.grid_mld_mat_struct = None
+        self._grid_mld_mat_struct = None
 
-    def add_device_repository(self, device_repository):
+    @property
+    def device_mld_mat_struct(self):
+        return self._device_mld_mat_struct
+
+    @property
+    def grid_mld_mat_struct(self):
+        return self._grid_mld_mat_struct
+        
+    @property
+    def grid_param_struct(self):
+        return self._grid_param_struct
+
+    @grid_param_struct.setter
+    def grid_param_struct(self, grid_param_struct):
+        self._grid_param_struct = grid_param_struct
+
+
+    def add_device_repository(self, device_repository: DeviceRepository):
         self.device_repositories.append(device_repository)
 
     def gen_concat_device_system_mld(self, sparse=True):
@@ -38,16 +55,9 @@ class MicroGridModel():
             else:
                 mld_mat_struct[key] = np.vstack(value)
 
-        self.device_mld_mat_struct = mld_mat_struct
+        self._device_mld_mat_struct = mld_mat_struct
         return mld_mat_struct
 
-    @property
-    def grid_param_struct(self):
-        return self._grid_param_struct
-
-    @grid_param_struct.setter
-    def grid_param_struct(self, grid_param_struct):
-        self._grid_param_struct = grid_param_struct
 
     def gen_power_balance_constraint_mld(self, grid_param_struct=None):
         if grid_param_struct == None:
@@ -61,10 +71,23 @@ class MicroGridModel():
             grid_mld_mat_struct[mat_name] = mat_eval(grid_param_struct)
             # self.mld_mat_struct[mat_name.replace("_eval", "")] = mat_eval(dewh_param_struct)
 
-        self.grid_mld_mat_struct = grid_mld_mat_struct
+        self._grid_mld_mat_struct = grid_mld_mat_struct
 
         return grid_mld_mat_struct
 
+    def get_grid_summation_vector(self):
+        sum_load_list = []
+        for device_repository in self.device_repositories:
+            if device_repository.device_type == 'dewh':
+                for dev_id, device in device_repository.items():
+                    sum_load_list.append(device.dewh_param_struct.P_h_Nom)
+            else:
+                sum_load_list.append(1)
+
+        zeros_delta_z = np.zeros((0)) # NEEDS TO BE UPDATED TO INCLUDE BATTERIES ETC!!!!!
+        sum_load_vec = np.hstack([sum_load_list, zeros_delta_z])
+
+        return sum_load_vec
 
 
 
@@ -74,15 +97,15 @@ if __name__ == '__main__':
     from parameters import dewh_p, grid_p
 
     def main():
-        N_h = 2
-        N_p = 5
+        N_h = 10
 
 
         dewh_repo = DewhRepository(DewhModelGenerator)
-        dewh_repo.default_dewh_param_struct = dewh_p
+        dewh_repo.default_param_struct = dewh_p
 
         for i in range(N_h):
-            dewh_repo.add_dewh_by_default_data(i)
+            dewh_repo.default_param_struct.P_h_Nom +=1
+            dewh_repo.add_device_by_default_data(i)
 
         mg_model = MicroGridModel()
         mg_model.grid_param_struct = grid_p
@@ -91,10 +114,11 @@ if __name__ == '__main__':
         mg_model.gen_concat_device_system_mld()
 
         mg_model.gen_power_balance_constraint_mld(grid_p)
+        #
+        # pprint.pprint(mg_model.grid_mld_mat_struct)
+        # pprint.pprint(mg_model.device_mld_mat_struct)
 
-        pprint.pprint(mg_model.grid_mld_mat_struct)
-        pprint.pprint(mg_model.device_mld_mat_struct)
-
+        print(mg_model.get_grid_summation_vector())
 
     def func():
         def closure():
