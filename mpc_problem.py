@@ -40,57 +40,10 @@ class MpcProblem():
         # State evolution matrices
         # x_s_tilde = Phi_V_s*V_s_tilde + Phi_W_s*W_s_tilde + Phi_b_s5*b_s5_tilde
 
-        # TEMP CODE##
-
-        def mat_evo_gen(N_p, A, A_pow=None, B=None, with_zero=True):
-            if A_pow is None:
-                A_pow = [(A ** i).tocsc() for i in range(N_p + 1)]
-
-            if B is None:
-                B = A
-                np_array_toep = scl.toeplitz(
-                    [scs.csc_matrix(B.shape)] + [A_pow[i] for i in range(N_p)],
-                    [scs.csc_matrix(B.shape)] * (N_p))
-            else:
-                np_array_toep = scl.toeplitz(
-                    [scs.csc_matrix(B.shape)] + [A_pow[i] * B for i in range(N_p)],
-                    [scs.csc_matrix(B.shape)] * (N_p))
-
-            n_row = B.shape[0] * (N_p + 1) if with_zero else B.shape[0] * (N_p)
-            n_col = B.shape[1] * N_p
-
-            h_stacked = np.empty((np_array_toep.shape[0],1), dtype=object)
-            for ind, row in enumerate(np_array_toep):
-                h_stacked[ind] = scs.hstack(row).tocsr()
-
-
-            return scs.bmat(h_stacked)
-
-        # Phi_V_s_sparse = scs.bmat(scl.toeplitz(
-        #     [scs.csc_matrix(B_s123.shape)] + [A_s_pow[i] * B_s123 for i in range(N_p)],
-        #     [scs.csc_matrix(B_s123.shape)] * (N_p)))
-        #
-        # Phi_V_s_sparse_2 = mat_evo_gen(N_p, sys_m.A_s, A_s_pow, B_s123)
-        #
-        # pprint.pprint(np.allclose(Phi_V_s_sparse.A,Phi_V_s_sparse_2.A))
-        # pprint.pprint(Phi_V_s_sparse_2.A)
-
-        ##END TEMP CODE##
-
         mg_device_state_evo_struct.Phi_x_s = scs.vstack(A_s_pow)
-        mg_device_state_evo_struct.Phi_V_s = scs.bmat(
-            scl.toeplitz([scs.coo_matrix(B_s123.shape)] + [A_s_pow[i] * B_s123 for i in range(N_p)],
-                         [scs.coo_matrix(B_s123.shape)] * (N_p)))
-        mg_device_state_evo_struct.Phi_W_s = scs.bmat(
-            scl.toeplitz([scs.coo_matrix(sys_m.B_s4.shape)] + [A_s_pow[i] * sys_m.B_s4 for i in range(N_p)],
-                         [scs.coo_matrix(sys_m.B_s4.shape)] * (N_p)))
-        mg_device_state_evo_struct.Phi_b_s5 = scs.bmat(
-            scl.toeplitz([scs.coo_matrix(sys_m.A_s.shape)] + [A_s_pow[i] for i in range(N_p)],
-                         [scs.coo_matrix(sys_m.A_s.shape)] * (N_p)))
-
-        # Phi_V_s = mat_evo_gen(N_p, sys_m.A_s, A_s_pow, B_s123)
-        # Phi_W_s = mat_evo_gen(N_p, sys_m.A_s, A_s_pow, sys_m.B_s4)
-        # Phi_b_s5 = mat_evo_gen(N_p, sys_m.A_s, A_s_pow)
+        mg_device_state_evo_struct.Phi_V_s = mat_evo_gen(N_p, sys_m.A_s, A_s_pow, B_s123)
+        mg_device_state_evo_struct.Phi_W_s = mat_evo_gen(N_p, sys_m.A_s, A_s_pow, sys_m.B_s4)
+        mg_device_state_evo_struct.Phi_b_s5 = mat_evo_gen(N_p, sys_m.A_s, A_s_pow)
 
         mg_device_state_evo_struct.b_s5_tilde = np.vstack([sys_m.b_s5] * (N_p))
 
@@ -191,6 +144,25 @@ class MpcProblem():
 
         return mg_mpc_cons_struct
 
+def mat_evo_gen(N_p, A, A_pow=None, B=None, with_zero=True):
+    if A_pow is None:
+        A_pow = [(A ** i).tocsc() for i in range(N_p + 1)]
+
+    if B is None:
+        B = A
+        np_array_toep = scl.toeplitz(
+            [scs.csc_matrix(B.shape)] + [A_pow[i] for i in range(N_p)],
+            [scs.csc_matrix(B.shape)] * (N_p))
+    else:
+        np_array_toep = scl.toeplitz(
+            [scs.csc_matrix(B.shape)] + [A_pow[i] * B for i in range(N_p)],
+            [scs.csc_matrix(B.shape)] * (N_p))
+
+    h_stacked = np.empty((np_array_toep.shape[0], 1), dtype=object)
+    for ind, row in enumerate(np_array_toep):
+        h_stacked[ind] = scs.hstack(row).tocsr()
+
+    return scs.bmat(h_stacked)
 
 ################################################################################
 ################################    MAIN     ###################################
@@ -203,8 +175,8 @@ if __name__ == '__main__':
 
 
     def main():
-        N_h = 10
-        N_p = 96
+        N_h = 2
+        N_p = 5
 
         dewh_repo = DewhRepository(DewhModelGenerator)
         dewh_repo.default_param_struct = dewh_p
@@ -227,8 +199,7 @@ if __name__ == '__main__':
         # mpc_prob.gen_grid_cons_evolution_matrices(N_p)
 
         mpc_prob.gen_mpc_cons_matrices(N_p)
-        # pprint.pprint(mpc_prob.gen_mpc_cons_matrices(N_p))
-
+        print(mpc_prob._mg_mpc_cons_struct.F1)
 
     def func():
         def closure():
