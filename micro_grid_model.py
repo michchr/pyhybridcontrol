@@ -1,11 +1,13 @@
-from dewh_repository import DeviceRepository, DewhRepository
-from structdict import StructDict, StructDictAliased
-from model_generators import DewhModelGenerator, GridModelGenerator
-import pprint
-
 import scipy.linalg as scl
 import scipy.sparse as scs
 import numpy as np
+from datetime import datetime as DateTime, timedelta as TimeDelta
+import pprint
+
+from dewh_repository import DeviceRepository, DewhRepository
+from structdict import StructDict, StructDictAliased
+from model_generators import DewhModelGenerator, GridModelGenerator
+
 
 
 class MicroGridModel():
@@ -16,6 +18,21 @@ class MicroGridModel():
 
         self._grid_param_struct = None
         self._grid_mld_mat_struct = None
+        self._grid_var_dims_struct = None
+
+        self._decision_var_types = None
+        self._date_time_0 = None
+
+    @property
+    def date_time_0(self):
+        return self._date_time_0
+
+    @date_time_0.setter
+    def date_time_0(self, date_time_0):
+        if isinstance(date_time_0, DateTime):
+            self._date_time_0 = date_time_0
+        else:
+            raise TypeError("date_time_0 not of type {type}".format(type=DateTime))
 
     @property
     def device_mld_mat_struct(self):
@@ -24,6 +41,10 @@ class MicroGridModel():
     @property
     def grid_mld_mat_struct(self):
         return self._grid_mld_mat_struct
+
+    @property
+    def decision_var_types(self):
+        return self._decision_var_types
         
     @property
     def grid_param_struct(self):
@@ -56,8 +77,8 @@ class MicroGridModel():
                 mld_mat_struct[key] = np.vstack(value)
 
         self._device_mld_mat_struct = mld_mat_struct
-        return mld_mat_struct
 
+        return mld_mat_struct,
 
     def gen_power_balance_constraint_mld(self, grid_param_struct=None):
         if grid_param_struct == None:
@@ -66,6 +87,8 @@ class MicroGridModel():
         grid_mld_mat_struct = StructDictAliased(A_p=[], B_p1=[], B_p2=[], B_p3=[], B_p4=[], b_p5=[], E_p1=[],
                                                      E_p2=[], E_p3=[], E_p4=[], E_p5=[], d_p=[])
         grid_model_generator = GridModelGenerator()
+
+        self._grid_var_dims_struct = grid_model_generator.var_dim_struct
 
         for mat_name, mat_eval in grid_model_generator.mld_eval_struct.items():
             grid_mld_mat_struct[mat_name] = mat_eval(grid_param_struct)
@@ -85,9 +108,24 @@ class MicroGridModel():
                 sum_load_list.append(1)
 
         zeros_delta_z = np.zeros((0)) # NEEDS TO BE UPDATED TO INCLUDE BATTERIES ETC!!!!!
-        sum_load_vec = np.hstack([sum_load_list, zeros_delta_z])
+        sum_load_vec = np.atleast_2d(np.hstack([sum_load_list, zeros_delta_z])).T
 
         return sum_load_vec
+
+    def get_decision_var_type(self):
+        decision_var_types_list = []
+        # First extract matrices form repository as list
+        for device_repository in self.device_repositories:
+            for device_id, device in device_repository.items():
+                decision_var_types_list.append(device.var_dim_struct.decision_var_types)
+
+        decision_var_types_list.append(self._grid_var_dims_struct.decision_var_types)
+
+        decision_var_types = np.vstack(decision_var_types_list)
+
+        self._decision_var_types = decision_var_types
+
+        return decision_var_types
 
 
 
@@ -117,6 +155,8 @@ if __name__ == '__main__':
         #
         # pprint.pprint(mg_model.grid_mld_mat_struct)
         # pprint.pprint(mg_model.device_mld_mat_struct)
+
+        pprint.pprint(mg_model.get_decision_var_type())
 
         print(mg_model.get_grid_summation_vector())
 

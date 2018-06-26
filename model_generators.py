@@ -1,7 +1,8 @@
 import functools
 import sympy as sp
+import numpy as np
 
-from structdict import StructDict
+from structdict import StructDict, StructDictAliased
 
 
 class DewhModelGenerator():
@@ -15,7 +16,7 @@ class DewhModelGenerator():
         mld_sym_struct, var_dim_struct = self.gen_dewh_symbolic_mld_sys_matrices(const_heat=const_heat)
         required_model_params = _get_all_syms_as_str_list(mld_sym_struct)
 
-        mld_eval_struct = StructDict()
+        mld_eval_struct = StructDictAliased()
         for key, expr in mld_sym_struct.items():
             syms_tup, syms_str_tup = _get_syms_tup(expr)
             lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
@@ -44,7 +45,7 @@ class DewhModelGenerator():
         A_h = sp.exp(A_h_c * ts)
         B_h_3 = A_h_c ** (-1) * (sp.exp(A_h_c * ts) - 1) * B_h_c
 
-        mld_sym_struct = StructDict()
+        mld_sym_struct = StructDictAliased()
         mld_sym_struct.A_h = A_h
         mld_sym_struct.B_h1 = B_h_3[0]
         mld_sym_struct.B_h4 = B_h_3[1]
@@ -61,20 +62,9 @@ class DewhModelGenerator():
         mld_sym_struct.E_h4 = sp.Matrix([])
         mld_sym_struct.E_h5 = sp.Matrix([])
 
-        vardim_struct = StructDict(
-            nstates=max(_get_expr_dim(mld_sym_struct.A_h), _get_expr_dim(mld_sym_struct.E_h1)),
-            ncons=_get_expr_dim(mld_sym_struct.d_h, is_con=True),
-            nx=max(_get_expr_dim(mld_sym_struct.A_h), _get_expr_dim(mld_sym_struct.E_h1)),
-            nu=max(_get_expr_dim(mld_sym_struct.B_h1), _get_expr_dim(mld_sym_struct.E_h2)),
-            ndelta=max(_get_expr_dim(mld_sym_struct.B_h2), _get_expr_dim(mld_sym_struct.E_h3)),
-            nz=max(_get_expr_dim(mld_sym_struct.B_h3), _get_expr_dim(mld_sym_struct.E_h4)),
-            nomega=max(_get_expr_dim(mld_sym_struct.B_h4), _get_expr_dim(mld_sym_struct.E_h5)),
-            nx_l=0,  # number of binary states
-            nu_l=1,  # number of binary inputs
-            nomega_l=0,  # number of binary disturbances
-        )
+        var_dim_struct = _get_var_dim_struct(mld_sym_struct, nx_l=0, nu_l=1, nomega_l=0)
 
-        return mld_sym_struct, vardim_struct
+        return mld_sym_struct, var_dim_struct
 
 
 # END_CLASS DewhModelGenerator
@@ -84,26 +74,27 @@ class GridModelGenerator():
     def __init__(self):
         eval_func_ret = self.gen_grid_mld_cons_matrix_eval_funcs()
         self.mld_eval_struct = eval_func_ret[0]
-        self.required_param_list = eval_func_ret[1]
+        self.var_dim_struct = eval_func_ret[1]
+        self.required_param_list = eval_func_ret[2]
 
     def gen_grid_mld_cons_matrix_eval_funcs(self):
-        mld_sym_struct = self.gen_grid_symbolic_mld_cons_matrices()
+        mld_sym_struct, var_dim_struct = self.gen_grid_symbolic_mld_cons_matrices()
         required_model_params = _get_all_syms_as_str_list(mld_sym_struct)
 
-        mld_eval_struct = StructDict()
+        mld_eval_struct = StructDictAliased()
         for key, expr in mld_sym_struct.items():
             syms_tup, syms_str_tup = _get_syms_tup(expr)
             lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
             mld_eval_struct[key + "_eval"] = _lam_wrapper(lam, syms_str_tup)
             # cons_dict_eval[key + "_eval2"] = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
 
-        return mld_eval_struct, required_model_params
+        return mld_eval_struct, var_dim_struct, required_model_params
 
     def gen_grid_symbolic_mld_cons_matrices(self):
         P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
         eps = sp.symbols('eps')
 
-        mld_sym_struct = StructDict()
+        mld_sym_struct = StructDictAliased()
 
         mld_sym_struct.E_p2 = sp.Matrix([-1, 1, 0, 0, -1, 1])
         mld_sym_struct.E_p3 = sp.Matrix([-P_g_min, -P_g_max + eps, P_g_max, P_g_min, -P_g_min, P_g_max])
@@ -120,7 +111,9 @@ class GridModelGenerator():
         mld_sym_struct.E_p1 = sp.Matrix([])
         mld_sym_struct.E_p5 = sp.Matrix([])
 
-        return mld_sym_struct
+        var_dim_struct = _get_var_dim_struct(mld_sym_struct, nx_l=0, nu_l=0, nomega_l=0)
+
+        return mld_sym_struct, var_dim_struct
 
 
 def _get_syms_tup(expr):
@@ -147,6 +140,32 @@ def _lam_wrapper(func, local_syms_str):
     return wrapped
 
 
+def _get_var_dim_struct(mld_struct, nx_l=None, nu_l=None, nomega_l=None):
+    var_dim_struct = StructDict()
+
+    var_dim_struct.nstates = _get_expr_dim(mld_struct.A)
+    var_dim_struct.ncons = _get_expr_dim(mld_struct.d, is_con=True)
+    var_dim_struct.nx = _get_expr_dim(mld_struct.A)
+    var_dim_struct.nu = _get_expr_dim(mld_struct.B1)
+    var_dim_struct.ndelta = max(_get_expr_dim(mld_struct.B2), _get_expr_dim(mld_struct.E3))
+    var_dim_struct.nz = max(_get_expr_dim(mld_struct.B3), _get_expr_dim(mld_struct.E4))
+    var_dim_struct.nomega = _get_expr_dim(mld_struct.B4)
+    var_dim_struct.nx_l = nx_l  # number of binary states
+    var_dim_struct.nu_l = nu_l  # number of binary inputs
+    var_dim_struct.nomega_l = nomega_l  # number of binary disturbances
+
+    real_u = var_dim_struct.nu - var_dim_struct.nu_l
+
+    u_dec_type = ['c'] * real_u + ['b'] * var_dim_struct.nu_l
+    delta_dec_type = ['b'] * var_dim_struct.ndelta
+    z_dec_type = ['c'] * var_dim_struct.nz
+
+    decision_var_types = np.hstack([u_dec_type, delta_dec_type, z_dec_type])[:, np.newaxis]
+    var_dim_struct.decision_var_types = decision_var_types
+
+    return var_dim_struct
+
+
 def _get_expr_dim(expr, is_con=False):
     if expr == None:
         return 0
@@ -164,13 +183,14 @@ def _get_expr_dim(expr, is_con=False):
 
 if __name__ == '__main__':
     import pprint
-    import numpy as np
     import timeit
 
     from parameters import dewh_p, grid_p
 
     dewh_gen = DewhModelGenerator()
     grid_gen = GridModelGenerator()
+
+    pprint.pprint(grid_gen.var_dim_struct)
 
 
     def func():

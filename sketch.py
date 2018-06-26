@@ -132,9 +132,9 @@ d_p = d_p_eval(P_g_min, P_g_max, eps)
 
 # Construct Full System
 
-Nh = 1  # Number of DewhSys's
+Nh = 2  # Number of DewhSys's
 Nb = 0  # Number of bess's
-Np = 4  # Prediction horizon
+Np = 5  # Prediction horizon
 
 ## Sparse matrices - vstack fast for csr, hstack fast for csc, toeplitz method could be improved
 
@@ -264,59 +264,59 @@ import scipy.sparse.linalg as scsl
 # import pandas as pd
 # import matplotlib.pylab as plt
 
-
-import pyomo.environ as pe
-
-
-model = pe.ConcreteModel()
-
-
-A = F1
-numvar = F1.shape[1]
-numcon = F1.shape[0]
-b = scs.csc_matrix(F2)+F4x*60
-
-index_List = [i for i in range(numvar)]
-
-model.V_index = pe.Set(initialize=index_List, ordered=True)
-
-
-def V_Var_dom(model, i):
-    if i<1000:
-        return pe.Binary
-    else:
-        return pe.Reals
-
-model.V_var = pe.Var(model.V_index, domain=V_Var_dom, initialize=0)
-
-def Mod_obj(model):
-    expr = model.V_var[2]
-    return expr
-
-model.Obj = pe.Objective(rule=Mod_obj)
-
-
-A_csr = scs.csr_matrix(A)
-
-con_Index_list = list(range(b.shape[0]))
-model.Con_index = pe.Set(initialize=con_Index_list, ordered=True)
-
-
-def Mod_con(Model,ri):
-    row = A_csr.getrow(ri)
-    if row.data.size == 0:
-        return pe.Constraint.Skip
-    else:
-        return sum(coeff*model.V_var[index] for (index, coeff) in zip(row.indices,row.data)) <= -b[ri,0]
-model.ConF1 = pe.Constraint(model.Con_index, rule=Mod_con)
-
-
-model.write("s.lp", "lp", io_options={"symbolic_solver_labels":True})
-
-
-
-
-
+#
+# import pyomo.environ as pe
+#
+#
+# model = pe.ConcreteModel()
+#
+#
+# A = F1
+# numvar = F1.shape[1]
+# numcon = F1.shape[0]
+# b = scs.csc_matrix(F2)+F4x*60
+#
+# index_List = [i for i in range(numvar)]
+#
+# model.V_index = pe.Set(initialize=index_List, ordered=True)
+#
+#
+# def V_Var_dom(model, i):
+#     if i<1000:
+#         return pe.Binary
+#     else:
+#         return pe.Reals
+#
+# model.V_var = pe.Var(model.V_index, domain=V_Var_dom, initialize=0)
+#
+# def Mod_obj(model):
+#     expr = model.V_var[2]
+#     return expr
+#
+# model.Obj = pe.Objective(rule=Mod_obj)
+#
+#
+# A_csr = scs.csr_matrix(A)
+#
+# con_Index_list = list(range(b.shape[0]))
+# model.Con_index = pe.Set(initialize=con_Index_list, ordered=True)
+#
+#
+# def Mod_con(Model,ri):
+#     row = A_csr.getrow(ri)
+#     if row.data.size == 0:
+#         return pe.Constraint.Skip
+#     else:
+#         return sum(coeff*model.V_var[index] for (index, coeff) in zip(row.indices,row.data)) <= -b[ri,0]
+# model.ConF1 = pe.Constraint(model.Con_index, rule=Mod_con)
+#
+#
+# model.write("s.lp", "lp", io_options={"symbolic_solver_labels":True})
+#
+#
+#
+#
+#
 
 
 

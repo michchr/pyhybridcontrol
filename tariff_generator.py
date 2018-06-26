@@ -3,6 +3,7 @@ from enum import Enum
 from structdict import StructDict
 import numpy as np
 
+
 class Tariff_e(Enum):
     OFF_PEAK = 0
     STANDARD = 1
@@ -19,17 +20,16 @@ class Day_e(Enum):
     SUNDAY = 6
 
 
-class Tariff():
+class TariffGenerator():
     def __init__(self, low_off_peak=0.0, low_stnd=0.0, low_peak=0.0, high_off_peak=0.0, high_stnd=0.0, high_peak=0.0):
         self.rates = StructDict(low_off_peak=low_off_peak, low_stnd=low_stnd, low_peak=low_peak,
                                 high_off_peak=high_off_peak, high_stnd=high_stnd, high_peak=high_peak)
 
-    def get_price_vector(self, date_time_0, control_ts, N_p):
-        delta_time = TimeDelta(hours = control_ts)
-        time_vector = [date_time_0 + i*delta_time for i in range(N_p)]
-        price_vector = np.asarray([self.get_import_price(time_vector[i]) for i in range(N_p)])
-        return price_vector, np.asarray(time_vector, dtype='datetime64[s]')
-
+    def get_price_vector(self, N_p, date_time_0, control_ts):
+        delta_time = TimeDelta(hours=control_ts)
+        time_vector = [date_time_0 + i * delta_time for i in range(N_p)]
+        price_vector = np.atleast_2d([self.get_import_price(time_vector[i]) for i in range(N_p)]).T
+        return price_vector
 
     def get_import_price(self, date_time: DateTime):
         tarrif_type, high_demand = self.get_tariff_type(date_time)
@@ -123,10 +123,10 @@ class Tariff():
 if __name__ == '__main__':
     import pprint
 
-    tariff_gen = Tariff(low_off_peak=48.40, low_stnd=76.28, low_peak=110.84, high_off_peak=55.90, high_stnd=102.95,
-                        high_peak=339.77)
+    tariff_gen = TariffGenerator(low_off_peak=48.40, low_stnd=76.28, low_peak=110.84, high_off_peak=55.90,
+                                 high_stnd=102.95, high_peak=339.77)
 
-    test_date = DateTime(2018,11,20,18,30)
+    test_date = DateTime(2018, 11, 20, 18, 30)
 
     print(test_date)
     print(tariff_gen.get_import_price(test_date))

@@ -1,6 +1,5 @@
 import re
 
-
 class StructDict(dict):
     '''A dict with dot access and autocompletion.
 
@@ -35,8 +34,8 @@ class StructDictAliased(StructDict):
     def _get_striped_keys(self):
         return {self._strip_key(i): i for i in self.keys()}
 
-    def _strip_key(self,key):
-        split_key = key.split('_',1)
+    def _strip_key(self, key):
+        split_key = key.split('_', 1)
         return ''.join([split_key[0], re.sub('[^0-9]', '', ''.join(split_key[1:]))])
         # return ''.join([key[0], re.sub('[^0-9]', '', key[1:])])
 
