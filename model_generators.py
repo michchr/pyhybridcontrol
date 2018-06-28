@@ -97,7 +97,7 @@ class GridModelGenerator():
         mld_sym_struct = StructDictAliased()
 
         mld_sym_struct.E_p2 = sp.Matrix([-1, 1, 0, 0, -1, 1])
-        mld_sym_struct.E_p3 = sp.Matrix([-P_g_min, -P_g_max + eps, P_g_max, P_g_min, -P_g_min, P_g_max])
+        mld_sym_struct.E_p3 = sp.Matrix([-P_g_min, -(P_g_max + eps), -P_g_max, P_g_min, -P_g_min, P_g_max])
         mld_sym_struct.E_p4 = sp.Matrix([0, 0, 1, -1, 1, -1])
         mld_sym_struct.d_p = sp.Matrix([-P_g_min, -eps, 0, 0, -P_g_min, P_g_max])
 
@@ -190,14 +190,14 @@ if __name__ == '__main__':
     dewh_gen = DewhModelGenerator()
     grid_gen = GridModelGenerator()
 
-    pprint.pprint(grid_gen.var_dim_struct)
+    # pprint.pprint(grid_gen.var_dim_struct)
 
 
     def func():
         def closure():
             c = dewh_gen.mld_eval_struct.get("E_h3_eval")
-            print(c(dewh_p))
-            print(dewh_gen.var_dim_struct)
+            # print(c(dewh_p))
+            # print(dewh_gen.var_dim_struct)
             return 1
 
         return closure

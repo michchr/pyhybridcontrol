@@ -135,14 +135,14 @@ if __name__ == '__main__':
     from parameters import dewh_p, grid_p
 
     def main():
-        N_h = 10
+        N_h = 1
 
 
         dewh_repo = DewhRepository(DewhModelGenerator)
         dewh_repo.default_param_struct = dewh_p
 
         for i in range(N_h):
-            dewh_repo.default_param_struct.P_h_Nom +=1
+            # dewh_repo.default_param_struct.P_h_Nom +=1
             dewh_repo.add_device_by_default_data(i)
 
         mg_model = MicroGridModel()
@@ -153,7 +153,7 @@ if __name__ == '__main__':
 
         mg_model.gen_power_balance_constraint_mld(grid_p)
         #
-        # pprint.pprint(mg_model.grid_mld_mat_struct)
+        pprint.pprint(mg_model.grid_mld_mat_struct)
         # pprint.pprint(mg_model.device_mld_mat_struct)
 
         pprint.pprint(mg_model.get_decision_var_type())

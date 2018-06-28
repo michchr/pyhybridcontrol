@@ -209,6 +209,7 @@ class MpcProblem():
 
         mpc_cons_struct = StructDict()
 
+
         mpc_cons_struct.G_V = scs.bmat(
             np.array([[dev_con_evo.H_s_V_s, None], [grid_con_evo.H_p_V_s, grid_con_evo.H_p_V_p]]))
 
@@ -229,7 +230,11 @@ class MpcProblem():
         if micro_grid_model is None:
             micro_grid_model = self.micro_grid_model
 
-        decision_var_types = np.vstack([micro_grid_model.decision_var_types]*N_p)
+
+        decision_var_types_devices = np.vstack([micro_grid_model.decision_var_types[0:-2]]*N_p)
+        decision_var_types_grid = np.vstack([micro_grid_model.decision_var_types[-2::]]*N_p)
+
+        decision_var_types = np.vstack([decision_var_types_devices, decision_var_types_grid])
 
         self._decision_var_types = decision_var_types
 
@@ -268,7 +273,7 @@ if __name__ == '__main__':
 
     def main():
         N_h = 1
-        N_p = 10
+        N_p = 3
 
         dewh_repo = DewhRepository(DewhModelGenerator)
         dewh_repo.default_param_struct = dewh_p
@@ -314,7 +319,6 @@ if __name__ == '__main__':
 
         # print(mpc_prob.decision_var_types)
 
-        print(mpc_prob.mpc_obj_struct.S_W[-1,0])
 
     def func():
         def closure():

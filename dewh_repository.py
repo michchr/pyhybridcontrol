@@ -111,26 +111,27 @@ class DewhSys(object):
 
 
 if __name__ == '__main__':
-    from parameters import dewh_p, grid_p
     import timeit
     import pprint
-    import random
+    from parameters import dewh_p, grid_p
 
-    dewh_repo = DewhRepository(DewhModelGenerator)
-    dewh_repo.default_param_struct = dewh_p
 
-    N_h = 10
+    def main():
+        N_h = 1
+        N_p = 3
 
-    import random
+        dewh_repo = DewhRepository(DewhModelGenerator)
+        dewh_repo.default_param_struct = dewh_p
 
-    a_rnd = random.sample(range(N_h), N_h)
+        for i in range(N_h):
+            dewh_repo.add_device_by_default_data(i)
+
+        sys = dewh_repo[0].mld_mat_struct
 
 
     def func():
         def closure():
-            for i in a_rnd:
-                dewh_repo.add_device_by_default_data(i)
-            print(dewh_repo.N_dev)
+            main()
             return 1
 
         return closure

@@ -18,8 +18,8 @@ dewh_p.T_h_max = 65
 dewh_p.ts = control_ts
 
 grid_p = StructDict()
-grid_p.P_g_min = -2e4
-grid_p.P_g_max = 2e4
+grid_p.P_g_min = -2e6
+grid_p.P_g_max = 2e6
 grid_p.eps = np.finfo(float).eps
 
 grid_p.C_imp = None  # R/kwh

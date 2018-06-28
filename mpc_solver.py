@@ -15,6 +15,8 @@ from mpc_problem import MpcProblem
 
 import pyomo.environ as pe
 
+import cvxpy as cvx
+
 import inspect
 
 import pprint
@@ -42,7 +44,7 @@ class MpcSolver():
     def load_mpc_problem(self, mpc_problem):
         self._mpc_problem = mpc_problem
 
-    def generate_optimization_model(self, mpc_problem: MpcProblem = None):
+    def generate_optimization_model(self, mpc_problem: MpcProblem = None, temp=None):
         if mpc_problem is None:
             mpc_problem = self.mpc_problem
 
@@ -52,16 +54,16 @@ class MpcSolver():
 
         G_V_csr = cons_struct.G_V.tocsr()
 
-        pprint.pprint(obj_struct.S_V)
-
-        b = cons_struct.G_d.A + cons_struct.G_x*60
+        b = cons_struct.G_d.A + cons_struct.G_x@temp
 
         opt_model = pe.ConcreteModel()
-        (numcon, numvar) = cons_struct.G_V.shape
+        numcon, numvar = cons_struct.G_V.shape
 
         V_index_list = [i for i in range(numvar)]
+        Con_Index_list = [i for i in range(numcon)]
 
         opt_model.V_index = pe.Set(initialize=V_index_list, ordered=True)
+        opt_model.Con_index = pe.Set(initialize=Con_Index_list, ordered=True)
 
         ## Set up decision variable ##
 
@@ -81,6 +83,8 @@ class MpcSolver():
 
         opt_model.objective = pe.Objective(rule=set_objective_rule)
 
+
+
         def set_constraint_rule(opt_model, index):
             row = G_V_csr.getrow(index)
             if row.data.size == 0:
@@ -89,10 +93,43 @@ class MpcSolver():
                 return sum(coeff * opt_model.V_var[index] for (index, coeff) in zip(row.indices, row.data)) <= b[
                     index, 0]
 
-        opt_model.constraint = pe.Constraint(opt_model.V_index, rule=set_constraint_rule)
+        opt_model.constraint = pe.Constraint(opt_model.Con_index, rule=set_constraint_rule)
 
+        self.optimization_model = opt_model
         # pe.display(opt_model.constraint)
-        opt_model.write("s.lp", "lp", io_options={"symbolic_solver_labels": True})
+        # opt_model.write("s.lp", "lp", io_options={"symbolic_solver_labels": True})
+
+    def generate_optimization_model_cvx(self, mpc_problem: MpcProblem = None, temp=None):
+        if mpc_problem is None:
+            mpc_problem = self.mpc_problem
+
+        obj_struct = mpc_problem.mpc_obj_struct  # S_V and S_W ==> J = S_V*V_tilde + S_W*W_tilde
+        cons_struct = mpc_problem.mpc_cons_struct  # G_V, G_d G_W and G_x ==> G_V*V_tilde <= G_d + G_W*W_tilde + G_x*x
+        decision_var_types = mpc_problem.decision_var_types
+
+        G_V = cons_struct.G_V
+
+        b = cons_struct.G_d.A + cons_struct.G_x@temp
+
+        numcon, numvar = cons_struct.G_V.shape
+
+        V_var_list = []
+
+        for i in range(numvar):
+            if decision_var_types[i, 0] == 'b':
+                V_var_list.append(cvx.Bool())
+            else:
+                V_var_list.append(cvx.Variable())
+
+        V_var = cvx.vstack(V_var_list)
+
+        constraints = [G_V*V_var <= b]
+        obj = obj_struct.S_V.T*V_var
+
+        prob = cvx.Problem(cvx.Minimize(obj), constraints)
+
+        prob.solve(solver=cvx.GUROBI)
+        print(prob.value)
 
     def solve(self):
         pass
@@ -130,7 +167,7 @@ if __name__ == '__main__':
 
     def main():
         N_h = 1
-        N_p = 3
+        N_p = 96
 
         dewh_repo = DewhRepository(DewhModelGenerator)
         dewh_repo.default_param_struct = dewh_p
@@ -140,7 +177,7 @@ if __name__ == '__main__':
 
         mg_model = MicroGridModel()
         mg_model.grid_param_struct = grid_p
-        mg_model.date_time_0 = DateTime(2018, 5, 1)
+        mg_model.date_time_0 = DateTime(2018, 5, 1,12,29)
 
         mg_model.add_device_repository(dewh_repo)
         mg_model.gen_concat_device_system_mld()
@@ -165,20 +202,34 @@ if __name__ == '__main__':
         mpc_prob.gen_mpc_objective()
         mpc_prob.gen_mpc_decision_var_types()
 
-        print(mpc_prob.decision_var_types)
 
         # pprint.pprint(mpc_prob._mg_mpc_obj_struct)
         # pprint.pprint(mpc_prob._mg_mpc_cons_struct)
         #
-        # print(mpc_prob._mg_mpc_obj_struct.S_V.T.shape)
-        # print(mpc_prob._mg_mpc_obj_struct.S_W.T.shape)
+        print(mpc_prob.mpc_obj_struct.S_V.T.shape)
+        # print(mpc_prob.mpc_obj_struct.S_W.T.shape)
         #
-        # print(mpc_prob._mg_mpc_cons_struct.G_V.shape)
-        # print(mpc_prob._mg_mpc_cons_struct.G_W.shape)
+        # print(mpc_prob.mpc_cons_struct.G_V.shape)
+        # print(mpc_prob.mpc_cons_struct.G_W.shape)
+
+        # print(mpc_prob.decision_var_types)
 
         mpc_solver = MpcSolver()
         mpc_solver.load_mpc_problem(mpc_prob)
-        mpc_solver.generate_optimization_model()
+
+        temp = (np.random.uniform(low=40, high=65, size=(N_h, 1)))
+
+        # mpc_solver.generate_optimization_model(temp=temp)
+        #
+        # from pyomo.opt import SolverFactory
+        # opt = SolverFactory("gurobi")
+        # results = opt.solve(mpc_solver.optimization_model)
+        # # sends results to stdout
+        # results.write()
+        #
+        # pe.display(mpc_solver.optimization_model)
+
+        mpc_solver.generate_optimization_model_cvx(temp=temp)
 
 
     def func():
