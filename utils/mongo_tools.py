@@ -1,17 +1,18 @@
+from IPython import get_ipython as ipython
+
 import sys
+import re
 import logging
 import pymongo as pym
 from pymongo import MongoClient, errors as PymErrors, CursorType
 from pymongo.collection import Collection, Cursor
 from pymongo.database import Database
 import pandas as pd
-import numpy as np
 from datetime import datetime as DateTime
 from dateutil.parser import parse as parse_datetime
 from functools import reduce
 
 pd.set_option('mode.chained_assignment', 'raise')
-# db.authenticate(MONGO_USER, MONGO_PASS)
 
 console_hand = logging.StreamHandler(sys.stdout)
 console_hand.setLevel(logging.INFO)
@@ -34,6 +35,8 @@ _DEV_DEFAULT_FIELDS = {
     'pm': ['ForActiveEnergy_Tot', 'RevActiveEnergy_Tot', 'ActivePower_Tot', 'ApparentPower_Tot']
 }
 
+_DEV_STRING_FIELDS = ['ID', 'SN', 'DevType']
+
 
 def deep_get(doc, key_list, default=None):
     def reducer(d, key):
@@ -47,7 +50,8 @@ def deep_get(doc, key_list, default=None):
 
 class MongoInterface():
 
-    def __init__(self, database=None, collection=None, host='localhost', port=27017):
+    def __init__(self, database=None, collection=None, host='localhost', port=27017, connectTimeoutMS=3000,
+                 serverSelectionTimeoutMS=3000):
 
         if isinstance(collection, Collection):
             self._collection = collection
@@ -59,9 +63,13 @@ class MongoInterface():
             self._collection = self._database[collection]
         else:
             try:
-                self._client = MongoClient(host, port)
-            except:
-                raise ConnectionError('Could not connect to database')
+                self._client = MongoClient(host, port, connect=True, connectTimeoutMS=connectTimeoutMS,
+                                           serverSelectionTimeoutMS=serverSelectionTimeoutMS)
+                # The ismaster command is cheap and does not require auth.
+                self._client.admin.command('ismaster')
+            except PymErrors.ConnectionFailure:
+                self._client.close()
+                raise ConnectionError('Could not connect to database - server not available')
 
             if database not in self._client.list_database_names():
                 logger.info("Database: '%s', does not exist - creating new", database)
@@ -91,35 +99,42 @@ class MongoInterface():
     def collection(self, collection: Collection):
         self._collection = collection
 
-    def get_many_dev_cursor(self, device_type, dev_ids, self_col: Collection = None, start_time: DateTime = None,
-                            end_time: DateTime = None, limit=0, fields=None):
+    def get_many_dev_cursor(self, device_type, dev_ids,
+                            self_col: Collection = None,
+                            start_time: DateTime = None, end_time: DateTime = None,
+                            fields=None, to_numeric=True,
+                            limit=0):
 
         if (self_col is not None) and (self_col != self._collection):
             self.collection = self_col
             logger.info("MongoInterface now using Collection: '{%s}'", self.collection.name)
 
+        select_all_fields = False
         if fields == 'all':
             select_all_fields = True
-            fields = None
-        else:
-            select_all_fields = False
-
-        if (not isinstance(fields, list)) and (fields is not None):
+            fields = self.get_many_dev_tags(device_type, dev_ids, self.collection)
+        elif fields is None:
+            fields = _DEV_DEFAULT_FIELDS[device_type] or self.get_many_dev_tags(device_type, dev_ids, self.collection)
+        elif (not isinstance(fields, list)):
             raise ValueError("fields must be list of strings or 'all'")
 
         mongo_dev_tag = _DEV_TAG_MAP.get(device_type)
-        mongo_dev_fields = _DEV_DEFAULT_FIELDS.get(device_type)
 
         if mongo_dev_tag:
             str_id_list = [mongo_dev_tag + str(dev_id) for dev_id in dev_ids]
-            if fields is None:
-                fields = mongo_dev_fields
         else:
             raise ValueError("Device type: '{}' does not exist or is not supported".format(device_type))
 
+        field_keys_numeric = {str_id: [str_id + "." + field for field in fields if field not in _DEV_STRING_FIELDS] for
+                              str_id in str_id_list}
+        field_keys_string = {str_id: [str_id + "." + field for field in fields if field in _DEV_STRING_FIELDS] for
+                             str_id in str_id_list}
+
+        field_keys = {str_id: (field_keys_numeric[str_id] + field_keys_string[str_id]) for str_id in str_id_list}
+
         dev_selection = [{'$and': [{str_id: {'$exists': 1}},
                                    {'$or': [
-                                       {str_id + "." + field: {'$ne': ""}} for field in fields
+                                       {field_key: {'$ne': ""}} for field_key in field_keys[str_id]
                                    ]}
                                    ]
                           } for str_id in str_id_list
@@ -131,28 +146,73 @@ class MongoInterface():
                  }
 
         projection = {"_id": 0, 'TimeStamp': 1}
-        if select_all_fields:
-            projection.update({str_id: 1 for str_id in str_id_list})
+
+        #
+        if not to_numeric:
+            if select_all_fields:
+                projection.update({str_id: 1 for str_id in str_id_list})
+            else:
+                projection.update({field_key: 1 for str_id in str_id_list for field_key in field_keys[str_id]})
+
+            dev_cursor = self.collection.find(query, projection, sort=[("TimeStamp", 1)], limit=limit)
         else:
-            projection.update({str_id + "." + field: 1 for field in fields for str_id in str_id_list})
+            converter = {field_key: {'$cond':
+                                         {'if':
+                                              {'$eq':
+                                                   [{'$indexOfBytes': ['$' + field_key, "."]}, -1]
+                                               },
+                                          'then':
+                                              {'$convert':
+                                                   {'input': '$' + field_key,
+                                                    'to': "int",
+                                                    'onError': float('nan')}
+                                               },
+                                          'else':
+                                              {'$convert':
+                                                   {'input': '$' + field_key,
+                                                    'to': "double",
+                                                    'onError': float('nan')}
+                                               }
+                                          }
+                                     } for str_id in str_id_list for field_key in field_keys_numeric[str_id]}
 
-        cursor = self.collection.find(query, projection, sort=[("TimeStamp", 1)], limit=limit,
-                                      cursor_type=CursorType.NON_TAILABLE)
+            projection.update(converter)
+            projection.update({field_key: 1 for str_id in str_id_list for field_key in field_keys_string[str_id]})
 
-        return cursor
+            pipeline = [{'$match': query},
+                        {'$sort': {"TimeStamp": 1}},
+                        {'$project': projection},
+                        ]
 
-    def get_one_dev_cursor(self, device_type, dev_id, self_col: Collection = None, start_time: DateTime = None,
-                           end_time: DateTime = None, limit=0, fields=None):
+            if limit:
+                pipeline.insert(2, {'$limit': limit})
+
+            dev_cursor = self.collection.aggregate(pipeline)
+
+        return dev_cursor
+
+    def get_one_dev_cursor(self, device_type, dev_id,
+                           self_col: Collection = None,
+                           start_time: DateTime = None, end_time: DateTime = None,
+                           fields=None, convert=True,
+                           limit=0):
 
         return self.get_many_dev_cursor(device_type, [dev_id], self_col=self_col, start_time=start_time,
-                                        end_time=end_time, limit=limit, fields=fields)
+                                        end_time=end_time, limit=limit, fields=fields, to_numeric=convert)
 
-    def get_many_dev_raw_dataframe(self, device_type, dev_ids, self_col: Collection = None, start_time: DateTime = None,
-                                   end_time: DateTime = None, limit=0, fields=None, cursor=None):
+    def get_many_dev_raw_dataframe(self, device_type, dev_ids, cursor=None,
+                                   self_col: Collection = None,
+                                   start_time: DateTime = None, end_time: DateTime = None,
+                                   fields=None, convert=True,
+                                   limit=0):
 
+        force_to_numeric = False
         if cursor is None:
             cursor = self.get_many_dev_cursor(device_type, dev_ids, self_col=self_col, start_time=start_time,
-                                              end_time=end_time, limit=limit, fields=fields)
+                                              end_time=end_time, limit=limit, fields=fields, to_numeric=convert)
+        elif convert:
+            force_to_numeric = True
+
         with cursor as cursor:
             list_cur = list(cursor)
 
@@ -164,22 +224,50 @@ class MongoInterface():
             raw_df = raw_df[~raw_df.index.duplicated(keep='last')]
             raw_df = raw_df.unstack(0).reorder_levels([1, 0], axis=1).sort_index(axis=1)
 
+            level_0 = [int(re.findall("[0-9]*[0-9]", id)[0]) for id in raw_df.columns.levels[0]]
+            raw_df.columns.set_levels(level_0, level=0, inplace=True)
+            raw_df.columns.names = [device_type.upper() + "_id", 'Tag']
+
+            if force_to_numeric:
+                idx = pd.IndexSlice
+                numeric_fields = [i for i in raw_df.columns.levels[1] if i not in _DEV_STRING_FIELDS]
+                raw_df.loc[:, idx[:, numeric_fields]] = raw_df.loc[:, idx[:, numeric_fields]].apply(pd.to_numeric,
+                                                                                                    errors='coerce')
+
         return raw_df
 
-    def get_one_dev_raw_dataframe(self, device_type, dev_id, self_col: Collection = None, start_time: DateTime = None,
-                                  end_time: DateTime = None, limit=0, fields=None, cursor=None):
+    def get_one_dev_raw_dataframe(self, device_type, dev_id, cursor=None,
+                                  self_col: Collection = None,
+                                  start_time: DateTime = None, end_time: DateTime = None,
+                                  fields=None, convert=True,
+                                  limit=0):
 
         return self.get_many_dev_raw_dataframe(device_type, [dev_id], self_col=self_col, start_time=start_time,
-                                               end_time=end_time, limit=limit, fields=fields, cursor=cursor)
+                                               end_time=end_time, limit=limit, fields=fields, cursor=cursor,
+                                               convert=convert)
 
-    def get_dev_tags(self, device_type, dev_id, self_col: Collection = None):
+    def get_many_dev_tags(self, device_type, dev_ids, self_col: Collection = None):
         if (self_col is not None) and (self_col != self._collection):
             self.collection = self_col
             logger.info("MongoInterface now using Collection: '{%s}'", self.collection.name)
 
+        mongo_dev_tag = _DEV_TAG_MAP.get(device_type)
+        str_id_list = [mongo_dev_tag + str(dev_id) for dev_id in dev_ids]
+        query = {}
+        sort = [('TimeStamp', -1)]
+        proj = {'_id': 0}
+        proj.update({str_id: 1 for str_id in str_id_list})
 
+        doc = self.collection.find_one(query, proj, sort=sort, max_time_ms=100)
 
+        fields = set()
+        for key, value in doc.items():
+            fields.update(list(value.keys()))
 
+        return list(fields)
+
+    def get_one_dev_tags(self, device_type, dev_id, self_col: Collection = None):
+        return self.get_many_dev_tags(device_type, [dev_id], self_col=self_col)
 
     def set_string_field_to_datetime(self, self_col: Collection = None, field_tag='TimeStamp'):
 
@@ -273,7 +361,8 @@ class MongoInterface():
         try:
             result = self.collection.bulk_write(requests)
         except PymErrors.BulkWriteError as bwe:
-            raise IndexError("BulkWriteError with errmsg: {}".format(bwe.details['writeErrors'][0]['errmsg'])) from None
+            raise IndexError(
+                "BulkWriteError with errmsg: {}".format(bwe.details['writeErrors'][0]['errmsg'])) from None
 
         num_appended = result.inserted_count
         logger.info("Appended %s documents", num_appended)
@@ -287,14 +376,15 @@ class MongoInterface():
             logger.info("MongoInterface now using Collection: '{%s}'", self.collection.name)
 
         order = pym.DESCENDING if newest else pym.ASCENDING
-        if limit is None:
+
+        if limit:
             pipeline = [{'$sort': {'_id': order}},
+                        {'$limit': limit},
                         {'$project': {'_id': 0}},
                         {'$out': self.collection.name}
                         ]
         else:
             pipeline = [{'$sort': {'_id': order}},
-                        {'$limit': limit},
                         {'$project': {'_id': 0}},
                         {'$out': self.collection.name}
                         ]
@@ -319,27 +409,35 @@ if __name__ == '__main__':
     from timeit import default_timer as Timer
 
     mi = MongoInterface(database='site_data', collection='Kikuyu')
-    # mi.clone_collection(kik)
     mi.set_string_field_to_datetime()
     mi.collection.create_index("TimeStamp")
 
-    start_date = DateTime(2018, 7, 28, 12, 0)
+    start_date = DateTime(2018, 7, 30, 12, 0)
     end_date = DateTime(2018, 7, 30, 12, 3)
 
     st = Timer()
-    raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_time=start_date, end_time=end_date, fields='all')
 
+    raw_df = mi.get_many_dev_raw_dataframe('dewh', range(1,2), start_time=start_date, end_time=end_date,
+                                           fields='all', convert=True)
+
+
+    # ipython().magic('%%timeit main()')
+    #
     print("Time taken is {}".format(Timer() - st))
 
-    st = Timer()
-    df = raw_df.apply(pd.to_numeric, errors='coerce')
-    print("Time taken is {}".format(Timer() - st))
-    print(raw_df.head(2))
+    # raw_df
+    #
+    # st = Timer()
+    # df = raw_df.apply(pd.to_numeric, errors='coerce')
+    # print("Time taken is {}".format(Timer() - st))
+    #
+    # print(df.info())
 
     # raw_df = mi.get_one_dev_cursor('dewh', 5, start_time=start_date, end_time=end_date)
     # raw_df = list(raw_df)
     # raw_df = pd.DataFrame(raw_df).set_index('TimeStamp')
-    # raw_df = pd.DataFrame(raw_df.iloc[:,0].values.tolist(),index=raw_df.index, columns=['Temp', 'Status', 'Error'])
+    # raw_df = pd.DataFrame(raw_df.iloc[:,0].values.tolist(),index=raw_df.index, columns=['Temp', 'Status',
+    # 'Error'])
     #
     # df2 = mi.get_one_dev_cursor('dewh', 6, start_time=start_date, end_time=end_date)
     # df2 = list(df2)
