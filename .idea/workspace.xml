@@ -4,11 +4,7 @@
     <bookmark url="file://$PROJECT_DIR$/utils/dataframe_tools.py" line="84" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="978f0496-550b-4dd8-93c2-8d0c323768ce" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/dataframe_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/dataframe_tools.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/mongo_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/mongo_tools.py" afterDir="false" />
-    </list>
+    <list default="true" id="978f0496-550b-4dd8-93c2-8d0c323768ce" name="Default" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -41,7 +37,7 @@
     <session id="-1357689466">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="25" />
+          <entry key="project.closed" value="26" />
           <entry key="project.open.time.10" value="3" />
           <entry key="project.open.time.11" value="2" />
           <entry key="project.open.time.12" value="1" />
@@ -51,9 +47,9 @@
           <entry key="project.open.time.20" value="1" />
           <entry key="project.open.time.6" value="1" />
           <entry key="project.open.time.7" value="2" />
-          <entry key="project.open.time.8" value="8" />
+          <entry key="project.open.time.8" value="9" />
           <entry key="project.open.time.9" value="5" />
-          <entry key="project.opened" value="26" />
+          <entry key="project.opened" value="27" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
@@ -76,7 +72,7 @@
           <entry key="html" value="1" />
           <entry key="json" value="2" />
           <entry key="pstat" value="8" />
-          <entry key="py" value="771" />
+          <entry key="py" value="772" />
           <entry key="pyi" value="3" />
           <entry key="vmoptions" value="2" />
         </counts>
@@ -86,7 +82,7 @@
           <entry key="HTML" value="1" />
           <entry key="PLAIN_TEXT" value="3" />
           <entry key="Profiler Session" value="8" />
-          <entry key="Python" value="768" />
+          <entry key="Python" value="769" />
           <entry key="PythonStub" value="3" />
           <entry key="Scratch" value="5" />
         </counts>
@@ -99,13 +95,12 @@
   <component name="FileEditorManager">
     <leaf>
       <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/utils/dataframe_tools.py">
+        <entry file="file://$PROJECT_DIR$/dewh_repository.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="444">
-              <caret line="322" lean-forward="true" selection-start-line="322" selection-end-line="322" />
+            <state relative-caret-position="289">
+              <caret line="77" selection-start-line="77" selection-end-line="77" />
               <folding>
-                <element signature="e#0#19#0" expanded="true" />
-                <marker date="1535039919416" expanded="true" signature="9593:9599" ph="..." />
+                <element signature="e#0#47#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -244,11 +239,11 @@
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds" extendedState="7">
     <option name="x" value="570" />
     <option name="y" value="-25" />
-    <option name="width" value="978" />
-    <option name="height" value="1039" />
+    <option name="width" value="979" />
+    <option name="height" value="1040" />
   </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
     <entry key="Project Default">
@@ -496,10 +491,9 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-6" y="0" width="781" height="830" extended-state="0" />
-    <editor active="true" />
+    <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.6226852" visible="true" weight="0.37170595" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.6226852" visible="true" weight="0.1852349" />
       <window_info id="Structure" order="1" sideWeight="0.3773148" side_tool="true" weight="0.17986578" />
       <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
@@ -704,13 +698,6 @@
     <entry file="file://$APPLICATION_CONFIG_DIR$/scratches/scratch_1.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$PROJECT_DIR$/dewh_repository.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1688">
-          <caret column="21" selection-start-column="5" selection-end-column="21" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/compat/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="148">
@@ -898,19 +885,27 @@
           <caret line="419" column="26" selection-start-line="419" selection-start-column="26" selection-end-line="419" selection-end-column="26" />
           <folding>
             <element signature="e#0#42#0" expanded="true" />
-            <marker date="1535040758626" expanded="true" signature="13762:13850" ph="..." />
-            <marker date="1535040758626" expanded="true" signature="13941:13951" ph="..." />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/utils/dataframe_tools.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="444">
-          <caret line="322" lean-forward="true" selection-start-line="322" selection-end-line="322" />
+        <state relative-caret-position="1005">
+          <caret line="322" selection-start-line="322" selection-end-line="322" />
           <folding>
             <element signature="e#0#19#0" expanded="true" />
-            <marker date="1535039919416" expanded="true" signature="9593:9599" ph="..." />
+            <marker date="1535100186566" expanded="true" signature="9593:9599" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/dewh_repository.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="289">
+          <caret line="77" selection-start-line="77" selection-end-line="77" />
+          <folding>
+            <element signature="e#0#47#0" expanded="true" />
           </folding>
         </state>
       </provider>
