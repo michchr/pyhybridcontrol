@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BookmarkManager">
+    <bookmark url="file://$PROJECT_DIR$/utils/dataframe_tools.py" line="84" />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="978f0496-550b-4dd8-93c2-8d0c323768ce" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/dataframe_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/dataframe_tools.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/mongo_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/mongo_tools.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -31,15 +35,15 @@
     <SUITE FILE_PATH="coverage/thesis_code$test.coverage" NAME="test Coverage Results" MODIFIED="1527522920414" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1527083185927" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/thesis_code$model_gen.coverage" NAME="model_gen Coverage Results" MODIFIED="1528987358495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$dataframe_tools.coverage" NAME="dataframe_tools Coverage Results" MODIFIED="1534341451275" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
+    <SUITE FILE_PATH="coverage/thesis_code$dataframe_tools.coverage" NAME="dataframe_tools Coverage Results" MODIFIED="1534949189711" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
   </component>
   <component name="FUSProjectUsageTrigger">
     <session id="-1357689466">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="21" />
-          <entry key="project.open.time.10" value="2" />
-          <entry key="project.open.time.11" value="1" />
+          <entry key="project.closed" value="25" />
+          <entry key="project.open.time.10" value="3" />
+          <entry key="project.open.time.11" value="2" />
           <entry key="project.open.time.12" value="1" />
           <entry key="project.open.time.14" value="1" />
           <entry key="project.open.time.15" value="1" />
@@ -47,32 +51,32 @@
           <entry key="project.open.time.20" value="1" />
           <entry key="project.open.time.6" value="1" />
           <entry key="project.open.time.7" value="2" />
-          <entry key="project.open.time.8" value="7" />
+          <entry key="project.open.time.8" value="8" />
           <entry key="project.open.time.9" value="5" />
-          <entry key="project.opened" value="23" />
+          <entry key="project.opened" value="26" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="Python Console" value="25127" />
-          <entry key="dummy" value="17" />
-          <entry key="py" value="26171" />
+          <entry key="Python Console" value="34495" />
+          <entry key="dummy" value="22" />
+          <entry key="py" value="38713" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="PLAIN_TEXT" value="17" />
-          <entry key="Python" value="51164" />
-          <entry key="Scratch" value="134" />
+          <entry key="PLAIN_TEXT" value="22" />
+          <entry key="Python" value="73042" />
+          <entry key="Scratch" value="166" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
         <counts>
           <entry key="conda" value="1" />
           <entry key="html" value="1" />
-          <entry key="json" value="1" />
-          <entry key="pstat" value="7" />
-          <entry key="py" value="587" />
+          <entry key="json" value="2" />
+          <entry key="pstat" value="8" />
+          <entry key="py" value="771" />
           <entry key="pyi" value="3" />
           <entry key="vmoptions" value="2" />
         </counts>
@@ -81,10 +85,10 @@
         <counts>
           <entry key="HTML" value="1" />
           <entry key="PLAIN_TEXT" value="3" />
-          <entry key="Profiler Session" value="7" />
-          <entry key="Python" value="585" />
+          <entry key="Profiler Session" value="8" />
+          <entry key="Python" value="768" />
           <entry key="PythonStub" value="3" />
-          <entry key="Scratch" value="3" />
+          <entry key="Scratch" value="5" />
         </counts>
       </usages-collector>
     </session>
@@ -97,11 +101,11 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/utils/dataframe_tools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="289">
-              <caret line="113" column="37" selection-start-line="113" selection-start-column="37" selection-end-line="113" selection-end-column="37" />
+            <state relative-caret-position="444">
+              <caret line="322" lean-forward="true" selection-start-line="322" selection-end-line="322" />
               <folding>
                 <element signature="e#0#19#0" expanded="true" />
-                <marker date="1534766236968" expanded="true" signature="4272:4277" ph="..." />
+                <marker date="1535039919416" expanded="true" signature="9593:9599" ph="..." />
               </folding>
             </state>
           </provider>
@@ -119,43 +123,38 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>for str_id in str_id_list</find>
-      <find>limit</find>
-      <find>concat</find>
-      <find>appe</find>
-      <find>append</find>
-      <find>raw</find>
-      <find>command</find>
-      <find>explain</find>
-      <find>to_numeric</find>
-      <find>plot</find>
-      <find>self</find>
-      <find>index</find>
-      <find>pr</find>
-      <find>start_date \= DateTime\(2018\, 7\, 10\,15\,30\)\n    end_time \= DateTime\(2018\, 7\, 10\,15\,40\)\n\n\n    print\(\'here1\'\)\n    raw_data \= mi\.get_many_dev_raw_dataframe\(\'dewh\'\, range\(1\,3\)\, fields\=\'all\'\, start_time\=start_date\, end_time\=end_time\)\n\n    print\(\'here2\'\)\n    mg_df \= MicroGridDataFrame\(raw_data\)\n    print\(\'here3\'\)\n    al_df \= mg_df\.align_samples\(\)\n    print\(\'here4\'\)\n    df \= al_df\.dewh_resample\(\)\n    print\(\'here5\'\)\n\n    df_r \= df\.copy\(\)\n    df_r\.iloc\[\:\,\:\] \= np\.random\.randint\(100\, size\=df\.shape\)\n\n    df_r_i \: pd\.MultiIndex \= df_r\.columns\n</find>
+      <find>iloc()</find>
+      <find>class ob</find>
+      <find>iloc(</find>
+      <find>loc</find>
+      <find>setat</find>
+      <find>_iLo</find>
+      <find>object.__se</find>
+      <find>NDFra</find>
+      <find>iLoc</find>
+      <find>iloc</find>
+      <find>g</find>
+      <find>'iloc'</find>
+      <find>__get</find>
+      <find>device</find>
       <find>print</find>
-      <find>frozen</find>
-      <find>froz</find>
-      <find>Min</find>
-      <find>last =</find>
-      <find>last</find>
-      <find>def f</find>
-      <find>'rawNan'</find>
-      <find>rawNan</find>
-      <find>is</find>
-      <find>is</find>
-      <find>is</find>
-      <find>==</find>
-      <find>keys</find>
-      <find>convert_to</find>
-      <find>conver</find>
+      <find>__fina</find>
+      <find>self._constructor\(</find>
+      <find>to_of</find>
+      <find>@make</find>
+      <find>IGNOR</find>
+      <find>flags</find>
+      <find>IGNO</find>
+      <find>fiel</find>
+      <find>@</find>
+      <find>_rena</find>
+      <find>_re</find>
+      <find>_meta</find>
+      <find>id</find>
+      <find>0-</find>
+      <find>figs</find>
     </findStrings>
     <replaceStrings>
-      <replace>[</replace>
-      <replace>s_s</replace>
-      <replace>'coo'</replace>
-      <replace>'csr'</replace>
-      <replace>dia</replace>
       <replace>Nh, 'csr'</replace>
       <replace>Np</replace>
       <replace>B_s4</replace>
@@ -179,8 +178,13 @@
       <replace>limit</replace>
       <replace>limit=0</replace>
       <replace>convert</replace>
-      <replace>df</replace>
       <replace>is_Nan_Raw</replace>
+      <replace>df</replace>
+      <replace>_constructor\(d</replace>
+      <replace>_constructor\(</replace>
+      <replace>_construct</replace>
+      <replace>_constructor(</replace>
+      <replace>self._constuctor_override(</replace>
     </replaceStrings>
     <dirStrings>
       <dir>C:\Miniconda3\envs\thesis_code\Lib\site-packages</dir>
@@ -220,7 +224,6 @@
         <option value="$PROJECT_DIR$/parameters.py" />
         <option value="$PROJECT_DIR$/micro_grid_model.py" />
         <option value="$USER_HOME$/PycharmProjects/thesis_venv/Lib/site-packages/pulp/pulp.cfg.win" />
-        <option value="$APPLICATION_CONFIG_DIR$/scratches/scratch_1.py" />
         <option value="$PROJECT_DIR$/matlab_code/test.ipynb" />
         <option value="$PROJECT_DIR$/test.ipynb" />
         <option value="$PROJECT_DIR$/test2.ipynb" />
@@ -229,8 +232,9 @@
         <option value="$PROJECT_DIR$/model_generators.py" />
         <option value="$APPLICATION_CONFIG_DIR$/scratches/scratch.py" />
         <option value="$PROJECT_DIR$/dewh_repository.py" />
-        <option value="$PROJECT_DIR$/utils/mongo_tools.py" />
+        <option value="$APPLICATION_CONFIG_DIR$/scratches/scratch_1.py" />
         <option value="$PROJECT_DIR$/utils/dataframe_tools.py" />
+        <option value="$PROJECT_DIR$/utils/mongo_tools.py" />
       </list>
     </option>
   </component>
@@ -241,10 +245,10 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="930" />
-    <option name="y" value="-15" />
-    <option name="width" value="980" />
-    <option name="height" value="1040" />
+    <option name="x" value="570" />
+    <option name="y" value="-25" />
+    <option name="width" value="978" />
+    <option name="height" value="1039" />
   </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
     <entry key="Project Default">
@@ -302,7 +306,6 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -328,10 +331,11 @@
           <select />
         </subPane>
       </pane>
+      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="SearchEverywhereHistoryKey" value="DatetimeIndexResampler&#9;null&#9;null&#10;**kwargs&#9;null&#9;null&#10;kwarg&#9;null&#9;null&#10;@keyword&#9;null&#9;null&#10;weakref&#9;null&#9;null&#10;__mul__&#9;null&#9;null&#10;mps&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/repn/plugins/mps.py&#10;ctype&#9;null&#9;null&#10;pprint&#9;null&#9;null&#10;numericV&#9;null&#9;null&#10;numericValu&#9;null&#9;null&#10;guro&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/solvers/plugins/solvers/gurobi_direct.py&#10;ConstraintLIs&#9;null&#9;null&#10;MPS&#9;null&#9;null&#10;matrix_constraint&#9;null&#9;null&#10;CPLEX_DLL_load_dll&#9;null&#9;null&#10;CPLEX_DLL&#9;null&#9;null&#10;gurobi_path&#9;null&#9;null&#10;config_filename&#9;null&#9;null" />
+    <property name="SearchEverywhereHistoryKey" value="_metadata&#9;null&#9;null&#10;make_signature&#9;null&#9;null&#10;make_sig&#9;null&#9;null&#10;pandas.core.indexing&#9;null&#9;null&#10;_iLocIn&#9;null&#9;null&#10;_iLo&#9;null&#9;null&#10;iloc(&#9;null&#9;null&#10;_constructor(&#9;FILE&#9;file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/frame/test_constructors.py&#10;_constructor_sliced&#9;null&#9;null&#10;DatetimeIndexResampler&#9;null&#9;null&#10;**kwargs&#9;null&#9;null&#10;kwarg&#9;null&#9;null&#10;@keyword&#9;null&#9;null&#10;weakref&#9;null&#9;null&#10;__mul__&#9;null&#9;null&#10;mps&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/repn/plugins/mps.py&#10;ctype&#9;null&#9;null&#10;pprint&#9;null&#9;null&#10;numericV&#9;null&#9;null&#10;numericValu&#9;null&#9;null&#10;guro&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/solvers/plugins/solvers/gurobi_direct.py&#10;ConstraintLIs&#9;null&#9;null&#10;MPS&#9;null&#9;null&#10;matrix_constraint&#9;null&#9;null&#10;CPLEX_DLL_load_dll&#9;null&#9;null&#10;CPLEX_DLL&#9;null&#9;null&#10;gurobi_path&#9;null&#9;null&#10;config_filename&#9;null&#9;null" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="Python" />
     <property name="full.screen.before.presentation.mode" value="false" />
@@ -388,50 +392,6 @@
       <option name="ipnbPort" value="8888" />
       <method v="2" />
     </configuration>
-    <configuration name="Python Console (1)" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="thesis_code" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="C:\Miniconda3\envs\thesis_code\python.exe" />
-      <option name="WORKING_DIRECTORY" value="" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="/Python Console" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="true" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
-    <configuration name="Python Console (3)" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="thesis_code" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="C:\Miniconda3\envs\thesis_code\python.exe" />
-      <option name="WORKING_DIRECTORY" value="" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="/Python Console" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="true" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -458,6 +418,9 @@
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
       <option name="SDK_HOME" value="C:\Miniconda3\envs\thesis_code\python.exe" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/utils" />
       <option name="IS_MODULE_SDK" value="true" />
@@ -495,45 +458,20 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="numeric" type="PythonConfigurationType" factoryName="Python" temporary="true">
-      <module name="thesis_code" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="C:\Miniconda3\envs\thesis_code\python.exe" />
-      <option name="WORKING_DIRECTORY" value="C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/numeric.py" />
-      <option name="PARAMETERS" value="" />
-      <option name="SHOW_COMMAND_LINE" value="true" />
-      <option name="EMULATE_TERMINAL" value="false" />
-      <option name="MODULE_MODE" value="false" />
-      <option name="REDIRECT_INPUT" value="false" />
-      <option name="INPUT_FILE" value="" />
-      <method v="2" />
-    </configuration>
     <list>
       <item itemvalue="Jupyter Notebook.thesis_code" />
       <item itemvalue="Python.dataframe_tools" />
-      <item itemvalue="Python.Python Console (3)" />
-      <item itemvalue="Python.numeric" />
-      <item itemvalue="Python.Python Console (1)" />
       <item itemvalue="Python.mongo_tools" />
     </list>
     <recent_temporary>
       <list>
         <item itemvalue="Python.dataframe_tools" />
         <item itemvalue="Python.mongo_tools" />
-        <item itemvalue="Python.Python Console (1)" />
-        <item itemvalue="Python.numeric" />
-        <item itemvalue="Python.Python Console (3)" />
       </list>
     </recent_temporary>
+  </component>
+  <component name="StructureViewFactory">
+    <option name="ACTIVE_ACTIONS" value=",SHOW_FIELDS" />
   </component>
   <component name="SvnConfiguration">
     <configuration />
@@ -558,14 +496,14 @@
     </todo-panel>
   </component>
   <component name="ToolWindowManager">
-    <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
+    <frame x="-6" y="0" width="781" height="830" extended-state="0" />
     <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.74462366" visible="true" weight="0.17248322" />
-      <window_info id="Structure" order="1" sideWeight="0.25675675" side_tool="true" weight="0.19530201" />
-      <window_info id="Favorites" order="2" sideWeight="0.5253456" side_tool="true" weight="0.20872483" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.6226852" visible="true" weight="0.37170595" />
+      <window_info id="Structure" order="1" sideWeight="0.3773148" side_tool="true" weight="0.17986578" />
+      <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.3231788" />
+      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.32056737" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.63892615" weight="0.4" />
       <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39716312" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
@@ -575,9 +513,9 @@
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Inspection Results" order="9" weight="0.32905984" />
       <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.23557048" side_tool="true" weight="0.40141845" />
-      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" weight="0.3615894" />
-      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5271523" />
-      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.3231788" />
+      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" weight="1.0" />
+      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5258278" />
+      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.3205298" />
       <window_info active="true" anchor="bottom" id="Concurrent Activities Diagram" order="14" weight="0.32980132" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -588,11 +526,11 @@
       <window_info anchor="right" x="484" y="204" width="508" height="480" id="SciView" order="6" show_stripe_button="false" sideWeight="0.49122807" weight="0.347651" />
     </layout>
     <layout-to-restore>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.74462366" visible="true" weight="0.20604026" />
-      <window_info id="Structure" order="1" sideWeight="0.25675675" side_tool="true" weight="0.19530201" />
-      <window_info id="Favorites" order="2" sideWeight="0.5253456" side_tool="true" weight="0.20872483" />
+      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.6226852" visible="true" weight="0.17986578" />
+      <window_info id="Structure" order="1" sideWeight="0.3773148" side_tool="true" visible="true" weight="0.17986578" />
+      <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.3231788" />
+      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.32056737" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.63892615" weight="0.4" />
       <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39716312" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
@@ -602,9 +540,9 @@
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Inspection Results" order="9" weight="0.32905984" />
       <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.23557048" side_tool="true" weight="0.40141845" />
-      <window_info active="true" anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" visible="true" weight="0.37588653" />
-      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5271523" />
-      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.3231788" />
+      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" visible="true" weight="0.38723403" />
+      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5262411" />
+      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.3219858" />
       <window_info active="true" anchor="bottom" id="Concurrent Activities Diagram" order="14" weight="0.32980132" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -622,209 +560,7 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/sketch.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/structdict.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="340">
-          <caret line="20" column="14" selection-start-line="20" selection-start-column="12" selection-end-line="20" selection-end-column="14" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tariff_generator.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://$PROJECT_DIR$/mpc_solver.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="17" column="12" selection-start-line="17" selection-start-column="12" selection-end-line="17" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/cvxpy/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="17" column="10" selection-start-line="17" selection-start-column="5" selection-end-line="17" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/util/testing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="3" column="9" lean-forward="true" selection-start-line="3" selection-start-column="9" selection-end-line="3" selection-end-column="9" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/topology_description.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="133">
-          <caret line="184" selection-start-line="184" selection-end-line="184" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/client_session.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="589" selection-start-line="589" selection-end-line="589" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/topology.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="438" selection-start-line="438" selection-end-line="438" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/contextlib.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2108">
-          <caret line="128" column="4" selection-start-line="128" selection-start-column="4" selection-end-line="128" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/tools/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="14" column="4" selection-start-line="14" selection-start-column="4" selection-end-line="14" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/traitlets/config/configurable.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="381" column="8" selection-start-line="381" selection-start-column="8" selection-end-line="381" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/IPython/core/getipython.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="238">
-          <caret line="23" column="36" lean-forward="true" selection-start-line="23" selection-start-column="36" selection-end-line="23" selection-end-column="36" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/mongo_client.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="459">
-          <caret line="208" column="37" selection-start-line="208" selection-start-column="13" selection-end-line="208" selection-end-column="37" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/IPython/core/interactiveshell.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="110">
-          <caret line="2960" selection-start-line="2960" selection-end-line="2960" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/dewh_repository.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1799">
-          <caret column="21" selection-start-column="5" selection-end-column="21" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/computation/expressions.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/command_cursor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="323">
-          <caret line="32" column="6" selection-start-line="32" selection-start-column="6" selection-end-line="32" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/cursor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-8054">
-          <caret line="800" column="15" selection-start-line="800" selection-start-column="8" selection-end-line="800" selection-end-column="15" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/database.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-1105">
-          <caret line="515" column="8" selection-start-line="515" selection-start-column="8" selection-end-line="515" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pymongo/collection.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="2321" column="8" selection-start-line="2321" selection-start-column="8" selection-end-line="2321" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/accessor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="218">
-          <caret line="124" column="8" selection-start-line="124" selection-start-column="8" selection-end-line="124" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/plotting/_core.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-4029">
-          <caret line="2910" column="6" selection-start-line="2910" selection-start-column="6" selection-end-line="2910" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/decorator.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="221">
-          <caret line="138" column="8" selection-start-line="138" selection-start-column="8" selection-end-line="138" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/functools.pyi">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/inspect.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-30">
-          <caret line="2175" column="4" selection-start-line="2175" selection-start-column="4" selection-end-line="2175" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/functools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-887">
-          <caret line="332" column="8" selection-start-line="332" selection-start-column="8" selection-end-line="332" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/fromnumeric.py" />
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/errors/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="119">
-          <caret line="168" column="8" selection-start-line="168" selection-start-column="8" selection-end-line="168" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/window.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="170">
-          <caret line="45" column="27" selection-start-line="45" selection-start-column="27" selection-end-line="45" selection-end-column="27" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$APPLICATION_CONFIG_DIR$/pycharm64.exe.vmoptions">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="221">
-          <caret line="13" selection-start-line="13" selection-end-line="13" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/utils/ts.html" />
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="268">
-          <caret line="508" column="18" lean-forward="true" selection-start-line="508" selection-start-column="18" selection-end-line="508" selection-end-column="18" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/numpy/core/umath.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="183">
@@ -839,13 +575,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/internals.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="76">
-          <caret line="1195" column="8" selection-start-line="1195" selection-start-column="8" selection-end-line="1195" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/lib/function_base.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-995">
@@ -853,110 +582,335 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/builtins.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="68">
-          <caret line="3650" column="8" selection-start-line="3650" selection-start-column="8" selection-end-line="3650" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tseries/frequencies.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="663">
-          <caret line="66" column="27" selection-start-line="66" selection-start-column="24" selection-end-line="66" selection-end-column="27" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3808">
-          <caret line="250" selection-start-line="250" selection-end-line="250" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="34">
-          <caret line="65" selection-start-line="65" selection-end-line="65" />
-          <folding>
-            <element signature="e#0#40#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/util/_validators.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="210">
-          <caret line="220" column="4" selection-start-line="220" selection-start-column="4" selection-end-line="220" selection-end-column="4" />
+        <state relative-caret-position="397">
+          <caret line="347" column="31" lean-forward="true" selection-start-line="347" selection-start-column="31" selection-end-line="347" selection-end-column="31" />
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/apply.py">
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/missing.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-992">
-          <caret line="104" column="8" selection-start-line="104" selection-start-column="8" selection-end-line="104" selection-end-column="8" />
+        <state relative-caret-position="169">
+          <caret line="73" column="4" selection-start-line="73" selection-start-column="4" selection-end-line="73" selection-end-column="4" />
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/resample.py">
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/_methods.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="317">
-          <caret line="920" column="46" lean-forward="true" selection-start-line="920" selection-start-column="46" selection-end-line="920" selection-end-column="46" />
+        <state relative-caret-position="133">
+          <caret line="45" selection-start-line="45" selection-end-line="45" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/fromnumeric.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="2088" selection-start-line="2088" selection-end-line="2088" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/numeric.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="2365" selection-start-line="2365" selection-end-line="2365" />
         </state>
       </provider>
     </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/groupby/groupby.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-251">
-          <caret line="4116" column="8" selection-start-line="4116" selection-start-column="8" selection-end-line="4116" selection-end-column="8" />
+        <state relative-caret-position="125">
+          <caret line="433" selection-start-line="433" selection-end-line="433" />
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/generic.py">
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/resample.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="193">
+          <caret line="1288" selection-start-line="1288" selection-end-line="1288" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/frame/test_constructors.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="153">
+          <caret line="42" lean-forward="true" selection-start-line="42" selection-end-line="42" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/apply.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="260">
+          <caret line="314" column="31" lean-forward="true" selection-start-line="314" selection-start-column="31" selection-end-line="314" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/reshape/concat.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="107">
+          <caret line="288" column="19" lean-forward="true" selection-start-line="288" selection-start-column="19" selection-end-line="288" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/internals.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="17">
-          <caret line="929" column="8" selection-start-line="929" selection-start-column="8" selection-end-line="929" selection-end-column="8" />
+          <caret line="4630" column="6" selection-start-line="4630" selection-start-column="6" selection-end-line="4630" selection-end-column="6" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/utils/mongo_tools.py">
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/series/indexing/test_iloc.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="150">
-          <caret line="115" column="23" selection-start-line="115" selection-start-column="19" selection-end-line="115" selection-end-column="23" />
-          <folding>
-            <element signature="e#0#42#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="119">
+          <caret line="13" column="12" selection-start-line="13" selection-start-column="12" selection-end-line="13" selection-end-column="12" />
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/multi.py">
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-156">
-          <caret line="1958" column="38" selection-start-line="1958" selection-start-column="34" selection-end-line="1958" selection-end-column="38" />
+        <state relative-caret-position="352">
+          <caret line="203" column="29" lean-forward="true" selection-start-line="203" selection-start-column="29" selection-end-line="203" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/tornado/httpclient.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="117">
+          <caret line="88" column="13" selection-start-line="88" selection-start-column="13" selection-end-line="88" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/indexing/test_iloc.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="187">
+          <caret line="11" column="29" lean-forward="true" selection-start-line="11" selection-start-column="29" selection-end-line="11" selection-end-column="29" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/indexing/common.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="159">
+          <caret line="34" column="8" selection-start-line="34" selection-start-column="8" selection-end-line="34" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="19" column="55" lean-forward="true" selection-start-line="19" selection-start-column="55" selection-end-line="19" selection-end-column="55" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_CONFIG_DIR$/scratches/scratch_1.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://$PROJECT_DIR$/dewh_repository.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1688">
+          <caret column="21" selection-start-column="5" selection-end-column="21" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/compat/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="148">
+          <caret line="153" column="8" selection-start-line="153" selection-start-column="8" selection-end-line="153" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/util/_decorators.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="136">
+          <caret line="314" column="16" selection-start-line="314" selection-start-column="16" selection-end-line="314" selection-end-column="16" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/util/test_util.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="340">
+          <caret line="486" column="10" selection-start-line="486" selection-start-column="10" selection-end-line="486" selection-end-column="10" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/sre_constants.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="379">
+          <caret line="176" selection-start-line="176" selection-end-line="176" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/re.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="208">
+          <caret line="143" column="42" selection-start-line="143" selection-start-column="42" selection-end-line="143" selection-end-column="42" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="141">
+          <caret line="3000" column="6" selection-start-line="3000" selection-start-column="6" selection-end-line="3000" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/twisted/python/rebuild.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="98">
+          <caret line="243" column="18" selection-start-line="243" selection-start-column="18" selection-end-line="243" selection-end-column="18" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tseries/frequencies.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-448">
+          <caret line="73" column="4" selection-start-line="73" selection-start-column="4" selection-end-line="73" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/IPython/core/interactiveshell.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-427">
+          <caret line="2960" selection-start-line="2960" selection-end-line="2960" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/common.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="148">
+          <caret line="409" selection-start-line="409" selection-end-line="409" />
         </state>
       </provider>
     </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexing.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-544">
-          <caret line="2320" column="4" selection-start-line="2320" selection-start-column="4" selection-end-line="2320" selection-end-column="4" />
+        <state relative-caret-position="125">
+          <caret line="2341" selection-start-line="2341" selection-end-line="2341" />
+          <folding>
+            <element signature="e#24#39#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/frozen.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="51">
+          <caret line="41" selection-start-line="41" selection-end-line="41" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/multi.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="2236" selection-start-line="2236" selection-end-line="2236" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/dtypes/common.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="142">
+          <caret line="118" selection-start-line="118" selection-end-line="118" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="2110" selection-start-line="2110" selection-end-line="2110" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/codecs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="176">
+          <caret line="322" selection-start-line="322" selection-end-line="322" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/series.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="17">
+          <caret line="125" column="6" selection-start-line="125" selection-start-column="6" selection-end-line="125" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/accessors.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/util/testing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="355">
+          <caret line="2652" column="4" selection-start-line="2652" selection-start-column="4" selection-end-line="2652" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_CONFIG_DIR$/scratches/solution.json">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-17" />
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/accessor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="425">
+          <caret line="32" column="8" selection-start-line="32" selection-start-column="8" selection-end-line="32" selection-end-column="8" />
+          <folding>
+            <element signature="e#165#180#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/generic.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="27">
+          <caret line="4361" column="8" selection-start-line="4361" selection-start-column="8" selection-end-line="4361" selection-end-column="8" />
+          <folding>
+            <element signature="e#30#48#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tseries/offsets.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="129">
+          <caret line="2280" column="8" selection-start-line="2280" selection-start-column="8" selection-end-line="2280" selection-end-column="8" />
         </state>
       </provider>
     </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/frame.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="58">
-          <caret line="2728" column="8" selection-start-line="2728" selection-start-column="8" selection-end-line="2728" selection-end-column="8" />
+        <state relative-caret-position="129">
+          <caret line="7331" column="49" lean-forward="true" selection-start-line="7331" selection-start-column="49" selection-end-line="7331" selection-end-column="49" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/plotting/_core.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="144">
+          <caret line="1889" column="8" selection-start-line="1889" selection-start-column="4" selection-end-line="1889" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/utils/mongo_tools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="291">
+          <caret line="419" column="26" selection-start-line="419" selection-start-column="26" selection-end-line="419" selection-end-column="26" />
+          <folding>
+            <element signature="e#0#42#0" expanded="true" />
+            <marker date="1535040758626" expanded="true" signature="13762:13850" ph="..." />
+            <marker date="1535040758626" expanded="true" signature="13941:13951" ph="..." />
+          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/utils/dataframe_tools.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="113" column="37" selection-start-line="113" selection-start-column="37" selection-end-line="113" selection-end-column="37" />
+        <state relative-caret-position="444">
+          <caret line="322" lean-forward="true" selection-start-line="322" selection-end-line="322" />
           <folding>
             <element signature="e#0#19#0" expanded="true" />
-            <marker date="1534766236968" expanded="true" signature="4272:4277" ph="..." />
+            <marker date="1535039919416" expanded="true" signature="9593:9599" ph="..." />
           </folding>
         </state>
       </provider>

@@ -24,10 +24,13 @@ if logger.hasHandlers(): logger.handlers = []
 logger.addHandler(console_hand)
 logger.setLevel(logging.INFO)
 
+from utils.dataframe_tools import MicroGridDataFrame
+
 _DEV_TAG_MAP = {
     'dewh': 'GEY',
     'pm': 'PM',
     'inv': 'INV',
+    'ccg': 'CCG'
 }
 
 _DEV_DEFAULT_FIELDS = {
@@ -112,9 +115,9 @@ class MongoInterface():
         select_all_fields = False
         if fields == 'all':
             select_all_fields = True
-            fields = self.get_many_dev_tags(device_type, dev_ids, self.collection)
+            fields = self.get_many_dev_fields(device_type, dev_ids, self.collection)
         elif fields is None:
-            fields = _DEV_DEFAULT_FIELDS[device_type] or self.get_many_dev_tags(device_type, dev_ids, self.collection)
+            fields = _DEV_DEFAULT_FIELDS[device_type] or self.get_many_dev_fields(device_type, dev_ids, self.collection)
         elif (not isinstance(fields, list)):
             raise ValueError("fields must be list of strings or 'all'")
 
@@ -156,28 +159,35 @@ class MongoInterface():
 
             dev_cursor = self.collection.find(query, projection, sort=[("TimeStamp", 1)], limit=limit)
         else:
-            converter = {field_key: {'$cond':
-                                         {'if':
-                                              {'$eq':
-                                                   [{'$indexOfBytes': ['$' + field_key, "."]}, -1]
-                                               },
-                                          'then':
-                                              {'$convert':
-                                                   {'input': '$' + field_key,
-                                                    'to': "int",
-                                                    'onError': float('nan')}
-                                               },
-                                          'else':
-                                              {'$convert':
-                                                   {'input': '$' + field_key,
-                                                    'to': "double",
-                                                    'onError': float('nan')}
-                                               }
-                                          }
-                                     } for str_id in str_id_list for field_key in field_keys_numeric[str_id]}
+            converter_numeric = {field_key: {'$cond':
+                                                 {'if':
+                                                      {'$eq':  # Test if string value does not contain a '.'
+                                                           [{'$indexOfBytes': ['$' + field_key, "."]}, -1]
+                                                       },
+                                                  'then':  # If not '.' convert to int
+                                                      {'$convert':
+                                                           {'input': '$' + field_key,
+                                                            'to': "int",
+                                                            'onError': float('nan')}
+                                                       },
+                                                  'else':  # else to float/double
+                                                      {'$convert':
+                                                           {'input': '$' + field_key,
+                                                            'to': "double",
+                                                            'onError': float('nan')}
+                                                       }
+                                                  }
+                                             } for str_id in str_id_list for field_key in field_keys_numeric[str_id]}
 
-            projection.update(converter)
-            projection.update({field_key: 1 for str_id in str_id_list for field_key in field_keys_string[str_id]})
+            converter_string = {field_key: {'$cond':
+                                                {'if': {'$eq': ['$' + field_key, '']},
+                                                 'then': None,
+                                                 'else': '$' + field_key
+                                                 }
+                                            } for str_id in str_id_list for field_key in field_keys_string[str_id]}
+
+            projection.update(converter_numeric)
+            projection.update(converter_string)
 
             pipeline = [{'$match': query},
                         {'$sort': {"TimeStamp": 1}},
@@ -220,21 +230,23 @@ class MongoInterface():
             raw_df = pd.DataFrame()
         else:
             raw_df = pd.DataFrame(list_cur).set_index('TimeStamp').unstack().dropna()
-            raw_df = pd.DataFrame(raw_df.values.tolist(), index=raw_df.index)
+            raw_df = pd.DataFrame.from_records(raw_df.values, index=raw_df.index)
             raw_df = raw_df[~raw_df.index.duplicated(keep='last')]
             raw_df = raw_df.unstack(0).reorder_levels([1, 0], axis=1).sort_index(axis=1)
 
-            level_0 = [int(re.findall("[0-9]*[0-9]", id)[0]) for id in raw_df.columns.levels[0]]
+            level_0 = [int(re.findall("[0-9]*[0-9]", device)[0]) for device in raw_df.columns.levels[0]]
             raw_df.columns.set_levels(level_0, level=0, inplace=True)
             raw_df.columns.names = [device_type.upper() + "_id", 'Tag']
 
             if force_to_numeric:
                 idx = pd.IndexSlice
                 numeric_fields = [i for i in raw_df.columns.levels[1] if i not in _DEV_STRING_FIELDS]
+                string_fields = [i for i in raw_df.columns.levels[1] if i in _DEV_STRING_FIELDS]
                 raw_df.loc[:, idx[:, numeric_fields]] = raw_df.loc[:, idx[:, numeric_fields]].apply(pd.to_numeric,
                                                                                                     errors='coerce')
+                raw_df.loc[:, idx[:, string_fields]] = raw_df.loc[:, idx[:, string_fields]].replace('', None)
 
-        return raw_df
+        return MicroGridDataFrame(raw_df, device_type=device_type)
 
     def get_one_dev_raw_dataframe(self, device_type, dev_id, cursor=None,
                                   self_col: Collection = None,
@@ -246,7 +258,7 @@ class MongoInterface():
                                                end_time=end_time, limit=limit, fields=fields, cursor=cursor,
                                                convert=convert)
 
-    def get_many_dev_tags(self, device_type, dev_ids, self_col: Collection = None):
+    def get_many_dev_fields(self, device_type, dev_ids, self_col: Collection = None):
         if (self_col is not None) and (self_col != self._collection):
             self.collection = self_col
             logger.info("MongoInterface now using Collection: '{%s}'", self.collection.name)
@@ -266,8 +278,40 @@ class MongoInterface():
 
         return list(fields)
 
-    def get_one_dev_tags(self, device_type, dev_id, self_col: Collection = None):
-        return self.get_many_dev_tags(device_type, [dev_id], self_col=self_col)
+    def get_one_dev_fields(self, device_type, dev_id, self_col: Collection = None):
+        return self.get_many_dev_fields(device_type, [dev_id], self_col=self_col)
+
+    def get_many_dev_ids(self, device_types=None):
+        query = {}
+        sort = [('TimeStamp', -1)]
+        proj = {'_id': 0, 'TimeStamp': 0, 'file': 0}
+        doc = self.collection.find_one(query, proj, sort=sort, max_time_ms=100)
+        devices = list(doc.keys())
+
+        rev_dev_tag_map = {value: key for key, value in _DEV_TAG_MAP.items()}
+
+        reg_alpha = re.compile("[a-zA-Z]+")
+        reg_num = re.compile("[0-9]*[0-9]")
+        device_ids = {}
+        for device in devices:
+            try:
+                device_type=rev_dev_tag_map.get(reg_alpha.match(device)[0])
+            except AttributeError:
+                device_type=None
+            if device_type is not None:
+                dev_id = int(reg_num.search(device)[0])
+                if device_type in device_ids.keys():
+                    device_ids[device_type].add(dev_id)
+                else:
+                    device_ids[device_type] = set([dev_id])
+
+        if device_types!='all' or device_types is not None:
+            device_ids = {device_type:device_ids.get(device_type) for device_type in device_types}
+
+        return device_ids
+
+    def get_one_dev_ids(self, device_type):
+        return self.get_many_dev_ids(device_types=[device_type]).get(device_type)
 
     def set_string_field_to_datetime(self, self_col: Collection = None, field_tag='TimeStamp'):
 
@@ -297,43 +341,6 @@ class MongoInterface():
             result = 0
 
         logger.info("Modified TimeStamp type for %s documents", result)
-        return result
-
-    # todo not completed
-    def set_string_field_to_float(self, self_col: Collection = None, field_tag='GEY1.Temp'):
-
-        if (self_col is not None) and (self_col != self._collection):
-            self.collection = self_col
-            logger.info("MongoInterface now using Collection: '{%s}'", self.collection.name)
-
-        # find docs with field tags that are not of a certain type
-        query = {field_tag: {'$not': {'$type': "double"}}}
-        proj = {field_tag: 1}
-
-        with self.collection.find(query, proj) as cursor:
-            bulk_requests = []
-            for doc in cursor:
-                try:
-                    value = float(deep_get(doc, field_tag.split('.')))
-                except ValueError:
-                    value = float('nan')
-                except TypeError:
-                    value = float('nan')
-
-                bulk_requests.append(pym.UpdateOne({
-                    '_id': doc['_id']
-                }, {
-                    '$set': {
-                        field_tag: value
-                    }
-                }))
-
-        if bulk_requests:
-            result = self.collection.bulk_write(bulk_requests).modified_count
-        else:
-            result = 0
-
-        logger.info("Modified field type for %s documents", result)
         return result
 
     def append_from_collection(self, from_col: Collection, self_col: Collection = None, limit=0, newest=True,
@@ -412,14 +419,13 @@ if __name__ == '__main__':
     mi.set_string_field_to_datetime()
     mi.collection.create_index("TimeStamp")
 
-    start_date = DateTime(2018, 7, 30, 12, 0)
+    start_date = DateTime(2018, 6, 30, 12, 0)
     end_date = DateTime(2018, 7, 30, 12, 3)
 
     st = Timer()
 
-    raw_df = mi.get_many_dev_raw_dataframe('dewh', range(1,2), start_time=start_date, end_time=end_date,
+    raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_time=start_date, end_time=end_date,
                                            fields='all', convert=True)
-
 
     # ipython().magic('%%timeit main()')
     #
