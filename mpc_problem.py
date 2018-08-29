@@ -1,15 +1,15 @@
 import scipy.sparse as scs
 import scipy.linalg as scl
 import numpy as np
-from datetime import datetime as DateTime, timedelta as TimeDelta
+from datetime import datetime as DateTime
 
-from structdict import StructDict
+from utils.structdict import StructDict
 
-from model_generators import DewhModelGenerator, GridModelGenerator
-from dewh_repository import DewhRepository
-from micro_grid_model import MicroGridModel
+from models.model_generators import DewhModelGenerator
+from models.device_repository import DewhRepository
+from models.micro_grid_model import MicroGridModel
 
-from tariff_generator import TariffGenerator
+from tools.tariff_generator import TariffGenerator
 
 
 class MpcProblem():
@@ -267,8 +267,7 @@ def mat_evo_gen(N_p, A, A_pow=None, B=None, with_zero=True):
 
 if __name__ == '__main__':
     import timeit
-    import pprint
-    from parameters import dewh_p, grid_p
+    from models.parameters import dewh_p, grid_p
 
 
     def main():

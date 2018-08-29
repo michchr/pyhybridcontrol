@@ -1,13 +1,11 @@
-import scipy.linalg as scl
 import scipy.sparse as scs
 import numpy as np
-from datetime import datetime as DateTime, timedelta as TimeDelta
+from datetime import datetime as DateTime
 import pprint
 
-from dewh_repository import DeviceRepository, DewhRepository
-from structdict import StructDict, StructDictAliased
-from model_generators import DewhModelGenerator, GridModelGenerator
-
+from models.device_repository import DeviceRepository, DewhRepository
+from utils.structdict import StructDict, StructDictAliased
+from models.model_generators import DewhModelGenerator, GridModelGenerator
 
 
 class MicroGridModel():
@@ -78,7 +76,7 @@ class MicroGridModel():
 
         self._device_mld_mat_struct = mld_mat_struct
 
-        return mld_mat_struct,
+        return mld_mat_struct
 
     def gen_power_balance_constraint_mld(self, grid_param_struct=None):
         if grid_param_struct == None:
@@ -132,7 +130,7 @@ class MicroGridModel():
 
 if __name__ == '__main__':
     import timeit
-    from parameters import dewh_p, grid_p
+    from models.parameters import dewh_p, grid_p
 
     def main():
         N_h = 1

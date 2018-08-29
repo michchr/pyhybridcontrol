@@ -1,0 +1,3 @@
+{
+  "tests/test_model_generators.py::test_dewh_model_generator": true
+}

@@ -1,6 +1,6 @@
 from datetime import datetime as DateTime, timedelta as TimeDelta
 from enum import Enum
-from structdict import StructDict
+from utils.structdict import StructDict
 import numpy as np
 
 

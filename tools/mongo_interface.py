@@ -24,7 +24,7 @@ if logger.hasHandlers(): logger.handlers = []
 logger.addHandler(console_hand)
 logger.setLevel(logging.INFO)
 
-from utils.dataframe_tools import MicroGridDataFrame
+from tools.grid_dataframe import MicroGridDataFrame
 
 _DEV_TAG_MAP = {
     'dewh': 'GEY',

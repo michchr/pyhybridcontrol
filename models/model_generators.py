@@ -2,7 +2,11 @@ import functools
 import sympy as sp
 import numpy as np
 
-from structdict import StructDict, StructDictAliased
+from utils.structdict import StructDict, StructDictAliased
+
+
+# class DeviceModelGenerator():
+#     def __init__(self):
 
 
 class DewhModelGenerator():
@@ -20,8 +24,7 @@ class DewhModelGenerator():
         for key, expr in mld_sym_struct.items():
             syms_tup, syms_str_tup = _get_syms_tup(expr)
             lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
-            mld_eval_struct[key + "_eval"] = _lam_wrapper(lam, syms_str_tup)
-            # mld_eval_struct[key + "_eval2"] = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
+            mld_eval_struct[key + "_eval"] = _lambda_wrapper(lam, syms_str_tup)
 
         return mld_eval_struct, var_dim_struct, required_model_params
 
@@ -85,8 +88,7 @@ class GridModelGenerator():
         for key, expr in mld_sym_struct.items():
             syms_tup, syms_str_tup = _get_syms_tup(expr)
             lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
-            mld_eval_struct[key + "_eval"] = _lam_wrapper(lam, syms_str_tup)
-            # cons_dict_eval[key + "_eval2"] = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
+            mld_eval_struct[key + "_eval"] = _lambda_wrapper(lam, syms_str_tup)
 
         return mld_eval_struct, var_dim_struct, required_model_params
 
@@ -117,19 +119,19 @@ class GridModelGenerator():
 
 
 def _get_syms_tup(expr):
-    sym_dict = {str(sym): sym for sym in expr.free_symbols}
+    sym_dict = {str(sym):sym for sym in expr.free_symbols}
     sym_str_list = sorted(sym_dict.keys())
-    sym_list = [sym_dict.get(sym_str) for sym_str in sym_str_list]
+    sym_list = [sym_dict.get(sym) for sym in sym_str_list]
     return tuple(sym_list), tuple(sym_str_list)
 
 
 def _get_all_syms_as_str_list(*args):
-    sym_dict = {str(sym): sym for dict_i in args for key, expr in dict_i.items() for sym in expr.free_symbols}
-    sym_str_list = sorted(sym_dict.keys())
-    return sym_str_list
+    sym_str_list = [str(sym) for dict_i in args for expr in dict_i.values() for sym in expr.free_symbols if
+                    isinstance(expr, sp.Expr)]
+    return sorted(sym_str_list)
 
 
-def _lam_wrapper(func, local_syms_str):
+def _lambda_wrapper(func, local_syms_str):
     @functools.wraps(func)
     def wrapped(param_dict):
         arg_list = [param_dict.get(sym_str) for sym_str in local_syms_str]
@@ -167,7 +169,7 @@ def _get_var_dim_struct(mld_struct, nx_l=None, nu_l=None, nomega_l=None):
 
 
 def _get_expr_dim(expr, is_con=False):
-    if expr == None:
+    if expr == None or not isinstance(expr, sp.Expr):
         return 0
     elif expr.is_Matrix:
         n, m = expr.shape
@@ -182,26 +184,8 @@ def _get_expr_dim(expr, is_con=False):
 
 
 if __name__ == '__main__':
-    import pprint
-    import timeit
-
-    from parameters import dewh_p, grid_p
-
-    dewh_gen = DewhModelGenerator()
-    grid_gen = GridModelGenerator()
-
-    # pprint.pprint(grid_gen.var_dim_struct)
-
-
-    def func():
-        def closure():
-            c = dewh_gen.mld_eval_struct.get("E_h3_eval")
-            # print(c(dewh_p))
-            # print(dewh_gen.var_dim_struct)
-            return 1
-
-        return closure
-
-
-    t1 = timeit.timeit(func(), number=1)
-    print(t1)
+    import os
+    import pytest
+    import tests_suite.test_model_generators as tests
+    test_path = os.path.abspath(tests.__file__)
+    pytest.main([test_path])

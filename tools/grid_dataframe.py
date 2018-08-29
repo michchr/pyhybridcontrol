@@ -48,13 +48,13 @@ _PM_RESAMPLE_FUNC_MAP = {'A_L1': np.mean, 'A_L2': np.mean, 'A_L3': np.mean,
 
 class MicroGridDataFrame(DataFrame):
     # normal properties
-    _metadata = DataFrame._metadata + ['_device_type', 'aligned']
+    _metadata = DataFrame._metadata + ['_device_type', 'is_aligned']
 
     def __init__(self, *args, device_type=None, **kwargs):
         super(MicroGridDataFrame, self).__init__(*args, **kwargs)
 
-        if not hasattr(self, 'aligned'):
-            self.aligned = False
+        if not hasattr(self, 'is_aligned'):
+            self.is_aligned = False
         self._device_type = device_type
 
     @property
@@ -115,6 +115,10 @@ class MicroGridDataFrame(DataFrame):
         else:
             return item
 
+    def _dir_additions(self):
+        additions = set(self._metadata)
+        return super(MicroGridDataFrame, self)._dir_additions().union(additions)
+
     def stair_plot(self, *args, **kwargs):
         self.plot(*args, **kwargs, drawstyle="steps-post")
 
@@ -134,7 +138,7 @@ class MicroGridDataFrame(DataFrame):
     def resample_device(self, sample_time, func_map=None, device_type=None):
         self.device_type = device_type
 
-        if not self.aligned:
+        if not self.is_aligned:
             new_df = self.align_samples()
         else:
             new_df = self.copy()
@@ -246,7 +250,6 @@ class MicroGridDataFrame(DataFrame):
 
         return self._constructor_override(new_df)
 
-
 class MicroGridSeries(Series):
     _metadata = Series._metadata + MicroGridDataFrame._metadata
 
@@ -295,14 +298,14 @@ class MicroGridSeries(Series):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
-    from utils.mongo_tools import MongoInterface
+    from tools.mongo_interface import MongoInterface
 
     mi = MongoInterface("site_data", "Kikuyu")
 
     start_date = DateTime(2018, 7, 27, 13, 0)
     end_time = DateTime(2018, 7, 30, 14, 10)
 
-    raw_data = mi.get_many_dev_raw_dataframe('dewh', mi.get_one_dev_ids('dewh'), fields=None, start_time=start_date,
+    raw_data = mi.get_many_dev_raw_dataframe('dewh', [1], fields=None, start_time=start_date,
                                              end_time=end_time)
 
     al_df =raw_data.align_samples()
@@ -311,14 +314,14 @@ if __name__ == '__main__':
     #
     # df = df.compute_power_from_energy()
 
+    # for i in range(1,10):
+    #     df.loc[:, IDX[i, ['Temp', 'Status']]].stair_plot(subplots=True)
+    #     figManager = plt.get_current_fig_manager()
+    #     figManager.window.showMaximized()
+    #     plt.show()
 
-    for i in range(1,10):
-        df.loc[:, IDX[i, ['Temp', 'Status']]].stair_plot(subplots=True)
-        figManager = plt.get_current_fig_manager()
-        figManager.window.showMaximized()
-        plt.show()
-
-
+    b = df[1]
+    a = dir(b)
 
 
     #

@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="BookmarkManager">
-    <bookmark url="file://$PROJECT_DIR$/utils/dataframe_tools.py" line="84" />
-  </component>
   <component name="ChangeListManager">
-    <list default="true" id="978f0496-550b-4dd8-93c2-8d0c323768ce" name="Default" comment="" />
+    <list default="true" id="978f0496-550b-4dd8-93c2-8d0c323768ce" name="Default" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/thesis_code.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/thesis_code.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/dewh_repository.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/device_repository.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/micro_grid_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/micro_grid_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mld_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/mld_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/model_generators.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/model_generators.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mpc_problem.py" beforeDir="false" afterPath="$PROJECT_DIR$/mpc_problem.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mpc_solver.py" beforeDir="false" afterPath="$PROJECT_DIR$/mpc_solver.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/parameters.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/parameters.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/structdict.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/structdict.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tariff_generator.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/tariff_generator.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/dataframe_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/grid_dataframe.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/mongo_tools.py" beforeDir="false" afterPath="$PROJECT_DIR$/tools/mongo_interface.py" afterDir="false" />
+    </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -19,11 +30,14 @@
     <SUITE FILE_PATH="coverage/thesis_code$dewh_repository.coverage" NAME="dewh_repository Coverage Results" MODIFIED="1530021226705" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$struct_dict.coverage" NAME="struct_dict Coverage Results" MODIFIED="1529423168911" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$scratch.coverage" NAME="scratch Coverage Results" MODIFIED="1530537939457" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
+    <SUITE FILE_PATH="coverage/thesis_code$structdict.coverage" NAME="structdict Coverage Results" MODIFIED="1535388765634" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
     <SUITE FILE_PATH="coverage/thesis_code$sketch2.coverage" NAME="sketch2 Coverage Results" MODIFIED="1528711735769" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/thesis_code$pytest_for_test_model_generators_test_dewh_model_generator.coverage" NAME="pytest for test_model_generators.test_dewh_model_generator Coverage Results" MODIFIED="1535367133654" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests_suite" />
     <SUITE FILE_PATH="coverage/thesis_code$mpc_problem.coverage" NAME="mpc_problem Coverage Results" MODIFIED="1530010165553" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$thesis_code.coverage" NAME="thesis_code Coverage Results" MODIFIED="1530528152210" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/thesis_code$mpc_solver.coverage" NAME="mpc_solver Coverage Results" MODIFIED="1530181544236" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$sketch.coverage" NAME="sketch Coverage Results" MODIFIED="1529601954074" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/thesis_code$grid_dataframe.coverage" NAME="grid_dataframe Coverage Results" MODIFIED="1535116480993" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tools" />
     <SUITE FILE_PATH="coverage/thesis_code$domestic_electric_water_heaters.coverage" NAME="domestic_electric_water_heaters Coverage Results" MODIFIED="1529062352077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$mongo_tools.coverage" NAME="mongo_tools Coverage Results" MODIFIED="1534166386639" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
     <SUITE FILE_PATH="coverage/thesis_code$overall_system_model.coverage" NAME="overall_system_model Coverage Results" MODIFIED="1529489843633" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
@@ -37,33 +51,34 @@
     <session id="-1357689466">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="26" />
+          <entry key="project.closed" value="31" />
           <entry key="project.open.time.10" value="3" />
           <entry key="project.open.time.11" value="2" />
-          <entry key="project.open.time.12" value="1" />
+          <entry key="project.open.time.12" value="2" />
           <entry key="project.open.time.14" value="1" />
           <entry key="project.open.time.15" value="1" />
           <entry key="project.open.time.16" value="1" />
           <entry key="project.open.time.20" value="1" />
           <entry key="project.open.time.6" value="1" />
-          <entry key="project.open.time.7" value="2" />
-          <entry key="project.open.time.8" value="9" />
-          <entry key="project.open.time.9" value="5" />
-          <entry key="project.opened" value="27" />
+          <entry key="project.open.time.7" value="4" />
+          <entry key="project.open.time.8" value="11" />
+          <entry key="project.open.time.9" value="6" />
+          <entry key="project.opened" value="33" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="Python Console" value="34495" />
-          <entry key="dummy" value="22" />
-          <entry key="py" value="38713" />
+          <entry key="Python Console" value="39887" />
+          <entry key="dummy" value="90" />
+          <entry key="model_test" value="376" />
+          <entry key="py" value="48192" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
-          <entry key="PLAIN_TEXT" value="22" />
-          <entry key="Python" value="73042" />
-          <entry key="Scratch" value="166" />
+          <entry key="PLAIN_TEXT" value="90" />
+          <entry key="Python" value="87902" />
+          <entry key="Scratch" value="553" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.open">
@@ -71,9 +86,10 @@
           <entry key="conda" value="1" />
           <entry key="html" value="1" />
           <entry key="json" value="2" />
+          <entry key="model_test" value="10" />
           <entry key="pstat" value="8" />
-          <entry key="py" value="772" />
-          <entry key="pyi" value="3" />
+          <entry key="py" value="888" />
+          <entry key="pyi" value="7" />
           <entry key="vmoptions" value="2" />
         </counts>
       </usages-collector>
@@ -82,9 +98,9 @@
           <entry key="HTML" value="1" />
           <entry key="PLAIN_TEXT" value="3" />
           <entry key="Profiler Session" value="8" />
-          <entry key="Python" value="769" />
-          <entry key="PythonStub" value="3" />
-          <entry key="Scratch" value="5" />
+          <entry key="Python" value="893" />
+          <entry key="PythonStub" value="7" />
+          <entry key="Scratch" value="7" />
         </counts>
       </usages-collector>
     </session>
@@ -93,15 +109,34 @@
     <favorites_list name="thesis_code" />
   </component>
   <component name="FileEditorManager">
-    <leaf>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/dewh_repository.py">
+    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/builtins.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="289">
-              <caret line="77" selection-start-line="77" selection-end-line="77" />
+            <state relative-caret-position="141">
+              <caret line="5477" column="8" selection-start-line="5477" selection-start-column="8" selection-end-line="5477" selection-end-column="8" />
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/utils/structdict.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="402">
+              <caret line="148" column="26" lean-forward="true" selection-start-line="148" selection-start-column="26" selection-end-line="148" selection-end-column="26" />
               <folding>
-                <element signature="e#0#47#0" expanded="true" />
+                <element signature="e#0#39#0" expanded="true" />
+                <marker date="1535545474350" expanded="true" signature="222:226" ph="..." />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file pinned="false" current-in-tab="false">
+        <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="-175">
+              <caret line="274" column="13" selection-start-line="274" selection-start-column="8" selection-end-line="274" selection-end-column="13" />
             </state>
           </provider>
         </entry>
@@ -118,26 +153,6 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>iloc()</find>
-      <find>class ob</find>
-      <find>iloc(</find>
-      <find>loc</find>
-      <find>setat</find>
-      <find>_iLo</find>
-      <find>object.__se</find>
-      <find>NDFra</find>
-      <find>iLoc</find>
-      <find>iloc</find>
-      <find>g</find>
-      <find>'iloc'</find>
-      <find>__get</find>
-      <find>device</find>
-      <find>print</find>
-      <find>__fina</find>
-      <find>self._constructor\(</find>
-      <find>to_of</find>
-      <find>@make</find>
-      <find>IGNOR</find>
       <find>flags</find>
       <find>IGNO</find>
       <find>fiel</find>
@@ -148,15 +163,28 @@
       <find>id</find>
       <find>0-</find>
       <find>figs</find>
+      <find>__df</find>
+      <find>_</find>
+      <find>syms</find>
+      <find>ali</find>
+      <find>Ali</find>
+      <find>__repr</find>
+      <find>_setitem</find>
+      <find>get</find>
+      <find>dictdict</find>
+      <find>_sorted_dict</find>
+      <find>_dict</find>
+      <find>_superdict</find>
+      <find>__sd</find>
+      <find>__repr__</find>
+      <find>self._sdict</find>
+      <find>self._sdict\.</find>
+      <find>_sdict</find>
+      <find>__cont</find>
+      <find>__set</find>
+      <find>__sdict__</find>
     </findStrings>
     <replaceStrings>
-      <replace>Nh, 'csr'</replace>
-      <replace>Np</replace>
-      <replace>B_s4</replace>
-      <replace>b_s5</replace>
-      <replace>hour</replace>
-      <replace>DateTime</replace>
-      <replace>self.rates</replace>
       <replace>Struct_Dict</replace>
       <replace>h</replace>
       <replace>_p</replace>
@@ -180,6 +208,13 @@
       <replace>_construct</replace>
       <replace>_constructor(</replace>
       <replace>self._constuctor_override(</replace>
+      <replace>dict</replace>
+      <replace>_superdict</replace>
+      <replace>_sorted_dict</replace>
+      <replace>_sdict</replace>
+      <replace>_dict</replace>
+      <replace>_sdict.</replace>
+      <replace>__dict__</replace>
     </replaceStrings>
     <dirStrings>
       <dir>C:\Miniconda3\envs\thesis_code\Lib\site-packages</dir>
@@ -189,7 +224,7 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/utils/dataframe_tools.py" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$PROJECT_DIR$/tools/grid_dataframe.py" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
@@ -225,11 +260,23 @@
         <option value="$PROJECT_DIR$/mpc_solver.py" />
         <option value="$PROJECT_DIR$/tariff_generator.py" />
         <option value="$PROJECT_DIR$/model_generators.py" />
-        <option value="$APPLICATION_CONFIG_DIR$/scratches/scratch.py" />
         <option value="$PROJECT_DIR$/dewh_repository.py" />
         <option value="$APPLICATION_CONFIG_DIR$/scratches/scratch_1.py" />
         <option value="$PROJECT_DIR$/utils/dataframe_tools.py" />
         <option value="$PROJECT_DIR$/utils/mongo_tools.py" />
+        <option value="$PROJECT_DIR$/device_repository.py" />
+        <option value="$PROJECT_DIR$/models/micro_grid_model.py" />
+        <option value="$PROJECT_DIR$/models/device_repository.py" />
+        <option value="$PROJECT_DIR$/tools/mongo_interface.py" />
+        <option value="$PROJECT_DIR$/models/model_test" />
+        <option value="$PROJECT_DIR$/tools/grid_dataframe.py" />
+        <option value="$PROJECT_DIR$/models/model_test.py" />
+        <option value="$PROJECT_DIR$/tests/test_model_generators.py" />
+        <option value="$PROJECT_DIR$/tests_suite/test_model_generators.py" />
+        <option value="$PROJECT_DIR$/models/model_generators.py" />
+        <option value="$PROJECT_DIR$/models/mld_model.py" />
+        <option value="$APPLICATION_CONFIG_DIR$/scratches/scratch.py" />
+        <option value="$PROJECT_DIR$/utils/structdict.py" />
       </list>
     </option>
   </component>
@@ -239,10 +286,10 @@
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
-    <option name="x" value="570" />
-    <option name="y" value="-25" />
-    <option name="width" value="979" />
+  <component name="ProjectFrameBounds" extendedState="6">
+    <option name="x" value="405" />
+    <option name="y" value="-15" />
+    <option name="width" value="980" />
     <option name="height" value="1040" />
   </component>
   <component name="ProjectInspectionProfilesVisibleTreeState">
@@ -301,6 +348,7 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <expand>
@@ -317,28 +365,22 @@
               <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
               <item name="Scratches and Consoles" type="1a2a3e82:ScratchProjectViewPane$MyProjectNode" />
             </path>
-            <path>
-              <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
-              <item name="Scratches and Consoles" type="1a2a3e82:ScratchProjectViewPane$MyProjectNode" />
-              <item name="Scratches" type="d62648e6:ScratchProjectViewPane$MyRootNode" />
-            </path>
           </expand>
           <select />
         </subPane>
       </pane>
-      <pane id="Scope" />
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="SearchEverywhereHistoryKey" value="_metadata&#9;null&#9;null&#10;make_signature&#9;null&#9;null&#10;make_sig&#9;null&#9;null&#10;pandas.core.indexing&#9;null&#9;null&#10;_iLocIn&#9;null&#9;null&#10;_iLo&#9;null&#9;null&#10;iloc(&#9;null&#9;null&#10;_constructor(&#9;FILE&#9;file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/frame/test_constructors.py&#10;_constructor_sliced&#9;null&#9;null&#10;DatetimeIndexResampler&#9;null&#9;null&#10;**kwargs&#9;null&#9;null&#10;kwarg&#9;null&#9;null&#10;@keyword&#9;null&#9;null&#10;weakref&#9;null&#9;null&#10;__mul__&#9;null&#9;null&#10;mps&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/repn/plugins/mps.py&#10;ctype&#9;null&#9;null&#10;pprint&#9;null&#9;null&#10;numericV&#9;null&#9;null&#10;numericValu&#9;null&#9;null&#10;guro&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/solvers/plugins/solvers/gurobi_direct.py&#10;ConstraintLIs&#9;null&#9;null&#10;MPS&#9;null&#9;null&#10;matrix_constraint&#9;null&#9;null&#10;CPLEX_DLL_load_dll&#9;null&#9;null&#10;CPLEX_DLL&#9;null&#9;null&#10;gurobi_path&#9;null&#9;null&#10;config_filename&#9;null&#9;null" />
+    <property name="SearchEverywhereHistoryKey" value="&#9;FILE&#9;file://C:/Users/chris/Documents/University_on_gdrive/Thesis/git_Thesis/thesis_code/models/model_generators.py&#10;_metadata&#9;null&#9;null&#10;make_signature&#9;null&#9;null&#10;make_sig&#9;null&#9;null&#10;pandas.core.indexing&#9;null&#9;null&#10;_iLocIn&#9;null&#9;null&#10;_iLo&#9;null&#9;null&#10;iloc(&#9;null&#9;null&#10;_constructor(&#9;FILE&#9;file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/frame/test_constructors.py&#10;_constructor_sliced&#9;null&#9;null&#10;DatetimeIndexResampler&#9;null&#9;null&#10;**kwargs&#9;null&#9;null&#10;kwarg&#9;null&#9;null&#10;@keyword&#9;null&#9;null&#10;weakref&#9;null&#9;null&#10;__mul__&#9;null&#9;null&#10;mps&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/repn/plugins/mps.py&#10;ctype&#9;null&#9;null&#10;pprint&#9;null&#9;null&#10;numericV&#9;null&#9;null&#10;numericValu&#9;null&#9;null&#10;guro&#9;FILE&#9;file://C:/Users/chris/PycharmProjects/thesis_venv/Lib/site-packages/pyomo/solvers/plugins/solvers/gurobi_direct.py&#10;ConstraintLIs&#9;null&#9;null&#10;MPS&#9;null&#9;null&#10;matrix_constraint&#9;null&#9;null&#10;CPLEX_DLL_load_dll&#9;null&#9;null&#10;CPLEX_DLL&#9;null&#9;null&#10;gurobi_path&#9;null&#9;null&#10;config_filename&#9;null&#9;null" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="Python" />
     <property name="full.screen.before.presentation.mode" value="false" />
-    <property name="last_opened_file_path" value="C:/Miniconda3/Scripts/conda.exe" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/tests" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="run.code.analysis.last.selected.profile" value="pProject Default" />
-    <property name="settings.editor.selected.configurable" value="preferences.keymap" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyIntegratedToolsModulesConfigurable" />
   </component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
@@ -349,11 +391,15 @@
     <option name="myUseExistingConsole" value="true" />
   </component>
   <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code\tests2" />
+      <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code\tests" />
+      <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code\models" />
+      <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code\tools" />
+      <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code\utils" />
+    </key>
     <key name="CopyFile.RECENT_KEYS">
       <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code\matlab_code" />
-    </key>
-    <key name="MoveFile.RECENT_KEYS">
-      <recent name="C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\thesis_code" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -368,25 +414,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.dataframe_tools">
-    <configuration name="thesis_code" type="JupiterNotebook" factoryName="Jupyter Notebook">
-      <module name="thesis_code" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="" />
-      <option name="IS_MODULE_SDK" value="false" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="additionalOptions" value="" />
-      <option name="ipnbHost" value="127.0.0.1" />
-      <option name="ipnbPort" value="8888" />
-      <method v="2" />
-    </configuration>
+  <component name="RunManager" selected="Python.structdict">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="" />
@@ -409,7 +437,7 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="dataframe_tools" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration name="scratch" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -417,12 +445,12 @@
         <env name="PYTHONUNBUFFERED" value="1" />
       </envs>
       <option name="SDK_HOME" value="C:\Miniconda3\envs\thesis_code\python.exe" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/utils" />
-      <option name="IS_MODULE_SDK" value="true" />
+      <option name="WORKING_DIRECTORY" value="$APPLICATION_CONFIG_DIR$/scratches" />
+      <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utils/dataframe_tools.py" />
+      <option name="SCRIPT_NAME" value="$APPLICATION_CONFIG_DIR$/scratches/scratch.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="true" />
       <option name="EMULATE_TERMINAL" value="false" />
@@ -431,37 +459,69 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
-    <configuration name="mongo_tools" type="PythonConfigurationType" factoryName="Python" temporary="true">
+    <configuration name="structdict" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
-      <envs>
-        <env name="PYTHONUNBUFFERED" value="1" />
-      </envs>
       <option name="SDK_HOME" value="C:\Miniconda3\envs\thesis_code\python.exe" />
       <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/utils" />
       <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utils/mongo_tools.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/utils/structdict.py" />
       <option name="PARAMETERS" value="" />
       <option name="SHOW_COMMAND_LINE" value="true" />
       <option name="EMULATE_TERMINAL" value="false" />
       <option name="MODULE_MODE" value="false" />
       <option name="REDIRECT_INPUT" value="false" />
       <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for test_model_generators.test_dewh_model_generator" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="thesis_code" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests_suite" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;test_model_generators.test_dewh_model_generator&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="pytest for tests_suite.test_model_generators.test_dewh_model_generator" type="tests" factoryName="py.test" temporary="true" nameIsGenerated="true">
+      <module name="thesis_code" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_keywords" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests_suite.test_model_generators.test_dewh_model_generator&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method v="2" />
     </configuration>
     <list>
-      <item itemvalue="Jupyter Notebook.thesis_code" />
-      <item itemvalue="Python.dataframe_tools" />
-      <item itemvalue="Python.mongo_tools" />
+      <item itemvalue="Python tests.pytest for tests_suite.test_model_generators.test_dewh_model_generator" />
+      <item itemvalue="Python tests.pytest for test_model_generators.test_dewh_model_generator" />
+      <item itemvalue="Python.structdict" />
+      <item itemvalue="Python.scratch" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.dataframe_tools" />
-        <item itemvalue="Python.mongo_tools" />
+        <item itemvalue="Python.structdict" />
+        <item itemvalue="Python.scratch" />
+        <item itemvalue="Python tests.pytest for test_model_generators.test_dewh_model_generator" />
+        <item itemvalue="Python tests.pytest for tests_suite.test_model_generators.test_dewh_model_generator" />
       </list>
     </recent_temporary>
   </component>
@@ -481,6 +541,38 @@
     </task>
     <servers />
   </component>
+  <component name="TestHistory">
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 07m 42s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 07m 56s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 08m 20s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 44m 37s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 46m 44s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 46m 52s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 48m 27s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 48m 41s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 49m 19s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+    <history-entry file="pytest_for_test_model_generators_test_dewh_model_generator - 2018.08.27 at 12h 52m 15s.xml">
+      <configuration name="pytest for test_model_generators.test_dewh_model_generator" configurationId="tests" />
+    </history-entry>
+  </component>
   <component name="TodoView">
     <todo-panel id="selected-file">
       <is-autoscroll-to-source value="true" />
@@ -492,13 +584,14 @@
   </component>
   <component name="ToolWindowManager">
     <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
+    <editor active="true" />
     <layout>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.6226852" visible="true" weight="0.1852349" />
-      <window_info id="Structure" order="1" sideWeight="0.3773148" side_tool="true" weight="0.17986578" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.61290324" visible="true" weight="0.21208054" />
+      <window_info id="Structure" order="1" sideWeight="0.38709676" side_tool="true" weight="0.1932886" />
       <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.32056737" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.63892615" weight="0.4" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.63892615" weight="0.5858156" />
       <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39716312" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -507,9 +600,9 @@
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Inspection Results" order="9" weight="0.32905984" />
       <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.23557048" side_tool="true" weight="0.40141845" />
-      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" weight="1.0" />
-      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5258278" />
-      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.3205298" />
+      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" weight="0.32907802" />
+      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5248227" />
+      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.31914893" />
       <window_info active="true" anchor="bottom" id="Concurrent Activities Diagram" order="14" weight="0.32980132" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -520,12 +613,12 @@
       <window_info anchor="right" x="484" y="204" width="508" height="480" id="SciView" order="6" show_stripe_button="false" sideWeight="0.49122807" weight="0.347651" />
     </layout>
     <layout-to-restore>
-      <window_info active="true" content_ui="combo" id="Project" order="0" sideWeight="0.6226852" visible="true" weight="0.17986578" />
-      <window_info id="Structure" order="1" sideWeight="0.3773148" side_tool="true" visible="true" weight="0.17986578" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.61290324" visible="true" weight="0.20939597" />
+      <window_info id="Structure" order="1" sideWeight="0.38709676" side_tool="true" weight="0.1932886" />
       <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
       <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.32056737" />
-      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.63892615" weight="0.4" />
+      <window_info anchor="bottom" id="Run" order="2" sideWeight="0.63892615" weight="0.5858156" />
       <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39716312" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
@@ -534,9 +627,9 @@
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Inspection Results" order="9" weight="0.32905984" />
       <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.23557048" side_tool="true" weight="0.40141845" />
-      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" visible="true" weight="0.38723403" />
-      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5262411" />
-      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.3219858" />
+      <window_info anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.7644295" weight="0.34042552" />
+      <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76979864" weight="0.5248227" />
+      <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.31914893" />
       <window_info active="true" anchor="bottom" id="Concurrent Activities Diagram" order="14" weight="0.32980132" />
       <window_info anchor="right" id="Commander" internal_type="SLIDING" order="0" type="SLIDING" weight="0.4" />
       <window_info anchor="right" id="Ant Build" order="1" weight="0.25" />
@@ -554,157 +647,6 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://$PROJECT_DIR$/utils/ts.html" />
-    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/numpy/core/umath.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="183">
-          <caret line="3518" column="4" selection-start-line="3518" selection-start-column="4" selection-end-line="3518" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/python-skeletons/numpy/core/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-327">
-          <caret line="3693" column="8" selection-start-line="3693" selection-start-column="8" selection-end-line="3693" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/lib/function_base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-995">
-          <caret line="3397" column="4" selection-start-line="3397" selection-start-column="4" selection-end-line="3397" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/util/_validators.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="397">
-          <caret line="347" column="31" lean-forward="true" selection-start-line="347" selection-start-column="31" selection-end-line="347" selection-end-column="31" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/missing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="169">
-          <caret line="73" column="4" selection-start-line="73" selection-start-column="4" selection-end-line="73" selection-end-column="4" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/_methods.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="133">
-          <caret line="45" selection-start-line="45" selection-end-line="45" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/fromnumeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="2088" selection-start-line="2088" selection-end-line="2088" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/numeric.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="2365" selection-start-line="2365" selection-end-line="2365" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/groupby/groupby.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="433" selection-start-line="433" selection-end-line="433" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/resample.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="193">
-          <caret line="1288" selection-start-line="1288" selection-end-line="1288" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/frame/test_constructors.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="153">
-          <caret line="42" lean-forward="true" selection-start-line="42" selection-end-line="42" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/apply.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="260">
-          <caret line="314" column="31" lean-forward="true" selection-start-line="314" selection-start-column="31" selection-end-line="314" selection-end-column="31" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/reshape/concat.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="107">
-          <caret line="288" column="19" lean-forward="true" selection-start-line="288" selection-start-column="19" selection-end-line="288" selection-end-column="19" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/internals.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="17">
-          <caret line="4630" column="6" selection-start-line="4630" selection-start-column="6" selection-end-line="4630" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/series/indexing/test_iloc.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="119">
-          <caret line="13" column="12" selection-start-line="13" selection-start-column="12" selection-end-line="13" selection-end-column="12" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="352">
-          <caret line="203" column="29" lean-forward="true" selection-start-line="203" selection-start-column="29" selection-end-line="203" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/tornado/httpclient.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="117">
-          <caret line="88" column="13" selection-start-line="88" selection-start-column="13" selection-end-line="88" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/indexing/test_iloc.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="187">
-          <caret line="11" column="29" lean-forward="true" selection-start-line="11" selection-start-column="29" selection-end-line="11" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/tests/indexing/common.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="159">
-          <caret line="34" column="8" selection-start-line="34" selection-start-column="8" selection-end-line="34" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="19" column="55" lean-forward="true" selection-start-line="19" selection-start-column="55" selection-end-line="19" selection-end-column="55" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$APPLICATION_CONFIG_DIR$/scratches/scratch_1.py">
-      <provider selected="true" editor-type-id="text-editor" />
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/compat/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="148">
-          <caret line="153" column="8" selection-start-line="153" selection-start-column="8" selection-end-line="153" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/util/_decorators.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="136">
@@ -733,13 +675,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/builtins.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="141">
-          <caret line="3000" column="6" selection-start-line="3000" selection-start-column="6" selection-end-line="3000" selection-end-column="6" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/twisted/python/rebuild.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="98">
@@ -761,48 +696,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/common.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="148">
-          <caret line="409" selection-start-line="409" selection-end-line="409" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="2341" selection-start-line="2341" selection-end-line="2341" />
-          <folding>
-            <element signature="e#24#39#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/frozen.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="51">
-          <caret line="41" selection-start-line="41" selection-end-line="41" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/multi.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="2236" selection-start-line="2236" selection-end-line="2236" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/dtypes/common.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="142">
           <caret line="118" selection-start-line="118" selection-end-line="118" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/base.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="125">
-          <caret line="2110" selection-start-line="2110" selection-end-line="2110" />
         </state>
       </provider>
     </entry>
@@ -835,26 +732,6 @@
         <state relative-caret-position="-17" />
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/accessor.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="425">
-          <caret line="32" column="8" selection-start-line="32" selection-start-column="8" selection-end-line="32" selection-end-column="8" />
-          <folding>
-            <element signature="e#165#180#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/generic.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="27">
-          <caret line="4361" column="8" selection-start-line="4361" selection-start-column="8" selection-end-line="4361" selection-end-column="8" />
-          <folding>
-            <element signature="e#30#48#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/__init__.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
@@ -865,13 +742,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/frame.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="129">
-          <caret line="7331" column="49" lean-forward="true" selection-start-line="7331" selection-start-column="49" selection-end-line="7331" selection-end-column="49" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/plotting/_core.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="144">
@@ -879,33 +749,249 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/utils/mongo_tools.py">
+    <entry file="file://$PROJECT_DIR$/models/micro_grid_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="291">
-          <caret line="419" column="26" selection-start-line="419" selection-start-column="26" selection-end-line="419" selection-end-column="26" />
+        <state relative-caret-position="153">
+          <caret line="9" lean-forward="true" selection-start-line="9" selection-end-line="9" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/models/device_repository.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="23">
+          <caret line="100" column="50" lean-forward="true" selection-start-line="100" selection-start-column="50" selection-end-line="100" selection-end-column="50" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/mpc_problem.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="669">
+          <caret line="263" selection-start-line="263" selection-end-line="265" selection-end-column="80" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tools/mongo_interface.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="4522">
+          <caret line="266" column="65" selection-start-line="266" selection-start-column="65" selection-end-line="266" selection-end-column="65" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/models/parameters.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/common.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="199">
+          <caret line="409" selection-start-line="409" selection-end-line="409" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/frozen.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="210">
+          <caret line="141" selection-start-line="141" selection-end-line="141" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/multi.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="142">
+          <caret line="549" selection-start-line="549" selection-end-line="549" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/frame.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="285">
+          <caret line="345" selection-start-line="345" selection-end-line="345" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexes/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="708" selection-start-line="708" selection-end-line="708" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/algorithms.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="175" selection-start-line="175" selection-end-line="175" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/abc.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="167">
+          <caret line="184" selection-start-line="184" selection-end-line="184" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/dtypes/inference.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="316" selection-start-line="316" selection-end-line="316" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/base.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-672">
+          <caret line="36" column="6" selection-start-line="36" selection-start-column="6" selection-end-line="36" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/compat/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="170">
+          <caret line="69" column="31" lean-forward="true" selection-start-line="68" selection-start-column="4" selection-end-line="69" selection-end-column="31" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/indexing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="2341" selection-start-line="2341" selection-end-line="2341" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tools/grid_dataframe.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1853">
+          <caret line="117" selection-start-line="117" selection-end-line="117" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/generic.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2601">
+          <caret line="210" column="8" selection-start-line="210" selection-start-column="8" selection-end-line="210" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/accessor.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="595">
+          <caret line="37" column="8" selection-start-line="37" selection-start-column="8" selection-end-line="37" selection-end-column="33" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/_pytest/config/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="24">
+          <caret line="45" column="4" selection-start-line="45" selection-start-column="4" selection-end-line="45" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests_suite/__init__.py">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/inspect.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-4648">
+          <caret line="1010" column="4" selection-start-line="1010" selection-start-column="4" selection-end-line="1010" selection-end-column="4" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests_suite/test_model_generators.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="153">
+          <caret line="9" column="35" selection-start-line="9" selection-start-column="35" selection-end-line="9" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/models/model_generators.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="2754">
+          <caret line="171" column="53" lean-forward="true" selection-start-line="171" selection-start-column="53" selection-end-line="171" selection-end-column="53" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/urllib/parse.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="737">
+          <caret line="775" selection-start-line="775" selection-end-line="775" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/xml/sax/saxutils.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="142">
+          <caret line="26" selection-start-line="26" selection-end-line="26" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/ntpath.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="125">
+          <caret line="47" selection-start-line="47" selection-end-line="47" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sortedlist.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret line="155" selection-start-line="155" selection-end-line="155" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_CONFIG_DIR$/scratches/scratch.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state>
+          <caret line="13" column="52" selection-start-line="13" selection-start-column="52" selection-end-line="13" selection-end-column="52" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/models/mld_model.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="288">
+          <caret line="18" column="8" selection-start-line="18" selection-start-column="8" selection-end-line="18" selection-end-column="8" />
           <folding>
-            <element signature="e#0#42#0" expanded="true" />
+            <element signature="e#0#57#0" expanded="true" />
+            <marker date="1535374958929" expanded="true" signature="158:392" ph="..." />
+            <marker date="1535374958929" expanded="true" signature="198:203" ph="..." />
+            <marker date="1535374958929" expanded="true" signature="425:453" ph="..." />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/utils/dataframe_tools.py">
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/typing.pyi">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1005">
-          <caret line="322" selection-start-line="322" selection-end-line="322" />
-          <folding>
-            <element signature="e#0#19#0" expanded="true" />
-            <marker date="1535100186566" expanded="true" signature="9593:9599" ph="..." />
-          </folding>
+        <state relative-caret-position="5797">
+          <caret line="344" column="8" selection-start-line="344" selection-start-column="8" selection-end-line="344" selection-end-column="8" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/dewh_repository.py">
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/types.pyi">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="289">
-          <caret line="77" selection-start-line="77" selection-end-line="77" />
+        <state relative-caret-position="141">
+          <caret line="35" column="8" selection-start-line="35" selection-start-column="8" selection-end-line="35" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-175">
+          <caret line="274" column="13" selection-start-line="274" selection-start-column="8" selection-end-line="274" selection-end-column="13" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/-1786146452/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="141">
+          <caret line="5477" column="8" selection-start-line="5477" selection-start-column="8" selection-end-line="5477" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/utils/structdict.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="402">
+          <caret line="148" column="26" lean-forward="true" selection-start-line="148" selection-start-column="26" selection-end-line="148" selection-end-column="26" />
           <folding>
-            <element signature="e#0#47#0" expanded="true" />
+            <element signature="e#0#39#0" expanded="true" />
+            <marker date="1535545474350" expanded="true" signature="222:226" ph="..." />
           </folding>
         </state>
       </provider>

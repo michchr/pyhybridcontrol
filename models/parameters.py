@@ -1,4 +1,4 @@
-from structdict import StructDict
+from utils.structdict import StructDict
 import numpy as np
 
 __all__ = ['dewh_p', 'grid_p']

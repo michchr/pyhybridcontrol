@@ -1,10 +1,6 @@
-from model_generators import DewhModelGenerator
-from structdict import StructDict, StructDictAliased
+from utils.structdict import StructDict, StructDictAliased
 
 from copy import deepcopy
-
-import bisect
-
 from sortedcontainers import SortedDict
 import collections
 
@@ -112,8 +108,8 @@ class DewhSys(object):
 
 if __name__ == '__main__':
     import timeit
-    import pprint
-    from parameters import dewh_p, grid_p
+    from models.parameters import dewh_p
+    from models.model_generators import DewhModelGenerator
 
 
     def main():
