@@ -250,6 +250,7 @@ class MicroGridDataFrame(DataFrame):
 
         return self._constructor_override(new_df)
 
+
 class MicroGridSeries(Series):
     _metadata = Series._metadata + MicroGridDataFrame._metadata
 
