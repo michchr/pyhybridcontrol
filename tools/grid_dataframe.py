@@ -294,7 +294,10 @@ class MicroGridSeries(Series):
             for name in self._metadata:
                 if hasattr(other, name):
                     object.__setattr__(self, name, getattr(other, name, None))
+
+        self.__dir__
         return self
+
 
 
 if __name__ == '__main__':
