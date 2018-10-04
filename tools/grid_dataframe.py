@@ -294,8 +294,6 @@ class MicroGridSeries(Series):
             for name in self._metadata:
                 if hasattr(other, name):
                     object.__setattr__(self, name, getattr(other, name, None))
-
-        self.__dir__
         return self
 
 
@@ -306,27 +304,30 @@ if __name__ == '__main__':
 
     mi = MongoInterface("site_data", "Kikuyu")
 
-    start_date = DateTime(2018, 7, 27, 13, 0)
-    end_time = DateTime(2018, 7, 30, 14, 10)
+    start_date = DateTime(2018, 6, 27, 13, 0)
+    end_time = DateTime(2018, 10, 30, 14, 10)
 
-    raw_data = mi.get_many_dev_raw_dataframe('dewh', [1], fields=None, start_time=start_date,
+    raw_data = mi.get_many_dev_raw_dataframe('pm', [0], fields=None, start_time=start_date,
                                              end_time=end_time)
 
     al_df =raw_data.align_samples()
     #
-    df = al_df.resample_device(sample_time='5Min')
-    #
-    # df = df.compute_power_from_energy()
+    df = al_df.resample_device(sample_time='15Min')
 
-    # for i in range(1,10):
-    #     df.loc[:, IDX[i, ['Temp', 'Status']]].stair_plot(subplots=True)
+    df = df.compute_power_from_energy()
+
+
+    # for i in range(1,2):
+    #     df.loc[:, IDX[i, ['Temp', 'Status', 'is_Nan_Rol']]].stair_plot(subplots=True)
     #     figManager = plt.get_current_fig_manager()
     #     figManager.window.showMaximized()
     #     plt.show()
 
-    b = df[1]
-    a = dir(b)
-
+    for i in range(0, 1):
+        df.loc[:, IDX[i, ['ForActivePower_Tot_Calc']]].stair_plot(subplots=True)
+        figManager = plt.get_current_fig_manager()
+        figManager.window.showMaximized()
+        plt.show()
 
     #
     # # Verify Power

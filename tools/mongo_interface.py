@@ -416,13 +416,17 @@ if __name__ == '__main__':
     from timeit import default_timer as Timer
 
     mi = MongoInterface(database='site_data', collection='Kikuyu')
+    st = Timer()
     mi.set_string_field_to_datetime()
     mi.collection.create_index("TimeStamp")
-
-    start_date = DateTime(2018, 6, 30, 12, 0)
-    end_date = DateTime(2018, 7, 30, 12, 3)
+    print("Time taken is {}".format(Timer() - st))
 
     st = Timer()
+
+    start_date = DateTime(2018, 9, 30, 12, 0)
+    end_date = DateTime(2018, 10, 30, 12, 3)
+
+
 
     raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_time=start_date, end_time=end_date,
                                            fields='all', convert=True)

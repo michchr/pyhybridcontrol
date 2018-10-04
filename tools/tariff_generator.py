@@ -127,8 +127,8 @@ if __name__ == '__main__':
                                  high_stnd=102.95, high_peak=339.77)
 
     test_date = DateTime(2018, 11, 20, 18, 30)
-
+    #
     print(test_date)
     print(tariff_gen.get_import_price(test_date))
 
-    pprint.pprint(tariff_gen.get_price_vector(test_date, 0.25, 15))
+    pprint.pprint(tariff_gen.get_price_vector(24, test_date, 0.25))

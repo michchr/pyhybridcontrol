@@ -1,7 +1,7 @@
-from utils.structdict import StructDict, SortedStructDictAliased
+from utils.structdict import SortedStructDictAliased
 
-import sympy as sp
-import numpy as np
+# import sympy as sp
+# import numpy as np
 
 import inspect
 import functools
@@ -70,8 +70,8 @@ class MldModel:
             raise AttributeError("Attribute/system matrix with name: '{}' does not exist".format(key))
 
     def __repr__(self):
-        object_type = type(self).__name__
-        return "".join([object_type, '(', self._data.__repr__(),')'])
+        data_repr = self._data.__repr__().split('(',1)[-1][:-1]
+        return "".join([type(self).__name__, '(', data_repr, ')'])
 
     def __dir__(self):
         orig_dir = set(dir(type(self)))
