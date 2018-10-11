@@ -1,5 +1,6 @@
 from sortedcontainers import SortedDict
 
+
 class StructDictMixin:
     _is_init_ = False
 
@@ -23,45 +24,50 @@ class StructDictMixin:
     def __dir__(self):
         orig_dir = set(dir(type(self)))
         __dict__keys = set(self.__dict__.keys())
-        additions = {key for key in self.keys()[:100] if isinstance(key, str)}
+        additions = {key for key in list(self.keys())[:100] if isinstance(key, str)}
         rv = orig_dir | __dict__keys | additions
         return sorted(rv)
 
 
 class StructDictAliasedMixin(StructDictMixin):
-    _metadata = ("_striped_key_map")
-    _is_init_ = False
-
 
     @staticmethod
     def key_aliaser_func_default(key):
         try:
             split_key = key.split('_', 1)
             no_alpha = [i for i in "".join(split_key[1:]) if i.isnumeric()]
-            return ''.join(split_key[:1]+no_alpha)
+            return ''.join(split_key[:1] + no_alpha)
         except AttributeError:
             return key
 
     def __init__(self, *args, key_aliaser_func=None, **kwargs):
-        super(StructDictAliasedMixin, self).__init__(*args, **kwargs)
         self._is_init_ = False
+        _sdict = super(StructDictAliasedMixin, self)
+        _sdict.__init__(*args, **kwargs)
 
         self.key_aliaser_func = key_aliaser_func or self.key_aliaser_func_default
-
-        _sdict = super(StructDictAliasedMixin, self)
         self._sdict_setitem = _sdict.__setitem__
         self._sdict_getitem = _sdict.__getitem__
         self._sdict_contains = _sdict.__contains__
+        self._sdict_update = _sdict.update
+        self._sdict_clear = _sdict.clear
 
         self._striped_key_map = self._get_striped_key_map()
-        non_unique_aliased_keys = set(self.keys()).difference(self._striped_key_map.values())
-        if len(non_unique_aliased_keys) > 0:
-            raise ValueError('Cannot add items with duplicate aliases: {}'.format(non_unique_aliased_keys))
+        try:
+            self._verify_stripped_keys_unique()
+        except ValueError as ve:
+            self._sdict_clear()
+            raise ve
 
         self._is_init_ = True
 
     def _get_striped_key_map(self):
         return {self._strip_key(key): key for key in self.keys()}
+
+    def _verify_stripped_keys_unique(self):
+        non_unique_aliased_keys = set(self.keys()).difference(self._striped_key_map.values())
+        if len(non_unique_aliased_keys) > 0:
+            raise ValueError('Cannot add items with duplicate aliases: {}'.format(non_unique_aliased_keys))
 
     def _strip_key(self, key):
         return self.key_aliaser_func(key)
@@ -85,6 +91,35 @@ class StructDictAliasedMixin(StructDictMixin):
             except KeyError:
                 raise KeyError("Key with alias: '{}', does not exist".format(key))
 
+    def update(self, *args, **kwargs):
+        if not self:
+            self._sdict_update(*args, **kwargs)
+            self._striped_key_map = self._get_striped_key_map()
+            try:
+                self._verify_stripped_keys_unique()
+            except ValueError as ve:
+                self._sdict_clear()
+                raise ve
+            return
+
+        if not kwargs and len(args) == 1 and isinstance(args[0], dict):
+            pairs = args[0]
+        else:
+            pairs = dict(*args, **kwargs)
+
+        if (10 * len(pairs)) > len(self):
+            self._sdict_update(pairs)
+            self._striped_key_map = self._get_striped_key_map()
+            try:
+                self._verify_stripped_keys_unique()
+            except ValueError as ve:
+                self._sdict_clear()
+                raise ve
+            return
+        else:
+            for key in pairs:
+                self._setitem(key, pairs[key])
+
     def __contains__(self, key):
         if self._sdict_contains(key):
             return True
@@ -104,6 +139,7 @@ class StructDictAliasedMixin(StructDictMixin):
 
 class StructDict(StructDictMixin, dict):
     def __init__(self, *args, **kwargs):
+        self._is_init_ = False
         super(StructDict, self).__init__(*args, **kwargs)
         self._is_init_ = True
 
@@ -113,15 +149,16 @@ class StructDict(StructDictMixin, dict):
 
 
 class SortedStructDict(StructDictMixin, SortedDict):
-    _is_init_ = False
 
     def __init__(self, *args, **kwargs):
+        self._is_init_ = False
         super(SortedStructDict, self).__init__(*args, **kwargs)
         self._is_init_ = True
 
 
 class StructDictAliased(StructDictAliasedMixin, dict):
     def __init__(self, *args, key_aliaser_func=None, **kwargs):
+        self._is_init_ = False
         super(StructDictAliased, self).__init__(*args, key_aliaser_func=key_aliaser_func, **kwargs)
         self._is_init_ = True
 
@@ -131,9 +168,8 @@ class StructDictAliased(StructDictAliasedMixin, dict):
 
 
 class SortedStructDictAliased(StructDictAliasedMixin, SortedDict):
-    _is_init_ = False
-
     def __init__(self, *args, key_aliaser_func=None, **kwargs):
+        self._is_init_ = False
         super(SortedStructDictAliased, self).__init__(*args, key_aliaser_func=key_aliaser_func, **kwargs)
         self._is_init_ = True
 

@@ -1,13 +1,11 @@
 import functools
 import sympy as sp
 import numpy as np
-
 from utils.structdict import StructDict, StructDictAliased
 
 
 # class DeviceModelGenerator():
 #     def __init__(self):
-
 
 class DewhModelGenerator():
     def __init__(self, const_heat=True):
@@ -182,10 +180,5 @@ def _get_expr_dim(expr, is_con=False):
     else:
         raise ValueError("Invalid Expression: expr = {}".format(expr))
 
-
 if __name__ == '__main__':
-    import os
-    import pytest
-    import tests_suite.test_model_generators as tests
-    test_path = os.path.abspath(tests.__file__)
-    pytest.main([test_path])
+    pass
