@@ -7,7 +7,7 @@
     <list default="true" id="978f0496-550b-4dd8-93c2-8d0c323768ce" name="Default" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models/mld_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/mld_model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/models/model_generators.py" beforeDir="false" afterPath="$PROJECT_DIR$/models/model_generators.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sketch.py" beforeDir="false" afterPath="$PROJECT_DIR$/sketch.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/structdict.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/structdict.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -18,13 +18,18 @@
   </component>
   <component name="CoverageDataManager">
     <SUITE FILE_PATH="coverage/thesis_code$test12.coverage" NAME="test12 Coverage Results" MODIFIED="1528393965627" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$model_generators.coverage" NAME="model_generators Coverage Results" MODIFIED="1530020028592" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/thesis_code$mld_model.coverage" NAME="mld_model Coverage Results" MODIFIED="1539597837349" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/models" />
     <SUITE FILE_PATH="coverage/thesis_code$dewh_repository__1_.coverage" NAME="dewh_repository (1) Coverage Results" MODIFIED="1529483678019" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/thesis_code$struct_dict.coverage" NAME="struct_dict Coverage Results" MODIFIED="1529423168911" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/thesis_code$tariff_generator.coverage" NAME="tariff_generator Coverage Results" MODIFIED="1538993853684" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tools" />
+    <SUITE FILE_PATH="coverage/thesis_code$grid_dataframe.coverage" NAME="grid_dataframe Coverage Results" MODIFIED="1535116480993" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tools" />
+    <SUITE FILE_PATH="coverage/thesis_code$mongo_tools.coverage" NAME="mongo_tools Coverage Results" MODIFIED="1534166386639" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
+    <SUITE FILE_PATH="coverage/thesis_code$tariff.coverage" NAME="tariff Coverage Results" MODIFIED="1529406457026" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/thesis_code$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1527083185927" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
+    <SUITE FILE_PATH="coverage/thesis_code$model_generators.coverage" NAME="model_generators Coverage Results" MODIFIED="1530020028592" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$micro_grid_model.coverage" NAME="micro_grid_model Coverage Results" MODIFIED="1530021446500" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$dewh_repository.coverage" NAME="dewh_repository Coverage Results" MODIFIED="1530021226705" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$struct_dict.coverage" NAME="struct_dict Coverage Results" MODIFIED="1529423168911" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$scratch.coverage" NAME="scratch Coverage Results" MODIFIED="1530537939457" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
-    <SUITE FILE_PATH="coverage/thesis_code$tariff_generator.coverage" NAME="tariff_generator Coverage Results" MODIFIED="1538993853684" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tools" />
     <SUITE FILE_PATH="coverage/thesis_code$structdict.coverage" NAME="structdict Coverage Results" MODIFIED="1535640860946" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
     <SUITE FILE_PATH="coverage/thesis_code$sketch2.coverage" NAME="sketch2 Coverage Results" MODIFIED="1528711735769" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$pytest_for_test_model_generators_test_dewh_model_generator.coverage" NAME="pytest for test_model_generators.test_dewh_model_generator Coverage Results" MODIFIED="1535367133654" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests_suite" />
@@ -32,13 +37,9 @@
     <SUITE FILE_PATH="coverage/thesis_code$thesis_code.coverage" NAME="thesis_code Coverage Results" MODIFIED="1530528152210" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
     <SUITE FILE_PATH="coverage/thesis_code$mpc_solver.coverage" NAME="mpc_solver Coverage Results" MODIFIED="1530181544236" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$sketch.coverage" NAME="sketch Coverage Results" MODIFIED="1529601954074" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$grid_dataframe.coverage" NAME="grid_dataframe Coverage Results" MODIFIED="1535116480993" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tools" />
     <SUITE FILE_PATH="coverage/thesis_code$domestic_electric_water_heaters.coverage" NAME="domestic_electric_water_heaters Coverage Results" MODIFIED="1529062352077" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$mongo_tools.coverage" NAME="mongo_tools Coverage Results" MODIFIED="1534166386639" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
     <SUITE FILE_PATH="coverage/thesis_code$overall_system_model.coverage" NAME="overall_system_model Coverage Results" MODIFIED="1529489843633" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$tariff.coverage" NAME="tariff Coverage Results" MODIFIED="1529406457026" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$test.coverage" NAME="test Coverage Results" MODIFIED="1527522920414" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
-    <SUITE FILE_PATH="coverage/thesis_code$scratch_1.coverage" NAME="scratch_1 Coverage Results" MODIFIED="1527083185927" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$APPLICATION_CONFIG_DIR$/scratches" />
     <SUITE FILE_PATH="coverage/thesis_code$model_gen.coverage" NAME="model_gen Coverage Results" MODIFIED="1528987358495" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/thesis_code$dataframe_tools.coverage" NAME="dataframe_tools Coverage Results" MODIFIED="1534949189711" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
   </component>
@@ -46,7 +47,7 @@
     <session id="-1357689466">
       <usages-collector id="statistics.lifecycle.project">
         <counts>
-          <entry key="project.closed" value="42" />
+          <entry key="project.closed" value="47" />
           <entry key="project.open.time.0" value="1" />
           <entry key="project.open.time.10" value="4" />
           <entry key="project.open.time.11" value="3" />
@@ -55,31 +56,32 @@
           <entry key="project.open.time.15" value="1" />
           <entry key="project.open.time.16" value="1" />
           <entry key="project.open.time.20" value="1" />
-          <entry key="project.open.time.5" value="1" />
-          <entry key="project.open.time.6" value="5" />
-          <entry key="project.open.time.7" value="6" />
+          <entry key="project.open.time.4" value="1" />
+          <entry key="project.open.time.5" value="3" />
+          <entry key="project.open.time.6" value="7" />
+          <entry key="project.open.time.7" value="7" />
           <entry key="project.open.time.8" value="13" />
           <entry key="project.open.time.9" value="6" />
-          <entry key="project.opened" value="45" />
+          <entry key="project.opened" value="51" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.extensions.edit">
         <counts>
-          <entry key="Python Console" value="46447" />
+          <entry key="Python Console" value="46522" />
           <entry key="dummy" value="126" />
           <entry key="grid_dataframe" value="110" />
-          <entry key="mld_model" value="5209" />
+          <entry key="mld_model" value="6296" />
           <entry key="model_test" value="376" />
           <entry key="mongo_interface" value="544" />
-          <entry key="py" value="68850" />
-          <entry key="structdict" value="287" />
+          <entry key="py" value="77420" />
+          <entry key="structdict" value="1380" />
           <entry key="tariff_generator" value="838" />
         </counts>
       </usages-collector>
       <usages-collector id="statistics.file.types.edit">
         <counts>
           <entry key="PLAIN_TEXT" value="126" />
-          <entry key="Python" value="121964" />
+          <entry key="Python" value="132789" />
           <entry key="Scratch" value="697" />
         </counts>
       </usages-collector>
@@ -92,8 +94,8 @@
           <entry key="md" value="1" />
           <entry key="model_test" value="10" />
           <entry key="pstat" value="8" />
-          <entry key="py" value="1117" />
-          <entry key="pyi" value="11" />
+          <entry key="py" value="1154" />
+          <entry key="pyi" value="18" />
           <entry key="vmoptions" value="2" />
         </counts>
       </usages-collector>
@@ -104,8 +106,8 @@
           <entry key="Markdown" value="1" />
           <entry key="PLAIN_TEXT" value="3" />
           <entry key="Profiler Session" value="8" />
-          <entry key="Python" value="1120" />
-          <entry key="PythonStub" value="11" />
+          <entry key="Python" value="1157" />
+          <entry key="PythonStub" value="18" />
           <entry key="Scratch" value="9" />
         </counts>
       </usages-collector>
@@ -117,24 +119,21 @@
     <favorites_list name="thesis_code" />
   </component>
   <component name="FileEditorManager">
-    <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+    <leaf>
       <file pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/models/mld_model.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state>
-              <caret column="36" selection-start-column="36" selection-end-column="36" />
+            <state relative-caret-position="255">
+              <caret line="144" column="14" selection-start-line="144" selection-start-column="14" selection-end-line="144" selection-end-column="14" />
               <folding>
-                <marker date="1539274569536" expanded="true" signature="1882:1884" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="1919:1924" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="3242:3248" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="4451:4455" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="4509:4518" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="4908:5283" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="5302:5446" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="8251:10059" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="10093:10103" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="11186:11195" ph="..." />
-                <marker date="1539274569536" expanded="true" signature="11438:11444" ph="..." />
+                <element signature="e#0#76#0" expanded="true" />
+                <marker date="1539602302763" expanded="true" signature="2531:2790" ph="..." />
+                <marker date="1539602302763" expanded="true" signature="2817:2826" ph="..." />
+                <marker date="1539602302763" expanded="true" signature="3306:3412" ph="..." />
+                <marker date="1539602302763" expanded="true" signature="4781:4787" ph="..." />
+                <marker date="1539602302763" expanded="true" signature="4875:4884" ph="..." />
+                <marker date="1539602302763" expanded="true" signature="4875:5300" ph="..." />
+                <marker date="1539602302763" expanded="true" signature="8405:8875" ph="..." />
               </folding>
             </state>
           </provider>
@@ -143,31 +142,12 @@
       <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/utils/structdict.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="119">
-              <caret line="7" selection-start-line="7" selection-end-line="7" selection-end-column="26" />
+            <state relative-caret-position="220">
+              <caret line="181" lean-forward="true" selection-start-line="181" selection-end-line="181" />
               <folding>
-                <marker date="1539273592310" expanded="true" signature="2203:2456" ph="..." />
-                <marker date="1539273592310" expanded="true" signature="3263:3272" ph="..." />
-                <marker date="1539273592310" expanded="true" signature="4161:4167" ph="..." />
+                <marker date="1539602597679" expanded="true" signature="803:809" ph="..." />
+                <marker date="1539602597679" expanded="true" signature="5560:5565" ph="..." />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/collections/__init__.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="224">
-              <caret line="989" column="45" selection-start-line="989" selection-start-column="34" selection-end-line="989" selection-end-column="45" />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-8">
-              <caret line="131" lean-forward="true" selection-start-line="131" selection-end-line="131" />
             </state>
           </provider>
         </entry>
@@ -184,21 +164,12 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>__repr__</find>
-      <find>self._sdict</find>
-      <find>self._sdict\.</find>
-      <find>_sdict</find>
-      <find>__cont</find>
-      <find>__sdict__</find>
-      <find>__set</find>
-      <find>__init:</find>
       <find>self.__ini</find>
       <find>\.\.</find>
       <find>__s</find>
       <find>self._dict_type</find>
       <find>string_types</find>
       <find>sortedLis</find>
-      <find>__get</find>
       <find>__repr</find>
       <find>seq</find>
       <find>sequence</find>
@@ -207,17 +178,24 @@
       <find>__ini</find>
       <find>__new__</find>
       <find>cop</find>
-      <find>copy</find>
       <find>__rep</find>
       <find>__re</find>
       <find>__len__</find>
       <find>update</find>
       <find>_meta</find>
       <find>Us</find>
+      <find>upda</find>
+      <find>store</find>
+      <find>__get</find>
+      <find>__se</find>
+      <find>__setattr</find>
+      <find>clear</find>
+      <find>_set_direct</find>
+      <find>copy</find>
+      <find>MldVarInfoStruct</find>
+      <find>var_di</find>
     </findStrings>
     <replaceStrings>
-      <replace>mg_evo_con_devic_struct</replace>
-      <replace>mg_device_cons_evo_struct</replace>
       <replace>self._device_mld_mat_struct</replace>
       <replace>mg_tariff</replace>
       <replace>mpc_obj_struct</replace>
@@ -246,6 +224,8 @@
       <replace>self._ini</replace>
       <replace>.</replace>
       <replace>self</replace>
+      <replace>self._sdict_setitem</replace>
+      <replace>MldVarInfo</replace>
     </replaceStrings>
     <dirStrings>
       <dir>C:\Miniconda3\envs\thesis_code\Lib\site-packages</dir>
@@ -279,7 +259,6 @@
         <option value="$PROJECT_DIR$/dewhrepository.py" />
         <option value="$PROJECT_DIR$/overall_system_model.py" />
         <option value="$PROJECT_DIR$/mpcproblem.py" />
-        <option value="$PROJECT_DIR$/sketch.py" />
         <option value="$PROJECT_DIR$/structdict.py" />
         <option value="$PROJECT_DIR$/mpc_problem.py" />
         <option value="$PROJECT_DIR$/parameters.py" />
@@ -307,8 +286,9 @@
         <option value="$PROJECT_DIR$/test.ipynb" />
         <option value="$PROJECT_DIR$/tools/tariff_generator.py" />
         <option value="$PROJECT_DIR$/models/model_generators.py" />
-        <option value="$PROJECT_DIR$/utils/structdict.py" />
+        <option value="$PROJECT_DIR$/sketch.py" />
         <option value="$PROJECT_DIR$/models/mld_model.py" />
+        <option value="$PROJECT_DIR$/utils/structdict.py" />
       </list>
     </option>
   </component>
@@ -319,8 +299,8 @@
     <sorting>DEFINITION_ORDER</sorting>
   </component>
   <component name="ProjectFrameBounds" extendedState="6">
-    <option name="x" value="495" />
-    <option name="y" value="-19" />
+    <option name="x" value="140" />
+    <option name="y" value="-25" />
     <option name="width" value="980" />
     <option name="height" value="1040" />
   </component>
@@ -405,6 +385,36 @@
               <item name="thesis_code" type="462c0819:PsiDirectoryNode" />
               <item name="utils" type="462c0819:PsiDirectoryNode" />
             </path>
+            <path>
+              <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+            </path>
+            <path>
+              <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+              <item name="&lt; Python 3.6 (thesis_code) &gt;" type="70bed36:NamedLibraryElementNode" />
+            </path>
+            <path>
+              <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+              <item name="&lt; Python 3.6 (thesis_code) &gt;" type="70bed36:NamedLibraryElementNode" />
+              <item name="Typeshed Stubs" type="9c07c3ae:PyTypeShedNode" />
+            </path>
+            <path>
+              <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+              <item name="&lt; Python 3.6 (thesis_code) &gt;" type="70bed36:NamedLibraryElementNode" />
+              <item name="Typeshed Stubs" type="9c07c3ae:PyTypeShedNode" />
+              <item name="3" type="462c0819:PsiDirectoryNode" />
+            </path>
+            <path>
+              <item name="thesis_code" type="b2602c69:ProjectViewProjectNode" />
+              <item name="External Libraries" type="cb654da1:ExternalLibrariesNode" />
+              <item name="&lt; Python 3.6 (thesis_code) &gt;" type="70bed36:NamedLibraryElementNode" />
+              <item name="Typeshed Stubs" type="9c07c3ae:PyTypeShedNode" />
+              <item name="3" type="462c0819:PsiDirectoryNode" />
+              <item name="collections" type="462c0819:PsiDirectoryNode" />
+            </path>
           </expand>
           <select />
         </subPane>
@@ -457,7 +467,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.mld_model">
+  <component name="RunManager" selected="Python.structdict">
     <configuration default="true" type="PythonConfigurationType" factoryName="Python">
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="-i" />
@@ -521,6 +531,28 @@
       <option name="INPUT_FILE" value="" />
       <method v="2" />
     </configuration>
+    <configuration name="sketch" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <module name="thesis_code" />
+      <option name="INTERPRETER_OPTIONS" value="-i" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/sketch.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="true" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
     <configuration name="structdict" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <module name="thesis_code" />
       <option name="INTERPRETER_OPTIONS" value="-i" />
@@ -567,11 +599,13 @@
       <item itemvalue="Python.mld_model" />
       <item itemvalue="Python.model_generators" />
       <item itemvalue="Python.structdict" />
+      <item itemvalue="Python.sketch" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Python.mld_model" />
         <item itemvalue="Python.structdict" />
+        <item itemvalue="Python.mld_model" />
+        <item itemvalue="Python.sketch" />
         <item itemvalue="Python.model_generators" />
         <item itemvalue="Python.tariff_generator" />
       </list>
@@ -638,13 +672,13 @@
     <frame x="-7" y="-7" width="1550" height="838" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.6784314" visible="true" weight="0.21275167" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.6784314" visible="true" weight="0.21289062" />
       <window_info id="Structure" order="1" sideWeight="0.32156864" side_tool="true" weight="0.20402685" />
       <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.3177305" />
+      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.31491002" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.6375839" weight="0.5858156" />
-      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39716312" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39697802" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.49932885" weight="0.32624114" />
@@ -652,7 +686,7 @@
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Inspection Results" order="9" weight="0.32905984" />
       <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.14228188" side_tool="true" weight="0.3744681" />
-      <window_info active="true" anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.8577181" visible="true" weight="0.29503545" />
+      <window_info active="true" anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.8577181" visible="true" weight="0.2815934" />
       <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76510066" weight="0.32624114" />
       <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.31914893" />
       <window_info active="true" anchor="bottom" id="Concurrent Activities Diagram" order="14" weight="0.32980132" />
@@ -665,13 +699,13 @@
       <window_info anchor="right" x="484" y="204" width="508" height="480" id="SciView" order="6" show_stripe_button="false" sideWeight="0.49122807" weight="0.347651" />
     </layout>
     <layout-to-restore>
-      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.6784314" visible="true" weight="0.21275167" />
+      <window_info content_ui="combo" id="Project" order="0" sideWeight="0.6784314" visible="true" weight="0.21875" />
       <window_info id="Structure" order="1" sideWeight="0.32156864" side_tool="true" weight="0.20402685" />
       <window_info id="Favorites" order="2" sideWeight="0.5673759" side_tool="true" weight="0.17718121" />
       <window_info anchor="bottom" id="Message" order="0" />
-      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.3177305" />
+      <window_info anchor="bottom" id="Find" order="1" sideWeight="0.49731544" weight="0.31491002" />
       <window_info anchor="bottom" id="Run" order="2" sideWeight="0.6375839" weight="0.5858156" />
-      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39716312" />
+      <window_info anchor="bottom" id="Debug" order="3" sideWeight="0.8865772" weight="0.39697802" />
       <window_info anchor="bottom" id="Cvs" order="4" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="bottom" id="TODO" order="6" sideWeight="0.49932885" weight="0.32624114" />
@@ -679,7 +713,7 @@
       <window_info anchor="bottom" id="Database Changes" order="8" show_stripe_button="false" />
       <window_info anchor="bottom" id="Inspection Results" order="9" weight="0.32905984" />
       <window_info anchor="bottom" id="Event Log" order="10" sideWeight="0.14228188" side_tool="true" weight="0.3744681" />
-      <window_info active="true" anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.8577181" visible="true" weight="0.2964539" />
+      <window_info active="true" anchor="bottom" x="0" y="23" width="1536" height="801" id="Python Console" order="11" sideWeight="0.8577181" visible="true" weight="0.0728022" />
       <window_info anchor="bottom" id="Terminal" order="12" sideWeight="0.76510066" weight="0.32624114" />
       <window_info anchor="bottom" id="Version Control" order="13" sideWeight="0.4966443" weight="0.31914893" />
       <window_info active="true" anchor="bottom" id="Concurrent Activities Diagram" order="14" weight="0.32980132" />
@@ -710,11 +744,6 @@
     </breakpoint-manager>
   </component>
   <component name="editorHistoryManager">
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sortedlist.py" />
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/_collections_abc.py" />
-    <entry file="file://C:/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py" />
-    <entry file="file://$PROJECT_DIR$/utils/__init__.py" />
-    <entry file="file://$PROJECT_DIR$/test.ipynb" />
     <entry file="file://$PROJECT_DIR$/tests_suite/test_model_generators.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="119">
@@ -732,9 +761,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="2975">
           <caret line="250" selection-start-line="250" selection-end-line="250" />
-          <folding>
-            <element signature="e#531#545#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -763,31 +789,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/collections/__init__.pyi">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="299">
-          <caret line="30" column="7" selection-start-line="30" selection-start-column="7" selection-end-line="30" selection-end-column="7" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/typing.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="368">
-          <caret line="1868" column="10" selection-start-line="1868" selection-start-column="10" selection-end-line="1868" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/tools/tariff_generator.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="390">
           <caret line="134" lean-forward="true" selection-start-line="134" selection-end-line="134" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tools/grid_dataframe.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="93">
-          <caret line="320" column="48" selection-start-line="320" selection-start-column="48" selection-end-line="320" selection-end-column="48" />
         </state>
       </provider>
     </entry>
@@ -888,13 +893,6 @@
     <entry file="file://$PROJECT_DIR$/models/micro_grid_model.py">
       <provider selected="true" editor-type-id="text-editor" />
     </entry>
-    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/typing.pyi">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="336">
-          <caret line="344" column="8" selection-start-line="344" selection-start-column="8" selection-end-line="344" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/site-packages/numpy/core/shape_base.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-200">
@@ -981,9 +979,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-816">
           <caret line="4" lean-forward="true" selection-start-line="4" selection-end-line="4" />
-          <folding>
-            <element signature="e#0#16#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -1001,55 +996,110 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/1772979173/builtins.py">
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/collections/__init__.pyi">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="349">
-          <caret line="765" column="8" selection-start-line="765" selection-start-column="8" selection-end-line="765" selection-end-column="8" />
+        <state relative-caret-position="17">
+          <caret line="13" lean-forward="true" selection-start-line="13" selection-end-line="13" />
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/typing.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="166">
+          <caret line="1850" column="35" selection-start-line="1850" selection-start-column="35" selection-end-line="1850" selection-end-column="35" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/collections/abc.pyi">
+      <provider selected="true" editor-type-id="text-editor" />
+    </entry>
     <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/collections/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="224">
+        <state relative-caret-position="415">
           <caret line="989" column="45" selection-start-line="989" selection-start-column="34" selection-end-line="989" selection-end-column="45" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/sketch.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="595">
+          <caret line="35" column="22" selection-start-line="35" selection-start-column="22" selection-end-line="35" selection-end-column="22" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/series.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="102">
+          <caret line="125" column="46" selection-start-line="125" selection-start-column="46" selection-end-line="125" selection-end-column="46" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/site-packages/pandas/core/generic.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="177">
+          <caret line="4396" column="8" lean-forward="true" selection-start-line="4396" selection-start-column="8" selection-end-line="4397" selection-end-column="49" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tools/grid_dataframe.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="178">
+          <caret line="253" column="25" selection-start-line="253" selection-start-column="25" selection-end-line="253" selection-end-column="25" />
         </state>
       </provider>
     </entry>
     <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/site-packages/sortedcontainers/sorteddict.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-8">
-          <caret line="131" lean-forward="true" selection-start-line="131" selection-end-line="131" />
+        <state relative-caret-position="5219">
+          <caret line="311" column="4" selection-start-line="311" selection-start-column="4" selection-end-line="321" selection-end-column="19" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/.PyCharm2018.2/system/python_stubs/1772979173/builtins.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="172">
+          <caret line="5726" column="6" selection-start-line="5726" selection-start-column="6" selection-end-line="5726" selection-end-column="6" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$APPLICATION_HOME_DIR$/helpers/typeshed/stdlib/3/typing.pyi">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="302">
+          <caret line="360" column="8" selection-start-line="360" selection-start-column="8" selection-end-line="360" selection-end-column="8" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$USER_HOME$/Software/Miniconda3/envs/thesis_code/Lib/codecs.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="130">
+          <caret line="308" selection-start-line="308" selection-end-line="308" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/models/mld_model.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state>
-          <caret column="36" selection-start-column="36" selection-end-column="36" />
+        <state relative-caret-position="255">
+          <caret line="144" column="14" selection-start-line="144" selection-start-column="14" selection-end-line="144" selection-end-column="14" />
           <folding>
-            <marker date="1539274569536" expanded="true" signature="1882:1884" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="1919:1924" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="3242:3248" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="4451:4455" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="4509:4518" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="4908:5283" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="5302:5446" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="8251:10059" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="10093:10103" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="11186:11195" ph="..." />
-            <marker date="1539274569536" expanded="true" signature="11438:11444" ph="..." />
+            <element signature="e#0#76#0" expanded="true" />
+            <marker date="1539602302763" expanded="true" signature="2531:2790" ph="..." />
+            <marker date="1539602302763" expanded="true" signature="2817:2826" ph="..." />
+            <marker date="1539602302763" expanded="true" signature="3306:3412" ph="..." />
+            <marker date="1539602302763" expanded="true" signature="4781:4787" ph="..." />
+            <marker date="1539602302763" expanded="true" signature="4875:4884" ph="..." />
+            <marker date="1539602302763" expanded="true" signature="4875:5300" ph="..." />
+            <marker date="1539602302763" expanded="true" signature="8405:8875" ph="..." />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/utils/structdict.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="119">
-          <caret line="7" selection-start-line="7" selection-end-line="7" selection-end-column="26" />
+        <state relative-caret-position="220">
+          <caret line="181" lean-forward="true" selection-start-line="181" selection-end-line="181" />
           <folding>
-            <marker date="1539273592310" expanded="true" signature="2203:2456" ph="..." />
-            <marker date="1539273592310" expanded="true" signature="3263:3272" ph="..." />
-            <marker date="1539273592310" expanded="true" signature="4161:4167" ph="..." />
+            <marker date="1539602597679" expanded="true" signature="803:809" ph="..." />
+            <marker date="1539602597679" expanded="true" signature="5560:5565" ph="..." />
           </folding>
         </state>
       </provider>

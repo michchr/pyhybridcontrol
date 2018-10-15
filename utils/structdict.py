@@ -2,17 +2,38 @@ from sortedcontainers import SortedDict
 
 
 class StructDictMixin:
-    _is_init_ = False
+    _metadata = []
+
+    # noinspection PyUnresolvedReferences
+    def __new__(cls, *args, **kwargs):
+        self = super().__new__(cls, *args, **kwargs)
+        _struct_dict_settattr = cls.__setattr__
+        cls.__setattr__ = object.__setattr__
+
+        #Initialize underlying dictionary and store cached access methods
+        _sdict = super(StructDictMixin, self)
+        _sdict.__init__()
+        self._sdict_setitem = _sdict.__setitem__
+        self._sdict_getitem = _sdict.__getitem__
+        self._sdict_contains = _sdict.__contains__
+        self._sdict_update = _sdict.update
+        self._sdict_clear = _sdict.clear
+        self._sdict_init = _sdict.__init__
+        cls.__setattr__ = _struct_dict_settattr
+
+        return self
 
     def __setattr__(self, key, value):
-        if self._is_init_:
-            try:
-                self.__getattribute__(key)
-                object.__setattr__(self, key, value)
-            except AttributeError:
-                self.__setitem__(key, value)
-        else:
+        try:
+            self.__getattribute__(key)
+            return object.__setattr__(self, key, value)
+        except AttributeError:
+            pass
+
+        if key in self._metadata:
             object.__setattr__(self, key, value)
+        else:
+            self.__setitem__(key, value)
 
     def __getattr__(self, key):
         # only called when an attribute is NOT found in the instance's dictionary
@@ -41,25 +62,16 @@ class StructDictAliasedMixin(StructDictMixin):
             return key
 
     def __init__(self, *args, key_aliaser_func=None, **kwargs):
-        self._is_init_ = False
-        _sdict = super(StructDictAliasedMixin, self)
-        _sdict.__init__(*args, **kwargs)
 
-        self.key_aliaser_func = key_aliaser_func or self.key_aliaser_func_default
-        self._sdict_setitem = _sdict.__setitem__
-        self._sdict_getitem = _sdict.__getitem__
-        self._sdict_contains = _sdict.__contains__
-        self._sdict_update = _sdict.update
-        self._sdict_clear = _sdict.clear
+        self._sdict_init(*args, **kwargs)
+        object.__setattr__(self, '_key_aliaser_func', key_aliaser_func or self.key_aliaser_func_default)
+        object.__setattr__(self, '_striped_key_map', self._get_striped_key_map())
 
-        self._striped_key_map = self._get_striped_key_map()
         try:
             self._verify_stripped_keys_unique()
         except ValueError as ve:
             self._sdict_clear()
             raise ve
-
-        self._is_init_ = True
 
     def _get_striped_key_map(self):
         return {self._strip_key(key): key for key in self.keys()}
@@ -70,7 +82,7 @@ class StructDictAliasedMixin(StructDictMixin):
             raise ValueError('Cannot add items with duplicate aliases: {}'.format(non_unique_aliased_keys))
 
     def _strip_key(self, key):
-        return self.key_aliaser_func(key)
+        return self._key_aliaser_func(key)
 
     def __setitem__(self, key, value):
         striped_key = self._strip_key(key)
@@ -92,6 +104,18 @@ class StructDictAliasedMixin(StructDictMixin):
                 raise KeyError("Key with alias: '{}', does not exist".format(key))
 
     def update(self, *args, **kwargs):
+        """Update struct dict aliased with items from `args` and `kwargs`.
+
+        Overwrites existing items.
+
+        Optional arguments `args` and `kwargs` may be a mapping, an iterable of
+        pairs or keyword arguments.
+
+        :param args: mapping or iterable of pairs
+        :param kwargs: keyword arguments mapping
+
+        Method based on sortedcontainers.SortedDict update method
+        """
         if not self:
             self._sdict_update(*args, **kwargs)
             self._striped_key_map = self._get_striped_key_map()
@@ -107,6 +131,8 @@ class StructDictAliasedMixin(StructDictMixin):
         else:
             pairs = dict(*args, **kwargs)
 
+        # noinspection PyTypeChecker
+        # Len inherited from associated dict class
         if (10 * len(pairs)) > len(self):
             self._sdict_update(pairs)
             self._striped_key_map = self._get_striped_key_map()
@@ -118,7 +144,7 @@ class StructDictAliasedMixin(StructDictMixin):
             return
         else:
             for key in pairs:
-                self._setitem(key, pairs[key])
+                self.__setitem__(key, pairs[key])
 
     def __contains__(self, key):
         if self._sdict_contains(key):
@@ -138,41 +164,21 @@ class StructDictAliasedMixin(StructDictMixin):
 
 
 class StructDict(StructDictMixin, dict):
-    def __init__(self, *args, **kwargs):
-        self._is_init_ = False
-        super(StructDict, self).__init__(*args, **kwargs)
-        self._is_init_ = True
-
     def __repr__(self):
         type_name = type(self).__name__
-        return ''.join([type_name, '(', super().__repr__(), ')'])
+        return ''.join([type_name, '(', super(StructDictMixin, self).__repr__(), ')'])
 
 
 class SortedStructDict(StructDictMixin, SortedDict):
-
-    def __init__(self, *args, **kwargs):
-        self._is_init_ = False
-        super(SortedStructDict, self).__init__(*args, **kwargs)
-        self._is_init_ = True
-
+    pass
 
 class StructDictAliased(StructDictAliasedMixin, dict):
-    def __init__(self, *args, key_aliaser_func=None, **kwargs):
-        self._is_init_ = False
-        super(StructDictAliased, self).__init__(*args, key_aliaser_func=key_aliaser_func, **kwargs)
-        self._is_init_ = True
-
     def __repr__(self):
         type_name = type(self).__name__
-        return ''.join([type_name, '(', super().__repr__(), ')'])
-
+        return ''.join([type_name, '(', super(StructDictAliased, self).__repr__(), ')'])
 
 class SortedStructDictAliased(StructDictAliasedMixin, SortedDict):
-    def __init__(self, *args, key_aliaser_func=None, **kwargs):
-        self._is_init_ = False
-        super(SortedStructDictAliased, self).__init__(*args, key_aliaser_func=key_aliaser_func, **kwargs)
-        self._is_init_ = True
-
+    pass
 
 if __name__ == '__main__':
     st = StructDict(a=1, b=2)
