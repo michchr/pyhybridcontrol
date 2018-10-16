@@ -2,23 +2,27 @@ from sortedcontainers import SortedDict
 
 
 class StructDictMixin:
-    _metadata = []
+    _internal_names = []
+    _internal_names_set = set(_internal_names)
 
+    def _init_std_attributes(self):
+        pass
     # noinspection PyUnresolvedReferences
     def __new__(cls, *args, **kwargs):
-        self = super().__new__(cls, *args, **kwargs)
+        self = super(StructDictMixin, cls).__new__(cls, *args, **kwargs)
         _struct_dict_settattr = cls.__setattr__
         cls.__setattr__ = object.__setattr__
-
         #Initialize underlying dictionary and store cached access methods
-        _sdict = super(StructDictMixin, self)
-        _sdict.__init__()
-        self._sdict_setitem = _sdict.__setitem__
-        self._sdict_getitem = _sdict.__getitem__
-        self._sdict_contains = _sdict.__contains__
-        self._sdict_update = _sdict.update
-        self._sdict_clear = _sdict.clear
-        self._sdict_init = _sdict.__init__
+        _base_dict = super(StructDictMixin, self)
+        _base_dict.__init__()
+        self._base_dict_setitem = _base_dict.__setitem__
+        self._base_dict_getitem = _base_dict.__getitem__
+        self._base_dict_contains = _base_dict.__contains__
+        self._base_dict_update = _base_dict.update
+        self._base_dict_clear = _base_dict.clear
+        self._base_dict_init = _base_dict.__init__
+        self._key = None
+        self._init_std_attributes()
         cls.__setattr__ = _struct_dict_settattr
 
         return self
@@ -30,7 +34,7 @@ class StructDictMixin:
         except AttributeError:
             pass
 
-        if key in self._metadata:
+        if key in self._internal_names_set:
             object.__setattr__(self, key, value)
         else:
             self.__setitem__(key, value)
@@ -48,6 +52,7 @@ class StructDictMixin:
         additions = {key for key in list(self.keys())[:100] if isinstance(key, str)}
         rv = orig_dir | __dict__keys | additions
         return sorted(rv)
+    
 
 
 class StructDictAliasedMixin(StructDictMixin):
@@ -63,14 +68,14 @@ class StructDictAliasedMixin(StructDictMixin):
 
     def __init__(self, *args, key_aliaser_func=None, **kwargs):
 
-        self._sdict_init(*args, **kwargs)
+        self._base_dict_init(*args, **kwargs)
         object.__setattr__(self, '_key_aliaser_func', key_aliaser_func or self.key_aliaser_func_default)
         object.__setattr__(self, '_striped_key_map', self._get_striped_key_map())
 
         try:
             self._verify_stripped_keys_unique()
         except ValueError as ve:
-            self._sdict_clear()
+            self._base_dict_clear()
             raise ve
 
     def _get_striped_key_map(self):
@@ -88,18 +93,18 @@ class StructDictAliasedMixin(StructDictMixin):
         striped_key = self._strip_key(key)
         try:
             key_actual = self._striped_key_map[striped_key]
-            self._sdict_setitem(key_actual, value)
+            self._base_dict_setitem(key_actual, value)
         except KeyError:
-            self._sdict_setitem(key, value)
+            self._base_dict_setitem(key, value)
             self._striped_key_map[striped_key] = key
 
     def __getitem__(self, key):
         try:
-            return self._sdict_getitem(key)
+            return self._base_dict_getitem(key)
         except KeyError:
             striped_key = self._strip_key(key)
             try:
-                return self._sdict_getitem(self._striped_key_map[striped_key])
+                return self._base_dict_getitem(self._striped_key_map[striped_key])
             except KeyError:
                 raise KeyError("Key with alias: '{}', does not exist".format(key))
 
@@ -117,12 +122,12 @@ class StructDictAliasedMixin(StructDictMixin):
         Method based on sortedcontainers.SortedDict update method
         """
         if not self:
-            self._sdict_update(*args, **kwargs)
+            self._base_dict_update(*args, **kwargs)
             self._striped_key_map = self._get_striped_key_map()
             try:
                 self._verify_stripped_keys_unique()
             except ValueError as ve:
-                self._sdict_clear()
+                self._base_dict_clear()
                 raise ve
             return
 
@@ -134,12 +139,12 @@ class StructDictAliasedMixin(StructDictMixin):
         # noinspection PyTypeChecker
         # Len inherited from associated dict class
         if (10 * len(pairs)) > len(self):
-            self._sdict_update(pairs)
+            self._base_dict_update(pairs)
             self._striped_key_map = self._get_striped_key_map()
             try:
                 self._verify_stripped_keys_unique()
             except ValueError as ve:
-                self._sdict_clear()
+                self._base_dict_clear()
                 raise ve
             return
         else:
@@ -147,7 +152,7 @@ class StructDictAliasedMixin(StructDictMixin):
                 self.__setitem__(key, pairs[key])
 
     def __contains__(self, key):
-        if self._sdict_contains(key):
+        if self._base_dict_contains(key):
             return True
         else:
             striped_key = self._strip_key(key)
@@ -187,4 +192,4 @@ if __name__ == '__main__':
     ssta = SortedStructDictAliased(b=1, a_1a1=2)
 
     A = SortedStructDictAliased()
-    A._sdict_setitem('c', 1)
+    A._base_dict_setitem('c', 1)
