@@ -109,7 +109,7 @@ class DewhSys(object):
 if __name__ == '__main__':
     import timeit
     from models.parameters import dewh_p
-    from models.model_generators import DewhModelGenerator
+    from models.model_generators_old import DewhModelGenerator
 
 
     def main():

@@ -5,7 +5,7 @@ import pprint
 
 from models.device_repository import DeviceRepository, DewhRepository
 from utils.structdict import StructDict, StructDictAliased
-from models.model_generators import DewhModelGenerator, GridModelGenerator
+from models.model_generators_old import DewhModelGenerator, GridModelGenerator
 
 
 class MicroGridModel():

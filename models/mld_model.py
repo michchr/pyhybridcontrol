@@ -1,10 +1,14 @@
-from utils.structdict import SortedStructDict, StructDict
-
 import pprint
 import numpy as np
 import sympy as sp
 import scipy.sparse as scs
 import scipy.linalg as scl
+import functools
+from enum import Enum
+from copy import deepcopy as _deepcopy
+
+from utils.structdict import SortedStructDict, StructDict
+
 
 # def append_named_call_args(func):
 #     def wrapper(self, *args, **kwargs):
@@ -14,61 +18,20 @@ import scipy.linalg as scl
 #     wrapper.__signature__ = inspect.signature(func)
 #     return wrapper
 
-def get_expr_shape(expr):
-    try:
-        expr_shape = expr.shape
-        if 0 in expr_shape:
-            return (0, 0)
-        if len(expr_shape) == 1:
-            return (expr_shape[0], 0)
-        elif len(expr_shape) == 2:
-            return expr_shape
-        else:
-            raise NotImplementedError("Maximum supported dimension is 2, got {}".format(len(expr_shape)))
-    except AttributeError:
-        pass
-
-    if expr is None or np.isscalar(expr) or isinstance(expr, sp.Expr):
-        return (1, 1)
-    else:
-        raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
-
-
-def get_expr_shapes(*args, get_max_dim=False):
-    if len(args) < 1:
-        return None
-
-    if len(args) == 1:
-        arg = args[0]
-        if isinstance(arg, dict):
-            shape_struct = StructDict()
-            for expr_id, expr in arg.items():
-                shape_struct[expr_id] = get_expr_shape(expr)
-            return shape_struct
-        else:
-            return get_expr_shape(arg)
-    else:
-        shapes = []
-        for arg in args:
-            shapes.append(get_expr_shape(arg))
-        if get_max_dim:
-            return tuple(np.maximum(*shapes))
-        else:
-            return shapes
-
-
-_mld_dim_map = {
-    'nx': ('A', 'E1'),
-    'nu': ('B1', 'E2'),
-    'ndelta': ('B2', 'E3'),
-    'nz': ('B3', 'E4'),
-    'nomega': ('B4', 'E5'),
-    'n_cons': ('d',)
-}
 
 class MldBase(SortedStructDict):
     _internal_names = []
     _internal_names_set = SortedStructDict._internal_names_set.union(_internal_names)
+
+    def copy(self):
+        return self.__class__(self)
+
+    __copy__ = copy
+
+    def deepcopy(self, memodict=None):
+        return self.__class__(_deepcopy(dict(self), memodict))
+
+    __deepcopy__ = deepcopy
 
     def _init_std_attributes(self):
         _sdict = super(MldBase, self)
@@ -88,6 +51,16 @@ class MldBase(SortedStructDict):
     def __repr__(self):
         data_repr = pprint.pformat(dict(self.items()), indent=0)
         return "".join([type(self).__name__, '(\n', data_repr, ')'])
+
+
+_mld_dim_map = {
+    'nx': ('A', 'E1'),
+    'nu': ('B1', 'E2'),
+    'ndelta': ('B2', 'E3'),
+    'nz': ('B3', 'E4'),
+    'nomega': ('B4', 'E5'),
+    'n_cons': ('d',)
+}
 
 
 class MldVarInfo(MldBase):
@@ -217,18 +190,23 @@ class MldVarInfo(MldBase):
         return (var_types_vect_flat == 'b').sum()
 
 
+_mld_types = ['numeric', 'symbolic', 'callable']
+MldType = Enum('MldType', _mld_types)
+
+
 class MldModel(MldBase):
-    _internal_names = ['mld_info']
+    _internal_names = ['mld_info', 'mld_type']
     _internal_names_set = MldBase._internal_names_set.union(_internal_names)
+
     _state_matrix_names = ['A', 'B1', 'B2', 'B3', 'B4', 'b5']
     _con_matrix_names = ['E1', 'E2', 'E3', 'E4', 'E5', 'd']
     _allowed_data_set = set(_state_matrix_names + _con_matrix_names)
 
     def __init__(self, system_matrices=None, bin_dims_struct=None, var_types_struct=None, **kwargs):
         if isinstance(system_matrices, MldModel):
-                super(MldModel, self).__init__(system_matrices)
-                self.mld_info = system_matrices.mld_info or MldVarInfo()
-                system_matrices = dict(system_matrices.items())
+            super(MldModel, self).__init__(system_matrices)
+            self.mld_info = system_matrices.mld_info or MldVarInfo()
+            system_matrices = dict(system_matrices.items())
         else:
             super(MldModel, self).__init__()
             super(MldModel, self).update(dict.fromkeys(self._allowed_data_set, np.empty(shape=(0, 0))))
@@ -247,11 +225,17 @@ class MldModel(MldBase):
             raise ValueError("Individual matrix arguments cannot be set if 'system_matrices' argument is set")
         creation_matrices = system_matrices or kwargs
 
+        self.mld_type = None
+
         try:
             _temp_data = StructDict(self.items())
             for sys_matrix_id, system_matrix in creation_matrices.items():
                 if sys_matrix_id in self._allowed_data_set:
                     old_val = self.get(sys_matrix_id)
+                    if isinstance(system_matrix, (sp.Expr)):
+                        system_matrix = sp.Matrix([system_matrix])
+                    elif not isinstance(system_matrix, sp.Matrix) and not callable(system_matrix):
+                        system_matrix = np.atleast_2d(system_matrix)
                     _temp_data[sys_matrix_id] = system_matrix if system_matrix is not None else old_val
                 else:
                     if kwargs:
@@ -263,14 +247,31 @@ class MldModel(MldBase):
 
         try:
             self.verify_shapes_valid(_temp_data)
-            # if successful update real data
+            self._set_mld_type(_temp_data)
             super(MldModel, self).update(_temp_data)
         except ValueError as ve:
             raise ve
 
         self.mld_info.update(self, bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
 
-    def verify_shapes_valid(self, mld_data):
+    def _set_mld_type(self, mld_data):
+        is_callable = [callable(sys_mat) for sys_mat in mld_data.values()]
+        if any(is_callable):
+            if not all(is_callable):
+                raise ValueError("If any mld matrices callable, all must be callable")
+            else:
+                self.mld_type = MldType.callable
+        else:
+            is_symbolic = [isinstance(sys_mat, (sp.Expr, sp.Matrix)) for sys_mat in mld_data.values()]
+            if any(is_symbolic):
+                self.mld_type = MldType.symbolic
+            else:
+                self.mld_type = MldType.numeric
+
+    def verify_shapes_valid(self, mld_data=None):
+        if mld_data is None:
+            mld_data = self
+
         shapes_struct = get_expr_shapes(mld_data)
 
         A_shape = shapes_struct.A
@@ -287,15 +288,17 @@ class MldModel(MldBase):
                     "Invalid shape for state matrix/vector:'{0}':{1}, must have same row dimension as state_matrix "
                     "'A', i.e. '({2},*)')".format(state_matrix_id, state_matrix_shape, A_shape[0]))
 
+            if (con_matrix_shape[1] not in (state_matrix_shape[1], 0)) and (0 not in state_matrix_shape) and (
+                    con_matrix_id != 'd'):
+                raise ValueError(
+                    "Invalid shape for constraint matrix:'{0}':{1}, must have same column dimension as state matrix "
+                    "'{2}', i.e. '(*,{3})')".format(con_matrix_id, con_matrix_shape, state_matrix_id,
+                                                    state_matrix_shape[1]))
+
             if con_matrix_shape[0] not in (d_shape[0], 0):
                 raise ValueError(
                     "Invalid shape for constraint matrix:'{0}':{1}, must have same row dimension as constraint "
                     "vector 'd', i.e. '({2},*)')".format(con_matrix_id, con_matrix_shape, d_shape[0]))
-            if con_matrix_shape[1] not in (state_matrix_shape[1], 0) and con_matrix_id != 'd':
-                raise ValueError(
-                    "Invalid shape for constraint matrix:'{0}':{1}, must have same column dimension as state matrix "
-                    "'{2}', i.e. '({3},*)')".format(con_matrix_id, con_matrix_shape, state_matrix_id,
-                                                    state_matrix_shape[1]))
 
         for vect_id in ('b5', 'd'):
             shape_vect = shapes_struct[vect_id]
@@ -304,6 +307,50 @@ class MldModel(MldBase):
                     "'{0}' must be of type vector, scalar or null array, currently has shape:{1}".format(vect_id,
                                                                                                          shape_vect))
         return shapes_struct
+
+    def to_numeric(self, param_struct=None):
+        if param_struct is None:
+            param_struct = {}
+
+        numeric_mld = MldModel()
+        numeric_mld.mld_info = self.mld_info.deepcopy()
+        if self.mld_type == MldType.callable:
+            mld_numeric_dict = {}
+            for key, mat_eval in self.items():
+                mld_numeric_dict[key] = mat_eval(param_struct)
+            numeric_mld.update(mld_numeric_dict)
+        elif self.mld_type == MldType.symbolic:
+            print("Performance warning, mld_type is not callable had to convert to callable")
+            eval_mld = self.to_eval()
+            return eval_mld.to_numeric(param_struct=param_struct)
+        else:
+            mld_numeric_dict = _deepcopy(dict(self))
+            numeric_mld.update(mld_numeric_dict)
+
+        return numeric_mld
+
+
+
+    def to_eval(self):
+        if self.mld_type in (MldType.numeric, MldType.symbolic):
+            mld_eval_dict = {}
+            for mat_id, expr in self.items():
+                if not isinstance(expr, sp.Matrix):
+                    expr = sp.Matrix(np.atleast_2d(expr))
+                syms_tup, syms_str_tup = _get_syms_tup(expr)
+                lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
+                mld_eval_dict[mat_id] = _lambda_wrapper(lam, syms_str_tup, wrapped_name="".join([mat_id, "_eval"]))
+
+            eval_mld = MldModel(mld_eval_dict)
+            eval_mld.mld_info = self.mld_info.deepcopy()
+            return eval_mld
+        else:
+            return self
+
+    def _get_all_syms_str_list(self):
+        sym_str_set = {str(sym) for expr in self.values() if isinstance(expr, (sp.Expr, sp.Matrix)) for sym in
+                       expr.free_symbols}
+        return sorted(sym_str_set)
 
     @staticmethod
     def concat_mld(mld_model_list, sparse=True):
@@ -336,6 +383,82 @@ class MldModel(MldBase):
         return concat_mld
 
 
+def get_expr_shape(expr):
+    if expr is None or np.isscalar(expr) or isinstance(expr, sp.Expr):
+        return (1, 1)
+    try:
+        expr_shape = expr.shape
+        if 0 in expr_shape:
+            return (0, 0)
+        if len(expr_shape) == 1:
+            return (expr_shape[0], 0)
+        elif len(expr_shape) == 2:
+            return expr_shape
+        else:
+            raise NotImplementedError("Maximum supported dimension is 2, got {}".format(len(expr_shape)))
+    except AttributeError:
+        pass
+
+    if callable(expr):
+        return get_expr_shape(expr({}, empty_call=True))
+    else:
+        raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
+
+
+def get_expr_shapes(*args, get_max_dim=False):
+    if len(args) < 1:
+        return None
+
+    if len(args) == 1:
+        arg = args[0]
+        if isinstance(arg, dict):
+            shape_struct = StructDict()
+            for expr_id, expr in arg.items():
+                shape_struct[expr_id] = get_expr_shape(expr)
+            return shape_struct
+        else:
+            return get_expr_shape(arg)
+    else:
+        shapes = []
+        for arg in args:
+            shapes.append(get_expr_shape(arg))
+        if get_max_dim:
+            return tuple(np.maximum(*shapes))
+        else:
+            return shapes
+
+
+def _get_syms_tup(expr):
+    try:
+        sym_dict = {str(sym): sym for sym in expr.free_symbols}
+        sym_str_list = sorted(sym_dict.keys())
+        sym_list = [sym_dict.get(sym) for sym in sym_str_list]
+    except AttributeError:
+        return tuple(), tuple()
+
+    return tuple(sym_list), tuple(sym_str_list)
+
+
+def _lambda_wrapper(func, local_syms_str, wrapped_name=None):
+    @functools.wraps(func)
+    def wrapped(param_struct, empty_call=False):
+        if empty_call:
+            arg_list = [1.0] * len(local_syms_str)
+        else:
+            try:
+                arg_list = [param_struct[sym_str] for sym_str in local_syms_str]
+            except TypeError:
+                raise ValueError("param_struct must be dictionary like.")
+            except KeyError:
+                raise KeyError("Incorrect parameter supplied, requires dict with keys {}".format(local_syms_str))
+
+        return func(*arg_list)
+
+    if wrapped_name:
+        wrapped.__qualname__ = wrapped_name
+        wrapped.__name__ = wrapped_name
+
+    return wrapped
 
 
 if __name__ == '__main__':
@@ -343,3 +466,7 @@ if __name__ == '__main__':
     a.update(d=np.ones((2, 1)), b5=np.ones((2, 1)))
     mld = MldModel(a)
     mld2 = MldModel({'A': 1})
+    #
+    # from models.model_generators import DewhModelGenerator
+    # b = DewhModelGenerator().gen_dewh_symbolic_mld_sys_matrices()
+    # c = b.to_eval()

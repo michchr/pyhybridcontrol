@@ -5,7 +5,7 @@ from datetime import datetime as DateTime
 
 from utils.structdict import StructDict
 
-from models.model_generators import DewhModelGenerator
+from models.model_generators_old import DewhModelGenerator
 from models.device_repository import DewhRepository
 from models.micro_grid_model import MicroGridModel
 

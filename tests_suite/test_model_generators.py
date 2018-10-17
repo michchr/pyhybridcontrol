@@ -2,7 +2,7 @@
 ##############################    MODEL_GENS ###################################
 ################################################################################
 
-from models.model_generators import DewhModelGenerator, GridModelGenerator
+from models.model_generators_old import DewhModelGenerator, GridModelGenerator
 
 import pprint as pp
 

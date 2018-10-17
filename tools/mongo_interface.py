@@ -1,8 +1,8 @@
 from IPython import get_ipython as ipython
 
 import sys
-import re
 import logging
+import re
 import pymongo as pym
 from pymongo import MongoClient, errors as PymErrors, CursorType
 from pymongo.collection import Collection, Cursor
