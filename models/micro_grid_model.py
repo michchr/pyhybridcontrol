@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime as DateTime
 import pprint
 
-from models.device_repository import DeviceRepository, DewhRepository
+from models.device_repository_old import DeviceRepository, DewhRepository
 from utils.structdict import StructDict, StructDictAliased
 from models.model_generators_old import DewhModelGenerator, GridModelGenerator
 

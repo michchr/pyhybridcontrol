@@ -1,5 +1,3 @@
-from IPython import get_ipython as ipython
-
 import sys
 import logging
 import re
@@ -11,6 +9,9 @@ import pandas as pd
 from datetime import datetime as DateTime
 from dateutil.parser import parse as parse_datetime
 from functools import reduce
+from tools.grid_dataframe import MicroGridDataFrame
+
+
 
 pd.set_option('mode.chained_assignment', 'raise')
 
@@ -24,7 +25,6 @@ if logger.hasHandlers(): logger.handlers = []
 logger.addHandler(console_hand)
 logger.setLevel(logging.INFO)
 
-from tools.grid_dataframe import MicroGridDataFrame
 
 _DEV_TAG_MAP = {
     'dewh': 'GEY',
@@ -104,7 +104,7 @@ class MongoInterface():
 
     def get_many_dev_cursor(self, device_type, dev_ids,
                             self_col: Collection = None,
-                            start_time: DateTime = None, end_time: DateTime = None,
+                            start_datetime: DateTime = None, end_datetime: DateTime = None,
                             fields=None, to_numeric=True,
                             limit=0):
 
@@ -143,7 +143,7 @@ class MongoInterface():
                           } for str_id in str_id_list
                          ]
 
-        query = {'$and': [{"TimeStamp": {'$gte': start_time, '$lte': end_time}},
+        query = {'$and': [{"TimeStamp": {'$gte': start_datetime, '$lte': end_datetime}},
                           {'$or': dev_selection}
                           ]
                  }
@@ -203,23 +203,23 @@ class MongoInterface():
 
     def get_one_dev_cursor(self, device_type, dev_id,
                            self_col: Collection = None,
-                           start_time: DateTime = None, end_time: DateTime = None,
+                           start_datetime: DateTime = None, end_datetime: DateTime = None,
                            fields=None, convert=True,
                            limit=0):
 
-        return self.get_many_dev_cursor(device_type, [dev_id], self_col=self_col, start_time=start_time,
-                                        end_time=end_time, limit=limit, fields=fields, to_numeric=convert)
+        return self.get_many_dev_cursor(device_type, [dev_id], self_col=self_col, start_datetime=start_datetime,
+                                        end_datetime=end_datetime, limit=limit, fields=fields, to_numeric=convert)
 
     def get_many_dev_raw_dataframe(self, device_type, dev_ids, cursor=None,
                                    self_col: Collection = None,
-                                   start_time: DateTime = None, end_time: DateTime = None,
+                                   start_datetime: DateTime = None, end_datetime: DateTime = None,
                                    fields=None, convert=True,
                                    limit=0):
 
         force_to_numeric = False
         if cursor is None:
-            cursor = self.get_many_dev_cursor(device_type, dev_ids, self_col=self_col, start_time=start_time,
-                                              end_time=end_time, limit=limit, fields=fields, to_numeric=convert)
+            cursor = self.get_many_dev_cursor(device_type, dev_ids, self_col=self_col, start_datetime=start_datetime,
+                                              end_datetime=end_datetime, limit=limit, fields=fields, to_numeric=convert)
         elif convert:
             force_to_numeric = True
 
@@ -250,12 +250,12 @@ class MongoInterface():
 
     def get_one_dev_raw_dataframe(self, device_type, dev_id, cursor=None,
                                   self_col: Collection = None,
-                                  start_time: DateTime = None, end_time: DateTime = None,
+                                  start_datetime: DateTime = None, end_datetime: DateTime = None,
                                   fields=None, convert=True,
                                   limit=0):
 
-        return self.get_many_dev_raw_dataframe(device_type, [dev_id], self_col=self_col, start_time=start_time,
-                                               end_time=end_time, limit=limit, fields=fields, cursor=cursor,
+        return self.get_many_dev_raw_dataframe(device_type, [dev_id], self_col=self_col, start_datetime=start_datetime,
+                                               end_datetime=end_datetime, limit=limit, fields=fields, cursor=cursor,
                                                convert=convert)
 
     def get_many_dev_fields(self, device_type, dev_ids, self_col: Collection = None):
@@ -428,7 +428,7 @@ if __name__ == '__main__':
 
 
 
-    raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_time=start_date, end_time=end_date,
+    raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_datetime=start_date, end_datetime=end_date,
                                            fields='all', convert=True)
 
     # ipython().magic('%%timeit main()')
@@ -443,18 +443,18 @@ if __name__ == '__main__':
     #
     # print(df.info())
 
-    # raw_df = mi.get_one_dev_cursor('dewh', 5, start_time=start_date, end_time=end_date)
+    # raw_df = mi.get_one_dev_cursor('dewh', 5, start_datetime=start_date, end_datetime=end_date)
     # raw_df = list(raw_df)
     # raw_df = pd.DataFrame(raw_df).set_index('TimeStamp')
     # raw_df = pd.DataFrame(raw_df.iloc[:,0].values.tolist(),index=raw_df.index, columns=['Temp', 'Status',
     # 'Error'])
     #
-    # df2 = mi.get_one_dev_cursor('dewh', 6, start_time=start_date, end_time=end_date)
+    # df2 = mi.get_one_dev_cursor('dewh', 6, start_datetime=start_date, end_datetime=end_date)
     # df2 = list(df2)
     # df2 = pd.DataFrame(df2).set_index('TimeStamp')
     # df2 = pd.DataFrame(df2.iloc[:, 0].values.tolist(), index=df2.index, columns=['Temp', 'Status', 'Error'])
     #
-    # raw_df = mi.get_one_dev_cursor('pmo', 0, start_time=start_date, end_time=end_date)
+    # raw_df = mi.get_one_dev_cursor('pmo', 0, start_datetime=start_date, end_datetime=end_date)
     # raw_df = list(raw_df)
     # raw_df = pd.DataFrame(raw_df).set_index('TimeStamp')
     #

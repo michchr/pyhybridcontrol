@@ -1,8 +1,8 @@
-from sortedcontainers import SortedDict
-from copy import deepcopy
-import collections
+from utils.structdict import StructDict, StructDictAliased
 
-from utils.structdict import StructDict
+from copy import deepcopy
+from sortedcontainers import SortedDict
+import collections
 
 V_h_s_ind = collections.namedtuple('V_ind', ['u_s', 'delta_s', 'z_s'])
 W_h_s_ind = collections.namedtuple('W_ind', ['omega_s'])
@@ -62,6 +62,48 @@ class DeviceRepository(SortedDict):
 
     def _device_creator(self, device_param_struct, dev_id):
         return dev_id
+
+
+class DewhRepository(DeviceRepository):
+    def __init__(self, dewh_model_generator=None):
+        device_type = 'dewh'
+        super(DewhRepository, self).__init__(device_type, dewh_model_generator)
+
+    def _device_creator(self, device_param_struct, dev_id):
+        return DewhSys(self.model_generator, device_param_struct, dev_id)
+
+
+class DewhSys(object):
+    def __init__(self, model_generator, dewh_param_struct, dewh_id):
+        self.dewh_param_struct = deepcopy(dewh_param_struct)
+        self.dewh_id = dewh_id
+        self.mld_mat_struct = StructDictAliased(A_h=[], B_h1=[], B_h2=[], B_h3=[], B_h4=[], b_h5=[], E_h1=[], E_h2=[],
+                                                E_h3=[], E_h4=[], E_h5=[], d_h=[])
+        self.var_dim_struct = model_generator.var_dim_struct
+        self.V_offs = None
+        self.W_offs = None
+        self.d_offs = None
+
+        self.initialize_sys(model_generator, dewh_param_struct)
+
+    def initialize_sys(self, model_generator, dewh_param_struct):
+        for mat_name, mat_eval in model_generator.mld_eval_struct.items():
+            self.mld_mat_struct[mat_name] = mat_eval(dewh_param_struct)
+            # self.mld_mat_struct[mat_name.replace("_eval", "")] = mat_eval(dewh_param_struct)
+        self.set_offsets()
+
+    def set_offsets(self):
+        u_s = self._get_offset('nu')
+        delta_s = self._get_offset('ndelta')
+        z_s = self._get_offset('nz')
+        omega_s = self._get_offset('nomega')
+        d_s = self._get_offset('ncons')
+        self.V_offs = V_h_s_ind(u_s, delta_s, z_s)
+        self.W_offs = W_h_s_ind(omega_s)
+        self.d_offs = d_h_s_ind(d_s)
+
+    def _get_offset(self, arg):
+        return (self.var_dim_struct[arg] if self.var_dim_struct[arg] else None)
 
 
 if __name__ == '__main__':

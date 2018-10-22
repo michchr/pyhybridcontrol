@@ -1,3 +1,6 @@
+
+__all__ = ['MicroGridDataFrame', 'MicroGridSeries', 'IDX']
+
 import pandas as pd
 from pandas import DataFrame, Series
 from pandas.core.generic import NDFrame
@@ -6,7 +9,6 @@ import numpy as np
 from datetime import datetime as DateTime
 import inspect
 import re
-import functools
 
 IDX = pd.IndexSlice
 pd.set_option('mode.chained_assignment', 'raise')
@@ -304,11 +306,11 @@ if __name__ == '__main__':
 
     mi = MongoInterface("site_data", "Kikuyu")
 
-    start_date = DateTime(2018, 6, 27, 13, 0)
-    end_time = DateTime(2018, 10, 30, 14, 10)
+    start_datetime = DateTime(2018, 6, 27, 13, 0)
+    end_datetime = DateTime(2018, 10, 30, 14, 10)
 
-    raw_data = mi.get_many_dev_raw_dataframe('pm', [0], fields=None, start_time=start_date,
-                                             end_time=end_time)
+    raw_data = mi.get_many_dev_raw_dataframe('pm', [0], fields=None, start_datetime=start_datetime,
+                                             end_datetime=end_datetime)
 
     al_df =raw_data.align_samples()
     #

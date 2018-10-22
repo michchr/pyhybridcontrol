@@ -1,6 +1,14 @@
 import sympy as sp
+import pandas as pd
+
 from utils.structdict import StructDict
 from models.mld_model import MldModel
+
+from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries, IDX
+from tools.mongo_interface import MongoInterface
+
+pd.set_option('mode.chained_assignment', 'raise')
+
 
 
 class DeviceModelGenerator:
@@ -19,6 +27,9 @@ class DeviceModelGenerator:
     def get_numeric_mld(self, param_struct=None, mld=None):
         mld = mld or self.eval_mld or self.symbolic_mld
         return mld.to_numeric(param_struct=param_struct)
+
+    def get_required_params(self):
+        return self.symbolic_mld._get_all_syms_str_list()
 
 
 class DewhModelGenerator(DeviceModelGenerator):
@@ -58,6 +69,7 @@ class DewhModelGenerator(DeviceModelGenerator):
 
         return MldModel_sym
 
+
 class GridModelGenerator(DeviceModelGenerator):
 
     def get_symbolic_mld(self):
@@ -77,11 +89,40 @@ class GridModelGenerator(DeviceModelGenerator):
 
 
 class Dewh:
-    def __init__(self, device_model_generator:DeviceModelGenerator, param_struct=None):
+    def __init__(self, device_model_generator: DeviceModelGenerator, dev_id=None, param_struct=None):
         self.device_model_generator = device_model_generator
         self.mld = self.device_model_generator.get_numeric_mld(param_struct=param_struct)
+        self.dev_id = dev_id
+        self.device_type = 'dewh'
+        self.historical_df = MicroGridDataFrame()
 
     @property
     def symbolic_mld(self):
         return self.device_model_generator.symbolic_mld
 
+    def load_historical(self, start_datetime=None, end_datetime=None):
+        mi = MongoInterface(database='site_data', collection='Kikuyu')
+        raw_data = mi.get_one_dev_raw_dataframe(self.device_type, self.dev_id, start_datetime=start_datetime,
+                                                end_datetime=end_datetime)
+        mi.close()
+
+        df = raw_data.resample_device('15Min')
+        self.historical_df = df
+        return  df
+
+if __name__ == '__main__':
+    from datetime import datetime as DateTime
+    from models.parameters import dewh_p
+
+    start_datetime = DateTime(2018,8,1)
+    end_datetime = DateTime(2018, 8, 20)
+
+    dewh_g = DewhModelGenerator()
+
+    t_dewh = Dewh(dewh_g, dev_id=1, param_struct=dewh_p)
+
+    df = t_dewh.load_historical(start_datetime, end_datetime)
+
+    from matplotlib import pyplot as plt
+    df.stair_plot(style='.-')
+    plt.show()
