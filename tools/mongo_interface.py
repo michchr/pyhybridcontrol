@@ -11,8 +11,6 @@ from dateutil.parser import parse as parse_datetime
 from functools import reduce
 from tools.grid_dataframe import MicroGridDataFrame
 
-
-
 pd.set_option('mode.chained_assignment', 'raise')
 
 console_hand = logging.StreamHandler(sys.stdout)
@@ -24,7 +22,6 @@ logger.propagate = False
 if logger.hasHandlers(): logger.handlers = []
 logger.addHandler(console_hand)
 logger.setLevel(logging.INFO)
-
 
 _DEV_TAG_MAP = {
     'dewh': 'GEY',
@@ -41,14 +38,14 @@ _DEV_DEFAULT_FIELDS = {
 _DEV_STRING_FIELDS = ['ID', 'SN', 'DevType']
 
 
-def deep_get(doc, key_list, default=None):
-    def reducer(d, key):
-        if isinstance(d, dict):
-            return d.get(key)
-        else:
-            return default
-
-    return reduce(reducer, key_list, doc)
+# def deep_get(doc, key_list, default=None):
+#     def reducer(d, key):
+#         if isinstance(d, dict):
+#             return d.get(key)
+#         else:
+#             return default
+#
+#     return reduce(reducer, key_list, doc)
 
 
 class MongoInterface():
@@ -295,9 +292,9 @@ class MongoInterface():
         device_ids = {}
         for device in devices:
             try:
-                device_type=rev_dev_tag_map.get(reg_alpha.match(device)[0])
+                device_type = rev_dev_tag_map.get(reg_alpha.match(device)[0])
             except AttributeError:
-                device_type=None
+                device_type = None
             if device_type is not None:
                 dev_id = int(reg_num.search(device)[0])
                 if device_type in device_ids.keys():
@@ -305,8 +302,8 @@ class MongoInterface():
                 else:
                     device_ids[device_type] = set([dev_id])
 
-        if device_types!='all' or device_types is not None:
-            device_ids = {device_type:device_ids.get(device_type) for device_type in device_types}
+        if device_types != 'all' or device_types is not None:
+            device_ids = {device_type: device_ids.get(device_type) for device_type in device_types}
 
         return device_ids
 
@@ -407,6 +404,12 @@ class MongoInterface():
         logger.info("Cloned %s documents", num_cloned)
         return num_cloned
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def close(self):
         self.client.close()
 
@@ -425,8 +428,6 @@ if __name__ == '__main__':
 
     start_date = DateTime(2018, 9, 30, 12, 0)
     end_date = DateTime(2018, 10, 30, 12, 3)
-
-
 
     raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_datetime=start_date, end_datetime=end_date,
                                            fields='all', convert=True)

@@ -1,5 +1,7 @@
 import sympy as sp
 import pandas as pd
+import numpy as np
+import scipy.linalg as scl
 
 from utils.structdict import StructDict
 from models.mld_model import MldModel
@@ -8,7 +10,6 @@ from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries, IDX
 from tools.mongo_interface import MongoInterface
 
 pd.set_option('mode.chained_assignment', 'raise')
-
 
 
 class DeviceModelGenerator:
@@ -48,7 +49,7 @@ class DewhModelGenerator(DeviceModelGenerator):
         if const_heat:  # assume heat demand constant over sampling period
             A_h_c = -p1 / p2
             B_h_c = sp.Matrix([[P_h_Nom, -1, p1 * T_inf]]) * (p2 ** -1)
-        else:  # assume water demand volume constant over sampling period
+        else:  # assume water demand flow rate constant over sampling period
             A_h_c = -(D_h * C_w + p1) / p2
             B_h_c = sp.Matrix([[P_h_Nom, C_w * T_w, p1 * T_inf]]) * (p2 ** -1)
 
@@ -92,37 +93,75 @@ class Dewh:
     def __init__(self, device_model_generator: DeviceModelGenerator, dev_id=None, param_struct=None):
         self.device_model_generator = device_model_generator
         self.mld = self.device_model_generator.get_numeric_mld(param_struct=param_struct)
+        self.param_struct = param_struct
         self.dev_id = dev_id
         self.device_type = 'dewh'
         self.historical_df = MicroGridDataFrame()
+
+    def __getattr__(self, item):
+        try:
+            return self.mld[item]
+        except KeyError:
+            raise AttributeError("'{}' object has no attribute '{}'".format(self.__class__.__name__, item))
 
     @property
     def symbolic_mld(self):
         return self.device_model_generator.symbolic_mld
 
     def load_historical(self, start_datetime=None, end_datetime=None):
-        mi = MongoInterface(database='site_data', collection='Kikuyu')
-        raw_data = mi.get_one_dev_raw_dataframe(self.device_type, self.dev_id, start_datetime=start_datetime,
-                                                end_datetime=end_datetime)
-        mi.close()
+        with MongoInterface(database='site_data', collection='Kikuyu') as mi:
+            raw_data = mi.get_one_dev_raw_dataframe(self.device_type, self.dev_id, start_datetime=start_datetime,
+                                                    end_datetime=end_datetime)
 
-        df = raw_data.resample_device('15Min')
+        df = raw_data.resample_device(self.param_struct.control_ts)
         self.historical_df = df
-        return  df
+        return df
+
+    def compute_historical_demand(self):
+        x_k = self.historical_df.loc[:, IDX[self.dev_id, "Temp"]].values_2d.T
+        x_k_neg1 = self.historical_df.loc[:, IDX[self.dev_id, "Temp"]].shift(1).values_2d.T
+        u_k_neg1 = self.historical_df.loc[:, IDX[self.dev_id, "Status"]].shift(1).values_2d.T
+
+        omega_k_neg1 = (scl.pinv(self.B4) @ (x_k - self.A @ x_k_neg1 - self.B1 @ u_k_neg1 - self.b5))
+
+        omega_k = pd.DataFrame(omega_k_neg1.T, index=self.historical_df.index).shift(-1)
+        self.historical_df.loc[:, IDX[self.dev_id, 'Demand']] = omega_k.values
+
+    def lsym(self):
+        u_k = self.historical_df.loc[:, IDX[self.dev_id, "Status"]].values_2d.T
+        x_0 = (self.historical_df.loc[:, IDX[self.dev_id, "Temp"]].values_2d.T)[0][0]
+        omega_k = self.historical_df.loc[:, IDX[self.dev_id, 'Demand']].values_2d.T
+
+        x_k1_list = [x_0]
+        for i in range(u_k.size - 1):
+            x_k1 = self.A * x_0 + self.B1 * u_k[0][i] + self.B4 * omega_k[0][i] + self.b5
+            x_k1_list.append(x_k1[0][0])
+            x_0 = x_k1
+        self.historical_df.loc[:, IDX[self.dev_id, 'X_k']] = x_k1_list
+
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
     from datetime import datetime as DateTime
     from models.parameters import dewh_p
 
-    start_datetime = DateTime(2018,8,1)
-    end_datetime = DateTime(2018, 8, 20)
+    start_datetime = DateTime(2018, 8, 13)
+    end_datetime = DateTime(2018, 8, 30)
 
-    dewh_g = DewhModelGenerator()
+    dewh_g = DewhModelGenerator(const_heat=True)
+    for dev_id in range(1, 2):
+        dewh = Dewh(dewh_g, dev_id=dev_id, param_struct=dewh_p)
+        df = dewh.load_historical(start_datetime, end_datetime)
+        dewh.compute_historical_demand()
+        dewh.lsym()
+        print(dewh.historical_df.head())
+        print(np.mean(np.abs(dewh.historical_df[dev_id].Temp - dewh.historical_df[dev_id].X_k)))
+        df_plt = dewh.historical_df.loc[:, IDX[dev_id, ['Temp', 'Demand', 'Status']]].resample_device('15Min')
+        df_plt.stair_plot(subplots=True)
 
-    t_dewh = Dewh(dewh_g, dev_id=1, param_struct=dewh_p)
+        manager = plt.get_current_fig_manager()
+        manager.window.showMaximized()
 
-    df = t_dewh.load_historical(start_datetime, end_datetime)
-
-    from matplotlib import pyplot as plt
-    df.stair_plot(style='.-')
-    plt.show()
+    # with MongoInterface(database='site_data', collection='Kikuyu') as mi:
+    #     raw_data = mi.get_one_dev_raw_dataframe('dewh', 99, start_datetime=start_datetime,
+    #                                             end_datetime=end_datetime)

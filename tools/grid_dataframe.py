@@ -1,4 +1,3 @@
-
 __all__ = ['MicroGridDataFrame', 'MicroGridSeries', 'IDX']
 
 import pandas as pd
@@ -18,7 +17,9 @@ _VALID_DEVICE_TYPES = ['dewh', 'pm']
 _DEWH_RESAMPLE_FUNC_MAP = {'Temp': 'last',
                            'Status': np.mean,
                            'Error': np.max,
-                           'is_Nan_Raw': np.mean}
+                           'is_Nan_Raw': np.mean,
+                           'is_Nan_Rol': 'last',
+                           'Demand': np.mean}
 
 _DEWH_FILLNA_FUNC_MAP = {'Status': 'ffill',
                          'Error': 'ffill',
@@ -52,8 +53,11 @@ class MicroGridDataFrame(DataFrame):
     # normal properties
     _metadata = DataFrame._metadata + ['_device_type', 'is_aligned']
 
-    def __init__(self, *args, device_type=None, **kwargs):
-        super(MicroGridDataFrame, self).__init__(*args, **kwargs)
+    def __init__(self, data=None, index=None, columns=None, dtype=None,
+                 copy=False, device_type=None):
+
+        super(MicroGridDataFrame, self).__init__(data=data, index=index, columns=columns, dtype=dtype,
+                                                 copy=copy)
 
         if not hasattr(self, 'is_aligned'):
             self.is_aligned = False
@@ -70,6 +74,10 @@ class MicroGridDataFrame(DataFrame):
             raise ValueError("Invalid device type: '{}'".format(device_type))
         else:
             self._device_type = device_type
+
+    @property
+    def values_2d(self):
+        return np.atleast_2d(self.values)
 
     @property
     def _constructor(self):
@@ -133,7 +141,7 @@ class MicroGridDataFrame(DataFrame):
             grouped.loc[:, (dev, 'is_Nan_Raw')] = np.any(grouped.loc[:, IDX[dev, :]].isna().values, axis=1).astype(int)
 
         grouped.sort_index(axis=1, inplace=True)
-        grouped.aligned = True
+        grouped.is_aligned = True
 
         return self._constructor_override(grouped)
 
@@ -146,7 +154,7 @@ class MicroGridDataFrame(DataFrame):
             new_df = self.copy()
 
         try:
-            new_df.drop(labels='is_Nan_Rol', axis=1, level=1)
+            new_df = new_df.drop(labels='is_Nan_Rol', axis=1, level=1)
         except KeyError:
             pass
 
@@ -218,7 +226,13 @@ class MicroGridDataFrame(DataFrame):
         return self._constructor_override(new_df)
 
     def _groupby_resample(self, sample_time, func_map, *arg, **kwargs):
-        funcs = {key: func_map.get(key[1], 'last') for key in self.columns.get_values()}
+        funcs = {}
+        for key in self.columns.get_values():
+            try:
+                funcs[key] = func_map[key[1]]
+            except KeyError:
+                print("Warning no function map for key:'{}', using default: 'last'".format(key))
+                funcs[key] = func_map.get(key[1], 'last')
 
         col_names = self.columns.names
         grouped = self.groupby(pd.Grouper(*arg, freq=sample_time, closed='right', label='right', **kwargs)).agg(funcs)
@@ -256,8 +270,11 @@ class MicroGridDataFrame(DataFrame):
 class MicroGridSeries(Series):
     _metadata = Series._metadata + MicroGridDataFrame._metadata
 
-    def __init__(self, *args, device_type=None, **kwargs):
-        super(MicroGridSeries, self).__init__(*args, **kwargs)
+    def __init__(self, data=None, index=None, dtype=None, name=None,
+                 copy=False, fastpath=False, device_type=None):
+
+        super(MicroGridSeries, self).__init__(data=data, index=index, dtype=dtype, name=name, copy=copy,
+                                              fastpath=fastpath)
         self._device_type = device_type
 
     def stair_plot(self, *args, **kwargs):
@@ -276,6 +293,10 @@ class MicroGridSeries(Series):
             raise ValueError("Invalid device type: '{}'".format(device_type))
         else:
             self._device_type = device_type
+
+    @property
+    def values_2d(self):
+        return np.atleast_2d(self.values).T
 
     @property
     def _constructor(self):
@@ -299,7 +320,6 @@ class MicroGridSeries(Series):
         return self
 
 
-
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from tools.mongo_interface import MongoInterface
@@ -312,12 +332,11 @@ if __name__ == '__main__':
     raw_data = mi.get_many_dev_raw_dataframe('pm', [0], fields=None, start_datetime=start_datetime,
                                              end_datetime=end_datetime)
 
-    al_df =raw_data.align_samples()
+    al_df = raw_data.align_samples()
     #
     df = al_df.resample_device(sample_time='15Min')
 
     df = df.compute_power_from_energy()
-
 
     # for i in range(1,2):
     #     df.loc[:, IDX[i, ['Temp', 'Status', 'is_Nan_Rol']]].stair_plot(subplots=True)

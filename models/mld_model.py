@@ -216,9 +216,9 @@ class MldVarInfo(MldBase):
         for state_dim_name, sys_matrix_ids in _mld_dim_map.items():
             system_matrices = (self.mld_model.get(sys_id) for sys_id in sys_matrix_ids)
             if state_dim_name != 'n_cons':
-                self._sdict_setitem(state_dim_name, get_expr_shapes(*system_matrices, get_max_dim=True)[1])
+                self._sdict_setitem(state_dim_name, _get_expr_shapes(*system_matrices, get_max_dim=True)[1])
             else:
-                self._sdict_setitem(state_dim_name, get_expr_shapes(*system_matrices, get_max_dim=True)[0])
+                self._sdict_setitem(state_dim_name, _get_expr_shapes(*system_matrices, get_max_dim=True)[0])
 
     def _update_set_struct_from_kwargs(self, bin_dims_struct=None, var_types_struct=None, kwargs=None):
         bin_dims_struct = bin_dims_struct or StructDict()
@@ -350,7 +350,7 @@ class MldModel(MldBase):
         if mld_data is None:
             mld_data = self
 
-        shapes_struct = get_expr_shapes(mld_data)
+        shapes_struct = _get_expr_shapes(mld_data)
 
         A_shape = shapes_struct.A
         d_shape = shapes_struct.d
@@ -457,7 +457,7 @@ class MldModel(MldBase):
         return concat_mld
 
 
-def get_expr_shape(expr):
+def _get_expr_shape(expr):
     if expr is None:
         return (0,0)
     elif np.isscalar(expr) or isinstance(expr, sp.Expr):
@@ -478,18 +478,18 @@ def get_expr_shape(expr):
 
     if callable(expr):
         try:
-            return get_expr_shape(expr(empty_call=True))
+            return _get_expr_shape(expr(empty_call=True))
         except Exception:
             try:
                 args = [1]*len(inspect.getfullargspec(expr).args)
-                return get_expr_shape(expr(*args))
+                return _get_expr_shape(expr(*args))
             except Exception as e:
                 raise e
     else:
         raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
 
 
-def get_expr_shapes(*args, get_max_dim=False):
+def _get_expr_shapes(*args, get_max_dim=False):
     if not args:
         return None
 
@@ -498,14 +498,14 @@ def get_expr_shapes(*args, get_max_dim=False):
         if isinstance(arg, dict):
             shape_struct = StructDict()
             for expr_id, expr in arg.items():
-                shape_struct[expr_id] = get_expr_shape(expr)
+                shape_struct[expr_id] = _get_expr_shape(expr)
             return shape_struct
         else:
-            return get_expr_shape(arg)
+            return _get_expr_shape(arg)
     else:
         shapes = []
         for arg in args:
-            shapes.append(get_expr_shape(arg))
+            shapes.append(_get_expr_shape(arg))
         if get_max_dim:
             return tuple(np.maximum(*shapes))
         else:
