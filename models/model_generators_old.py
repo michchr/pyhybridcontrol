@@ -4,7 +4,7 @@ import numpy as np
 from utils.structdict import StructDict, StructDictAliased
 
 
-# class DeviceModelGenerator():
+# class AgentModelGenerator():
 #     def __init__(self):
 
 class DewhModelGenerator():
@@ -28,7 +28,7 @@ class DewhModelGenerator():
 
     def gen_dewh_symbolic_mld_sys_matrices(self, default_time_units='sec', const_heat=True):
         ts, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
-            'ts, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
+            'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
 
         p1 = U_h * A_h

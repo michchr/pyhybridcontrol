@@ -1,8 +1,8 @@
 from reprlib import recursive_repr
 from sortedcontainers import SortedDict
+from collections import OrderedDict
 
-import inspect
-
+import pprint
 
 class StructDictMixin:
     __internal_names = []
@@ -69,9 +69,10 @@ class StructDictMixin:
     def __setattr__(self, key, value):
         try:
             self.__getattribute__(key)
-            return object.__setattr__(self, key, value)
         except AttributeError:
             pass
+        else:
+            return object.__setattr__(self, key, value)
 
         if key in self._internal_names_set:
             object.__setattr__(self, key, value)
@@ -88,7 +89,7 @@ class StructDictMixin:
         try:
             return self.__getitem__(key)
         except KeyError:
-            raise AttributeError("Attribute with key: '{}', does not exist".format(key))
+            raise AttributeError("'{0}' object has no attribute '{1}'".format(self.__class__.__name__, key))
 
     def __dir__(self):
         orig_dir = set(dir(type(self)))
@@ -102,11 +103,11 @@ class StructDictMixin:
         """Return string representation of struct dict.
         """
         _key = self._key if hasattr(self, '_key') else None
-        key_arg = '' if _key is None else '{0!r}, '.format(_key)
-        item_format = "\n{0!r}: {1!r}".format
-        items = ','.join(item_format(key, self[key]) for key in self.keys())
+        key_arg = '' if _key is None else '_key = {0!r},\n'.format(_key)
+        items = pprint.pformat(dict(self), compact=True)
         type_name = type(self).__name__
-        return '{0}({1}{{{2}}})'.format(type_name, key_arg, items)
+        repr_format = '{0}(\n{1}{2})'.format if self else '{0}({1}{2})'.format
+        return repr_format(type_name, key_arg, items)
 
 
 class StructDictAliasedMixin(StructDictMixin):
@@ -226,6 +227,8 @@ class StructDictAliasedMixin(StructDictMixin):
 class StructDict(StructDictMixin, dict):
     pass
 
+class OrderedStructDict(StructDictMixin, OrderedDict):
+    pass
 
 class SortedStructDict(StructDictMixin, SortedDict):
     #extract all internal names of SortedDict
@@ -234,6 +237,9 @@ class SortedStructDict(StructDictMixin, SortedDict):
 
 
 class StructDictAliased(StructDictAliasedMixin, dict):
+    pass
+
+class OrderedStructDictAliased(StructDictAliasedMixin, OrderedDict):
     pass
 
 class SortedStructDictAliased(StructDictAliasedMixin, SortedDict):

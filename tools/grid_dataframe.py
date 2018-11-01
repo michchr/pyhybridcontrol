@@ -296,7 +296,7 @@ class MicroGridSeries(Series):
 
     @property
     def values_2d(self):
-        return np.atleast_2d(self.values).T
+        return np.atleast_2d(self.values).transpose()
 
     @property
     def _constructor(self):

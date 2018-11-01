@@ -5,7 +5,7 @@ import numpy as np
 
 __all__ = ['dewh_p', 'grid_p']
 
-control_ts = TimeDelta(minutes=3)
+control_dt = TimeDelta(minutes=3)
 
 dewh_p = StructDict()
 dewh_p.C_w = 4.1816 * 10 ** 3   #J/kg/K
@@ -18,8 +18,8 @@ dewh_p.P_h_Nom = 3000.0 #W  (Joules/s)
 dewh_p.T_h_min = 40.0   #K
 dewh_p.T_h_max = 65.0   #K
 dewh_p.D_h = 0.0        #kg/s
-dewh_p.control_ts = control_ts
-dewh_p.ts = control_ts.seconds
+dewh_p.control_dt = control_dt
+dewh_p.dt = control_dt.seconds
 
 
 grid_p = StructDict()
@@ -31,4 +31,4 @@ grid_p.C_imp = None  # R/kwh
 grid_p.C_exp = None
 grid_p.C_imp_sub_exp = grid_p.C_imp - grid_p.C_exp if grid_p.C_imp and grid_p.C_exp else None
 
-grid_p.ts = control_ts.seconds
+grid_p.dt = control_dt.seconds
