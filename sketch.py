@@ -1,4 +1,4 @@
-from models.micro_grid_devices import DewhModelGenerator, Dewh
+from models.agents import DewhModelGenerator, Dewh
 from models.parameters import dewh_p
 from models.mld_model import MldModel
 

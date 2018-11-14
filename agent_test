@@ -1,0 +1,60 @@
+from models.agents import Agent, MpcAgent, _block_toeplitz_alt, _block_toeplitz, _atleast_3d_toeplitz
+from models.micro_grid_agents import DewhModelGenerator, Dewh
+from models.mld_model import MldModel, MldInfo
+from utils.structdict import StructDict, SortedDict, SortedStructDict
+from models.parameters import dewh_p, grid_p
+from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries
+from numpy.lib.stride_tricks import as_strided as _as_strided
+
+import scipy.sparse as scs
+import scipy.linalg as scl
+import numpy as np
+import wrapt
+import functools
+
+dewh_gen = DewhModelGenerator()
+
+a = dict.fromkeys(MldModel._allowed_data_set, np.random.rand(10, 10))
+a.update(b5=np.ones((10, 1)), d5=np.ones((10, 1)), g6=np.ones((10, 1)))
+a.update(A=np.random.rand(10, 10), B2=np.random.rand(10, 10))
+mld2 = MldModel(a)
+
+mld = dewh_gen.get_mld_numeric(dewh_p)
+
+agent = MpcAgent('dewh', None, dewh_gen, dewh_p)
+agent2= MpcAgent('test', None, None, mld_numeric=mld2)
+
+
+import pickle
+keyfunc=lambda *args, **kwargs: pickle.dumps((args, kwargs))
+
+# gam=agent.gen_gamma_V(3, sparse=True)
+
+
+
+
+
+# gam2 = agent.gen_gamma_V(96, sparse=False)
+# gam2s = agent.gen_gamma_V(4, sparse=True)
+
+
+
+
+#
+# shape = (2,3)
+# a = np.arange(1,np.prod(shape)+1)
+# b = np.arange(a[-1]+1, a[-1]+np.prod(shape)+1)
+# c = np.arange(b[-1]+1, b[-1]+np.prod(shape)+1)
+# d =  np.arange(c[-1]+1, c[-1]+np.prod(shape)+1)
+# e =  np.arange(d[-1]+1, d[-1]+np.prod(shape)+1)
+# f =  np.arange(e[-1]+1, e[-1]+np.prod(shape)+1)
+#
+# a = a.reshape(shape)
+# b = b.reshape(shape)
+# c = c.reshape(shape)
+# d = d.reshape(shape)
+# e = e.reshape(shape)
+# f = f.reshape(shape)
+#
+# col = np.array([a,b,c])
+# row=np.array([c,d,e,f])

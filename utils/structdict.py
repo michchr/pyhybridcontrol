@@ -1,91 +1,92 @@
+from types import MethodType, BuiltinMethodType
 from reprlib import recursive_repr
 from sortedcontainers import SortedDict
 from collections import OrderedDict
+from copy import deepcopy as _deepcopy
 
-import pprint
+from contextlib import contextmanager
+import sys
+
+@contextmanager
+def _temp_mod_numpy_print_ops(np_print_threshold=None):
+    np_mod = sys.modules.get('numpy')
+    cur_np_threshold = None
+    if np_mod:
+        cur_np_threshold = np_mod.get_printoptions()['threshold']
+        np_mod.set_printoptions(threshold=np_print_threshold)
+    try:
+        yield np_mod
+    finally:
+        if np_mod:
+            np_mod.set_printoptions(threshold=cur_np_threshold)
+
+def struct_repr(data, type_name=None, sort=False, np_print_threshold=20):
+    if not isinstance(data, dict):
+        raise TypeError("Data must be dictionary like")
+
+    _key = data._key if hasattr(data, '_key') else None
+    key_arg = '' if _key is None else '_key = {0!r},\n'.format(_key)
+
+    with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold): #temporarily modify numpy print threshold
+        item_format = '{0!r}: {1!r}'.format
+        filler = lambda key: ''.join(['\n', ' ' * (len(key) + 4)])
+        keys = sorted(data.keys(), key=_key) if sort else data.keys()
+        items = ',\n'.join(item_format(key, data[key]).replace('\n', filler(key)) for key in keys)
+
+    type_name = type_name or type(data).__name__
+    repr_format = '{0}(\n{1}{2})'.format if data else '{0}({1}{2})'.format
+    return repr_format(type_name, key_arg, items)
 
 class StructDictMixin:
     __internal_names = []
     _internal_names_set = set(__internal_names)
 
-    # noinspection PyUnresolvedReferences
-    def _init_std_attributes(self, *args, **kwargs):
-        _sbase_dict = super(StructDictMixin, self)
-        self._sbase_dict_init = _sbase_dict.__init__
-        self._sbase_dict_setitem = _sbase_dict.__setitem__
-        self._sbase_dict_getitem = _sbase_dict.__getitem__
-        self._sbase_dict_contains = _sbase_dict.__contains__
-        self._sbase_dict_pop = _sbase_dict.pop
-        self._sbase_dict_update = _sbase_dict.update
-        self._sbase_dict_clear = _sbase_dict.clear
-
-    # noinspection PyUnresolvedReferences
-    def __new__(cls, *args, **kwargs):
-        self = super(StructDictMixin, cls).__new__(cls, *args, **kwargs)
-        _struct_dict_settattr = cls.__setattr__
-        cls.__setattr__ = object.__setattr__
-        self._init_std_attributes(*args, **kwargs)
-        cls.__setattr__ = _struct_dict_settattr
-        return self
-
     def __init__(self, *args, **kwargs):
-        self._sbase_dict_init(*args, **kwargs)
+        super(StructDictMixin, self).__init__(*args, **kwargs)
         self._check_invalid_keys()
 
-    def __reduce__(self):
-        """Support for pickle.
-
-        The tricks played with caching references in
-        :func:`StructDictMixin.__new__` confuse pickle so customize the reducer.
-
-        """
-        if hasattr(self, '_key'):
-            args = (self._key, list(self.items()))
-        else:
-            args = (list(self.items()),)
-        return (self.__class__, args)
-
     def _check_invalid_keys(self, key=None):
-        if key is None:
-            invalid_keys = self._internal_names_set.intersection(self.keys())
-        else:
-            invalid_keys = key if key in self._internal_names_set else None
+        if self._internal_names_set:
+            if key is None:
+                invalid_keys = self._internal_names_set.intersection(self.keys())
+            else:
+                invalid_keys = key if key in self._internal_names_set else None
 
-        if invalid_keys:
-            for key in invalid_keys:
-                del self[key]
-            raise ValueError(
-                "Cannot add items to struct dict with keys contained in '_internal_names_set': '{}'".format(
-                    invalid_keys))
+            if invalid_keys:
+                for key in invalid_keys:
+                    del self[key]
+                raise ValueError(
+                    "Cannot add items to struct dict with keys contained in '_internal_names_set': '{}'".format(
+                        invalid_keys))
 
     def __setitem__(self, key, value):
-        self._sbase_dict_setitem(key, value)
+        # noinspection PyUnresolvedReferences
+        super(StructDictMixin, self).__setitem__(key, value)
         self._check_invalid_keys(key=key)
 
     def update(self, *args, **kwargs):
-        self._sbase_dict_update(*args, **kwargs)
+        # noinspection PyUnresolvedReferences
+        super(StructDictMixin, self).update(*args, **kwargs)
         self._check_invalid_keys()
 
     def __setattr__(self, key, value):
         try:
-            self.__getattribute__(key)
+            attr = object.__getattribute__(self, key)
         except AttributeError:
             pass
         else:
-            return object.__setattr__(self, key, value)
+            if isinstance(attr, (MethodType, BuiltinMethodType)):
+                raise ValueError(
+                    "Cannot add item:'{}' to struct via __setattr__, identifier is an object method.".format(key))
+            else:
+                return object.__setattr__(self, key, value)
 
-        if key in self._internal_names_set:
+        if self._internal_names_set and key in self._internal_names_set:
             object.__setattr__(self, key, value)
         else:
             self.__setitem__(key, value)
 
     def __getattr__(self, key):
-        # only called when an attribute is NOT found in the instance's dictionary
-        try:
-            return object.__getattribute__(self, key)
-        except AttributeError:
-            pass
-
         try:
             return self.__getitem__(key)
         except KeyError:
@@ -102,12 +103,39 @@ class StructDictMixin:
     def __repr__(self):
         """Return string representation of struct dict.
         """
-        _key = self._key if hasattr(self, '_key') else None
-        key_arg = '' if _key is None else '_key = {0!r},\n'.format(_key)
-        items = pprint.pformat(dict(self), compact=True)
-        type_name = type(self).__name__
-        repr_format = '{0}(\n{1}{2})'.format if self else '{0}({1}{2})'.format
-        return repr_format(type_name, key_arg, items)
+        return struct_repr(self, sort=False)
+
+    def __reduce__(self):
+        """Support for pickle.
+
+        The tricks played with caching references in
+        :func:`StructDictMixin.__new__` confuse pickle so customize the reducer.
+
+        """
+        if hasattr(self, '_key'):
+            args = (self._key, dict(self))
+        else:
+            args = (dict(self),)
+        return (self.__class__, args)
+
+    def copy(self):
+        if hasattr(self, '_key'):
+            return self.__class__(self._key, self)
+        else:
+            return self.__class__(self)
+
+    __copy__ = copy
+
+    def deepcopy(self, memo=None):
+        if hasattr(self, '_key'):
+            return self.__class__(self._key, _deepcopy(dict(self), memo=memo))
+        else:
+            return self.__class__(_deepcopy(dict(self), memo=memo))
+
+    __deepcopy__ = deepcopy
+
+    def as_dict(self):
+        return dict(self)
 
 
 class StructDictAliasedMixin(StructDictMixin):
@@ -225,27 +253,46 @@ class StructDictAliasedMixin(StructDictMixin):
 
 
 class StructDict(StructDictMixin, dict):
-    pass
+    @recursive_repr()
+    def __repr__(self):
+        """Return string representation of StructDict
+        """
+        return struct_repr(self, sort=True)
 
 class OrderedStructDict(StructDictMixin, OrderedDict):
     pass
 
+
 class SortedStructDict(StructDictMixin, SortedDict):
-    #extract all internal names of SortedDict
+    # extract all internal names of SortedDict
     __internal_names = list(SortedDict(callable).__dict__.keys())
     _internal_names_set = StructDictMixin._internal_names_set.union(__internal_names)
 
-
 class StructDictAliased(StructDictAliasedMixin, dict):
-    pass
+    @recursive_repr()
+    def __repr__(self):
+        """Return string representation of StructDict
+        """
+        return struct_repr(self, sort=True)
+
 
 class OrderedStructDictAliased(StructDictAliasedMixin, OrderedDict):
     pass
+
 
 class SortedStructDictAliased(StructDictAliasedMixin, SortedDict):
     # extract all internal names of SortedDict
     __internal_names = list(SortedDict(callable).__dict__.keys())
     _internal_names_set = StructDictAliasedMixin._internal_names_set.union(__internal_names)
+
+class FrozenStructDict(StructDict):
+    def __setitem__(self, key, value):
+        raise TypeError("'{0}' object does not support item assignment".format(self.__class__.__name__))
+
+    def update(self, *args, **kwargs):
+        raise TypeError("'{0}' object does not support update".format(self.__class__.__name__))
+
+
 
 if __name__ == '__main__':
     st = StructDict(a=1, b=2)

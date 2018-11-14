@@ -5,39 +5,19 @@ import scipy.linalg as scl
 
 from utils.structdict import StructDict
 from models.mld_model import MldModel
+from models.agents import AgentModelGenerator, Agent
+
+from copy import copy as _copy, deepcopy as _deepcopy
 
 from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries, IDX
 from tools.mongo_interface import MongoInterface
-
-pd.set_option('mode.chained_assignment', 'raise')
-
-
-class AgentModelGenerator:
-
-    def __init__(self, *args, **kwargs):
-        self.symbolic_mld = self.get_symbolic_mld(*args, **kwargs)
-        self.eval_mld = self.get_eval_mld()
-
-    def get_symbolic_mld(self):
-        raise NotImplementedError("Need to implement symbolic mld")
-
-    def get_eval_mld(self, symbolic_mld=None):
-        symbolic_mld = symbolic_mld or self.symbolic_mld
-        return symbolic_mld.to_eval()
-
-    def get_numeric_mld(self, param_struct=None, mld=None):
-        mld = mld or self.eval_mld or self.symbolic_mld
-        return mld.to_numeric(param_struct=param_struct)
-
-    def get_required_params(self):
-        return self.symbolic_mld._get_all_syms_str_list()
 
 
 class DewhModelGenerator(AgentModelGenerator):
     def __init__(self, *args, const_heat=True, **kwargs):
         super(DewhModelGenerator, self).__init__(*args, const_heat=const_heat, **kwargs)
 
-    def get_symbolic_mld(self, const_heat=True):
+    def get_mld_symbolic(self, const_heat=True):
         dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
             'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
@@ -80,7 +60,7 @@ class DewhModelGenerator(AgentModelGenerator):
 
 class GridModelGenerator(AgentModelGenerator):
 
-    def get_symbolic_mld(self):
+    def get_mld_symbolic(self):
         P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
         eps = sp.symbols('eps')
 
@@ -95,11 +75,10 @@ class GridModelGenerator(AgentModelGenerator):
 
         return MldModel_sym
 
-
 class Dewh:
     def __init__(self, device_model_generator: AgentModelGenerator, dev_id=None, param_struct=None):
         self.device_model_generator = device_model_generator
-        self.mld: MldModel = self.device_model_generator.get_numeric_mld(param_struct=param_struct)
+        self.mld: MldModel = self.device_model_generator.get_mld_numeric(param_struct=param_struct)
         self.param_struct = param_struct
         self.dev_id = dev_id
         self.device_type = 'dewh'
@@ -113,7 +92,7 @@ class Dewh:
 
     @property
     def symbolic_mld(self):
-        return self.device_model_generator.symbolic_mld
+        return self.device_model_generator.mld_symbolic
 
     def load_historical(self, start_datetime=None, end_datetime=None):
         with MongoInterface(database='site_data', collection='Kikuyu') as mi:
