@@ -7,6 +7,7 @@ from copy import deepcopy as _deepcopy
 from contextlib import contextmanager
 import sys
 
+
 @contextmanager
 def _temp_mod_numpy_print_ops(np_print_threshold=None):
     np_mod = sys.modules.get('numpy')
@@ -20,22 +21,33 @@ def _temp_mod_numpy_print_ops(np_print_threshold=None):
         if np_mod:
             np_mod.set_printoptions(threshold=cur_np_threshold)
 
-def struct_repr(data, type_name=None, sort=False, np_print_threshold=20):
+
+def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_values=True):
     if not isinstance(data, dict):
         raise TypeError("Data must be dictionary like")
 
     _key = data._key if hasattr(data, '_key') else None
     key_arg = '' if _key is None else '_key = {0!r},\n'.format(_key)
 
-    with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold): #temporarily modify numpy print threshold
-        item_format = '{0!r}: {1!r}'.format
-        filler = lambda key: ''.join(['\n', ' ' * (len(key) + 4)])
-        keys = sorted(data.keys(), key=_key) if sort else data.keys()
-        items = ',\n'.join(item_format(key, data[key]).replace('\n', filler(key)) for key in keys)
+    with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold):  # temporarily modify numpy print threshold
+        item_format = '{0!r:<{width}}: {1!r}'.format
+        filler_calc = lambda key_width: ''.join(['\n', ' ' * (key_width + 2)])
+        keys = sorted(data.keys(), key=_key) if sort else list(data.keys())
+        key_widths = [len(repr(key)) for key in keys]
+        if align_values:
+            width = max(key_widths)
+            fill = filler_calc(width)
+            items = ',\n'.join(item_format(key, data[key], width=width).replace('\n', fill) for key in keys)
+        else:
+            width = 0
+            items = ',\n'.join(
+                item_format(key, data[key], width=width).replace('\n', filler_calc(key_width)) for key, key_width in
+                zip(keys, key_widths))
 
     type_name = type_name or type(data).__name__
     repr_format = '{0}(\n{1}{2})'.format if data else '{0}({1}{2})'.format
     return repr_format(type_name, key_arg, items)
+
 
 class StructDictMixin:
     __internal_names = []
@@ -58,6 +70,8 @@ class StructDictMixin:
                 raise ValueError(
                     "Cannot add items to struct dict with keys contained in '_internal_names_set': '{}'".format(
                         invalid_keys))
+        else:
+            return
 
     def __setitem__(self, key, value):
         # noinspection PyUnresolvedReferences
@@ -133,6 +147,12 @@ class StructDictMixin:
             return self.__class__(_deepcopy(dict(self), memo=memo))
 
     __deepcopy__ = deepcopy
+
+    def get_sub_dict(self, keys):
+        return {key: self[key] for key in keys}
+
+    def get_sub_struct(self, keys):
+        return self.__class__(self.get_sub_dict(keys))
 
     def as_dict(self):
         return dict(self)
@@ -259,6 +279,7 @@ class StructDict(StructDictMixin, dict):
         """
         return struct_repr(self, sort=True)
 
+
 class OrderedStructDict(StructDictMixin, OrderedDict):
     pass
 
@@ -267,6 +288,7 @@ class SortedStructDict(StructDictMixin, SortedDict):
     # extract all internal names of SortedDict
     __internal_names = list(SortedDict(callable).__dict__.keys())
     _internal_names_set = StructDictMixin._internal_names_set.union(__internal_names)
+
 
 class StructDictAliased(StructDictAliasedMixin, dict):
     @recursive_repr()
@@ -285,13 +307,13 @@ class SortedStructDictAliased(StructDictAliasedMixin, SortedDict):
     __internal_names = list(SortedDict(callable).__dict__.keys())
     _internal_names_set = StructDictAliasedMixin._internal_names_set.union(__internal_names)
 
+
 class FrozenStructDict(StructDict):
     def __setitem__(self, key, value):
         raise TypeError("'{0}' object does not support item assignment".format(self.__class__.__name__))
 
     def update(self, *args, **kwargs):
         raise TypeError("'{0}' object does not support update".format(self.__class__.__name__))
-
 
 
 if __name__ == '__main__':

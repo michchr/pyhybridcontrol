@@ -15,7 +15,7 @@ import scipy.sparse as scs
 import wrapt
 from numpy.lib.stride_tricks import as_strided as _as_strided
 
-from models.mld_model import MldModel, MldType
+from models.mld_model import MldModel, MldModelTypes
 from utils.structdict import StructDict, struct_repr
 
 pd.set_option('mode.chained_assignment', 'raise')
@@ -161,7 +161,7 @@ class Agent:
             return self._mld_numeric
 
     def update_mld_numeric(self, param_struct=None, mld_numeric=None, **kwargs):
-        if isinstance(mld_numeric, MldModel) and mld_numeric.mld_type == MldType.numeric:
+        if isinstance(mld_numeric, MldModel) and mld_numeric.mld_type == MldModelTypes.numeric:
             self._mld_numeric = mld_numeric
             return self.mld_numeric
         else:
