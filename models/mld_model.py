@@ -11,14 +11,20 @@ import sympy as sp
 from utils.structdict import StructDict, OrderedStructDict, struct_repr
 
 
-def _process_args_decor(update_info_structs=False):
-    @wrapt.decorator
-    def wrapper(func, self, args, kwargs):
-        if update_info_structs:
-            kwargs = MldInfo._update_info_structs_from_kwargs(kwargs=kwargs)
-        return func(*args, **kwargs)
+@wrapt.decorator
+def _process_mld_args_decor(func, self, args, kwargs):
+    bin_dims_struct = kwargs.get('bin_dims_struct') or {}
+    var_types_struct = kwargs.get('var_types_struct') or {}
+    if kwargs:
+        bin_dim_args = set(MldInfo._bin_dim_names).intersection(kwargs)
+        var_types_args = set(MldInfo._var_type_names).intersection(kwargs)
+        bin_dims_struct.update({key: kwargs.pop(key) for key in bin_dim_args})
+        var_types_struct.update({key: kwargs.pop(key) for key in var_types_args})
 
-    return wrapper
+    kwargs['bin_dims_struct'] = bin_dims_struct if bin_dims_struct else None
+    kwargs['var_types_struct'] = var_types_struct if var_types_struct else None
+
+    return func(*args, **kwargs)
 
 
 class MldBase(StructDict):
@@ -30,7 +36,9 @@ class MldBase(StructDict):
     _allowed_data_set = set()
 
     def __init__(self, *args, **kwargs):
-        super(MldBase, self).__init__(dict.fromkeys(self._allowed_data_set))
+        super(MldBase, self).__init__()
+        if not kwargs.pop('no_update', None):
+            super(MldBase, self).update(dict.fromkeys(self._allowed_data_set))
 
     def __setitem__(self, key, value):
         if key in self._allowed_data_set:
@@ -38,7 +46,7 @@ class MldBase(StructDict):
         elif self._internal_names_set and key in self._internal_names_set:
             object.__setattr__(self, key, value)
         else:
-            raise KeyError("key: '{}' is not in _data_headings_set or _allowed_data_set.".format(key))
+            raise KeyError("key: '{}' is not in _allowed_data_set.".format(key))
 
     def _sdict_setitem(self, key, value):
         super(MldBase, self).__setitem__(key, value)
@@ -53,12 +61,37 @@ class MldBase(StructDict):
         super(MldBase, self).__setitem__(key, None)
 
     def __repr__(self):
-        repr_dict = {data_type: self.get_sub_struct(self._data_layout[data_type]) for data_type in
+        value_repr = lambda value: struct_repr(value, type_name='', repr_format_str='{type_name}{{{key_arg}{items}}}',
+                                               align_values=True)
+        repr_dict = {data_type: value_repr(self.get_sub_struct(self._data_layout[data_type])) for data_type in
                      self._data_types}
-        return struct_repr(repr_dict, type_name=self.__class__.__name__)
+        return struct_repr(repr_dict, type_name=self.__class__.__name__, align_values=True, align_padding_width=1,
+                           value_format_str='\b{value}')
+
+    @classmethod
+    def _constructor(cls, items, state, attribute_override=None):
+        obj = cls.__new__(cls)
+        dict.update(obj, items)
+        obj.__dict__.update(state)
+        if attribute_override:
+            obj.__dict__.update(attribute_override)
+        return obj
+
+    def copy(self):
+        return self.__class__._constructor(self, self.__dict__)
+
+    __copy__ = copy
+
+    def deepcopy(self, memo=None):
+        return self.__class__._constructor(_deepcopy(dict(self), memo=memo), _deepcopy(self.__dict__, memo=memo))
+
+    __deepcopy__ = deepcopy
+
+    def __reduce__(self):
+        return (self.__class__._constructor, (dict(self), self.__dict__))
 
 
-_MLD_MODEL_TYPE_NAMES = ['numeric_mld', 'symbolic_mld', 'callable_mld']
+_MLD_MODEL_TYPE_NAMES = ['numeric', 'symbolic', 'callable']
 _MldModelTypesNamedTup = NamedTuple('MldTypesNamedTup', _MLD_MODEL_TYPE_NAMES)
 MldModelTypes = _MldModelTypesNamedTup._make(_MLD_MODEL_TYPE_NAMES)
 
@@ -82,13 +115,14 @@ class MldModel(MldBase):
     _sys_matrix_names = _data_layout
     _offset_vect_names = _MldModelMatTypesNamedTup(*[mat_names[-1] for mat_names in _sys_matrix_names.values()])
 
-    def __init__(self, system_matrices=None, dt=None, bin_dims_struct=None, var_types_struct=None, *args, **kwargs):
-        super(MldModel, self).__init__(*args, **kwargs)
+    def __init__(self, system_matrices=None, dt=None, bin_dims_struct=None, var_types_struct=None, **kwargs):
+        super(MldModel, self).__init__(**kwargs)
         super(MldModel, self).update(dict.fromkeys(self._allowed_data_set, np.empty(shape=(0, 0))))
         self._mld_info = MldInfo()
         self._mld_type = None
         self._shapes_struct = None
-        self.update(*args, system_matrices=system_matrices, dt=dt, bin_dims_struct=bin_dims_struct,
+
+        self.update(system_matrices=system_matrices, dt=dt, bin_dims_struct=bin_dims_struct,
                     var_types_struct=var_types_struct, from_init=True, **kwargs)
 
     @property
@@ -110,17 +144,18 @@ class MldModel(MldBase):
     def mld_type(self):
         return self._mld_type
 
-    @_process_args_decor(update_info_structs=True)
-    def update(self, *args, system_matrices=None, dt=None, bin_dims_struct=None, var_types_struct=None, **kwargs):
+    @_process_mld_args_decor
+    def update(self, system_matrices=None, dt=None, bin_dims_struct=None, var_types_struct=None, **kwargs):
         from_init = kwargs.pop('from_init', False)
+        mld_info_kwargs = {key: kwargs.pop(key) for key in list(kwargs) if key in MldInfo._allowed_data_set}
+
         if system_matrices and kwargs:
             raise ValueError("Individual matrix arguments cannot be set if 'system_matrices' argument is set")
-
-        if args and isinstance(args[0], self.__class__):
-            self.mld_info = args[0].mld_info
-
-        mld_info_kwargs = {key: kwargs.pop(key) for key in list(kwargs) if
-                           key in self.mld_info._allowed_data_set}
+        elif system_matrices and isinstance(system_matrices, self.__class__):
+            self._mld_info = system_matrices._mld_info
+            self._mld_type = system_matrices._mld_type
+            self._shapes_struct = system_matrices._shapes_struct
+            super(MldModel, self).update(system_matrices)
 
         creation_matrices = system_matrices or kwargs
         if not isinstance(creation_matrices, dict):
@@ -162,7 +197,7 @@ class MldModel(MldBase):
         super(MldModel, self).update(new_sys_mats)
         self._shapes_struct = shapes_struct
 
-        if self.mld_type == MldModelTypes.symbolic_mld:
+        if self.mld_type == MldModelTypes.symbolic:
             required_params = self._get_all_syms_str_list()
         else:
             required_params = None
@@ -254,23 +289,22 @@ class MldModel(MldBase):
         if param_struct is None:
             param_struct = {}
 
-        if self.mld_type == MldModelTypes.callable_mld:
-            mld_numeric_dict = {}
+        if self.mld_type == MldModelTypes.callable:
+            numeric_dict = {}
             for key, mat_eval in self.items():
-                mld_numeric_dict[key] = mat_eval(param_struct)
-        elif self.mld_type == MldModelTypes.symbolic_mld:
+                numeric_dict[key] = mat_eval(param_struct=param_struct)
+        elif self.mld_type == MldModelTypes.symbolic:
             print("Performance warning, mld_type is not callable had to convert to callable")
             eval_mld = self.to_eval()
             return eval_mld.to_numeric(param_struct=param_struct)
         else:
-            mld_numeric_dict = _deepcopy(dict(self))
+            numeric_dict = _deepcopy(dict(self))
 
-        var_types_struct = _deepcopy(self.mld_info.var_types_struct)
-
-        return MldModel(mld_numeric_dict, var_types_struct=var_types_struct)
+        return self.__class__._constructor(numeric_dict, _deepcopy(self.__dict__),
+                                           attribute_override={'_mld_type': MldModelTypes.numeric})
 
     def to_eval(self):
-        if self.mld_type in (MldModelTypes.numeric_mld, MldModelTypes.symbolic_mld):
+        if self.mld_type in (MldModelTypes.numeric, MldModelTypes.symbolic):
             mld_eval_dict = {}
             for mat_id, expr in self.items():
                 if not isinstance(expr, sp.Matrix):
@@ -279,16 +313,10 @@ class MldModel(MldBase):
                 lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
                 mld_eval_dict[mat_id] = _lambda_wrapper(lam, syms_str_tup, wrapped_name="".join([mat_id, "_eval"]))
 
-            var_types_struct = _deepcopy(self.mld_info.var_types_struct)
-            eval_mld = MldModel(mld_eval_dict, var_types_struct=var_types_struct)
-            return eval_mld
+            return self.__class__._constructor(mld_eval_dict, _deepcopy(self.__dict__),
+                                               attribute_override={'_mld_type': MldModelTypes.callable})
         else:
-            return self
-
-    def __reduce__(self):
-        s_reduce = super(MldModel, self).__reduce__()
-        reduce = (s_reduce[0], s_reduce[1] + (self.mld_info.dt, None, self.mld_info.var_types_struct.as_dict()))
-        return reduce
+            return self.deepcopy()
 
     def _set_mld_type(self, mld_data):
         is_callable = [callable(sys_mat) for sys_mat in mld_data.values()]
@@ -296,13 +324,13 @@ class MldModel(MldBase):
             if not all(is_callable):
                 raise ValueError("If any mld matrices callable, all must be callable")
             else:
-                self._mld_type = MldModelTypes.callable_mld
+                self._mld_type = MldModelTypes.callable
         else:
             is_symbolic = [isinstance(sys_mat, (sp.Expr, sp.Matrix)) for sys_mat in mld_data.values()]
             if any(is_symbolic):
-                self._mld_type = MldModelTypes.symbolic_mld
+                self._mld_type = MldModelTypes.symbolic
             else:
-                self._mld_type = MldModelTypes.numeric_mld
+                self._mld_type = MldModelTypes.numeric
 
     def _validate_sys_matrix_shapes(self, mld_data=None):
         if mld_data is None:
@@ -441,13 +469,13 @@ class MldModel(MldBase):
         return concat_mld
 
 
-_MLD_INFO_TYPE_NAMES = ['sys_dims', 'state_input_dims', 'bin_dims', 'var_types', 'meta_data']
-_MldInfoTypesNamedTup = NamedTuple('MldInfoTypesNamedTup',
-                                   ['sys_dims', 'state_input_dims', 'bin_dims', 'var_types', 'meta_data'])
+_MLD_INFO_DATA_TYPE_NAMES = ['sys_dims', 'state_input_dims', 'bin_dims', 'var_types', 'meta_data']
+_MldInfoDataTypesNamedTup = NamedTuple('MldInfoTypesNamedTup',
+                                       ['sys_dims', 'state_input_dims', 'bin_dims', 'var_types', 'meta_data'])
 
 
 class MldInfo(MldBase):
-    __internal_names = ['_mld_model']
+    __internal_names = []
     _internal_names_set = MldBase._internal_names_set.union(__internal_names)
 
     _mld_dim_map = {
@@ -464,7 +492,7 @@ class MldInfo(MldBase):
         'n_cons': ('E1', 'E2')
     }
 
-    MldInfoTypes = _MldInfoTypesNamedTup._make(_MLD_INFO_TYPE_NAMES)
+    MldInfoDataTypes = _MldInfoDataTypesNamedTup._make(_MLD_INFO_DATA_TYPE_NAMES)
 
     _valid_var_types = ['c', 'b']
 
@@ -487,34 +515,26 @@ class MldInfo(MldBase):
 
     _var_type_names = ["".join(['var_type_', name]) for name in _state_input_names]
 
-    _data_types = MldInfoTypes
-    _data_layout = OrderedDict([(MldInfoTypes.sys_dims, _sys_dim_names),
-                                (MldInfoTypes.state_input_dims, _state_input_dim_names),
-                                (MldInfoTypes.bin_dims, _bin_dim_names),
-                                (MldInfoTypes.var_types, _var_type_names),
-                                (MldInfoTypes.meta_data, _meta_data_names)])
+    _data_types = MldInfoDataTypes
+    _data_layout = OrderedDict([(MldInfoDataTypes.sys_dims, _sys_dim_names),
+                                (MldInfoDataTypes.state_input_dims, _state_input_dim_names),
+                                (MldInfoDataTypes.bin_dims, _bin_dim_names),
+                                (MldInfoDataTypes.var_types, _var_type_names),
+                                (MldInfoDataTypes.meta_data, _meta_data_names)])
     _allowed_data_set = set([data for data_type in _data_layout.values() for data in data_type])
 
-    def __init__(self, mld_data=None, dt=None, bin_dims_struct=None, var_types_struct=None, required_params=None,
+    def __init__(self, mld_info_data=None, dt=None, bin_dims_struct=None, var_types_struct=None, required_params=None,
                  **kwargs):
-        super(MldInfo, self).__init__()
-        self.update(mld_data=mld_data, dt=dt, bin_dims_struct=bin_dims_struct,
+        super(MldInfo, self).__init__(**kwargs)
+        self.update(mld_info_data=mld_info_data, dt=dt, bin_dims_struct=bin_dims_struct,
                     var_types_struct=var_types_struct, required_params=required_params, **kwargs)
-
-    def __reduce__(self):
-        mld_data = dict(self.mld_model) if isinstance(self.mld_model, MldModel) else None
-        if hasattr(self, '_key'):
-            args = (self._key, mld_data, None, self.var_types_struct)
-        else:
-            args = (mld_data, None, self.var_types_struct)
-        return (self.__class__, args)
 
     @property
     def var_types_struct(self):
-        return self.get_sub_struct(self._data_layout[self.MldInfoTypes.var_types])
+        return self.get_sub_struct(self._data_layout[self.MldInfoDataTypes.var_types])
 
-    @_process_args_decor(update_info_structs=True)
-    def update(self, mld_data=None, dt=None, bin_dims_struct=None, var_types_struct=None, required_params=None,
+    @_process_mld_args_decor
+    def update(self, mld_info_data=None, dt=None, bin_dims_struct=None, var_types_struct=None, required_params=None,
                **kwargs):
 
         non_updateable = self._allowed_data_set.intersection(kwargs)
@@ -528,27 +548,27 @@ class MldInfo(MldBase):
             )
 
         shapes_struct = None
-        if mld_data is not None:
-            if isinstance(mld_data, self.__class__):
-                super(MldInfo, self).update(mld_data)
-            elif isinstance(mld_data, MldModel):
-                shapes_struct = mld_data.shapes_struct
-            elif isinstance(mld_data, dict):
+        if mld_info_data is not None:
+            if isinstance(mld_info_data, self.__class__):
+                super(MldInfo, self).update(mld_info_data)
+            elif isinstance(mld_info_data, MldModel):
+                shapes_struct = mld_info_data.shapes_struct
+            elif isinstance(mld_info_data, dict):
                 missing_keys = set(mld.keys()).difference(MldModel._allowed_data_set)
                 if missing_keys:
                     raise ValueError(
-                        "If mld_data is a shape_struct require entry for each matrix/vector in an MldModel, "
+                        "If mld_info_data is a shape_struct require entry for each matrix/vector in an MldModel, "
                         "missing these keys: {}".format(missing_keys))
-                elif not all([(isinstance(value, tuple) and len(value) == 2) for value in mld_data.values()]):
+                elif not all([(isinstance(value, tuple) and len(value) == 2) for value in mld_info_data.values()]):
                     raise ValueError(
-                        "If mld_data is a shape_struct for mld_model all values must be tuples of length 2.")
-                shapes_struct = mld_data
+                        "If mld_info_data is a shape_struct for mld_model all values must be tuples of length 2.")
+                shapes_struct = mld_info_data
             else:
-                raise TypeError("Invalid type for mld_data.")
+                raise TypeError("Invalid type for mld_info_data.")
 
-            self._set_metadata(dt=dt, required_params=required_params)
-            self._set_var_dims(shapes_struct)
-            self._set_var_info(bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
+        self._set_metadata(dt=dt, required_params=required_params)
+        self._set_var_dims(shapes_struct)
+        self._set_var_info(bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
 
     def _set_metadata(self, dt=None, required_params=None):
         dt_queue = [dt, self.get('dt')]
@@ -625,24 +645,6 @@ class MldInfo(MldBase):
         else:
             for dim_name in self._mld_dim_map:
                 self._sdict_setitem(dim_name, self[dim_name] or 0)
-
-    @classmethod
-    def _update_info_structs_from_kwargs(cls, kwargs=None):
-        bin_dims_struct = kwargs.get('bin_dims_struct') or StructDict()
-        var_types_struct = kwargs.get('var_types_struct') or StructDict()
-
-        kwargs = kwargs or {}
-        for key in cls._bin_dim_names:
-            if key in kwargs:
-                bin_dims_struct[key] = kwargs.pop(key)
-        for key in cls._var_type_names:
-            if key in kwargs:
-                var_types_struct[key] = kwargs.pop(key)
-
-        kwargs['bin_dims_struct'] = bin_dims_struct if bin_dims_struct else None
-        kwargs['var_types_struct'] = var_types_struct if var_types_struct else None
-
-        return kwargs
 
     @staticmethod
     def _get_num_var_bin(var_types_vect):
@@ -734,7 +736,7 @@ def _get_syms_tup(expr):
     return tuple(sym_list), tuple(sym_str_list)
 
 
-# todo functions should be able to take dictionary or positional arguments
+# todo STILL NEEDS WORK
 def _lambda_wrapper(func, local_syms_str_tup, wrapped_name=None):
     if wrapped_name:
         func.__qualname__ = wrapped_name
@@ -746,7 +748,7 @@ def _lambda_wrapper(func, local_syms_str_tup, wrapped_name=None):
         if kwargs.pop('empty_call', False):
             arg_list = [np.NaN] * len(local_syms_str_tup)
         elif args and isinstance(args[0], dict) or isinstance(param_struct, dict):
-            param_struct = args[0] or param_struct
+            param_struct = args[0] if args else param_struct
             try:
                 arg_list = [param_struct[sym_str] for sym_str in local_syms_str_tup]
             except KeyError:
@@ -768,5 +770,5 @@ if __name__ == '__main__':
     mld2 = MldModel({'A': 1})
     #
     # from models.model_generators import DewhModelGenerator
-    # b = DewhModelGenerator().gen_dewh_symbolic_mld_sys_matrices()
+    # b = DewhModelGenerator().gen_dewh_symbolic_sys_matrices()
     # c = b.to_eval()

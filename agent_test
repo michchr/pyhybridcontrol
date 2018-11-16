@@ -24,10 +24,6 @@ mld = dewh_gen.get_mld_numeric(dewh_p)
 agent = MpcAgent('dewh', None, dewh_gen, dewh_p)
 agent2= MpcAgent('test', None, None, mld_numeric=mld2)
 
-
-import pickle
-keyfunc=lambda *args, **kwargs: pickle.dumps((args, kwargs))
-
 # gam=agent.gen_gamma_V(3, sparse=True)
 
 

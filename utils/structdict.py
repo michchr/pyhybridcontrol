@@ -22,31 +22,41 @@ def _temp_mod_numpy_print_ops(np_print_threshold=None):
             np_mod.set_printoptions(threshold=cur_np_threshold)
 
 
-def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_values=True):
+def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_values=False, align_padding_width=0,
+                value_format_str=None, repr_format_str=None):
     if not isinstance(data, dict):
         raise TypeError("Data must be dictionary like")
 
     _key = data._key if hasattr(data, '_key') else None
     key_arg = '' if _key is None else '_key = {0!r},\n'.format(_key)
 
+    align_padding_str = ' ' * align_padding_width
+    value_format_str = value_format_str or '{value!r}'
+    repr_format_str = (
+        (repr_format_str or '{type_name}({{\n{key_arg}{items}}})') if data else '{type_name}({{{key_arg}{items}}})')
+
+    item_format_string = (
+        "{{key!r:<{{width}}}}: {align_padding_str}{value_format_str}".format(align_padding_str=align_padding_str,
+                                                                             value_format_str=value_format_str))
+
+    item_format = item_format_string.format
+    filler_calc = lambda key_width: ''.join(['\n', ' ' * (key_width + 2 + align_padding_width)])
+    keys = sorted(data.keys(), key=_key) if sort else list(data.keys())
+    key_widths = [len(repr(key)) for key in keys]
     with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold):  # temporarily modify numpy print threshold
-        item_format = '{0!r:<{width}}: {1!r}'.format
-        filler_calc = lambda key_width: ''.join(['\n', ' ' * (key_width + 2)])
-        keys = sorted(data.keys(), key=_key) if sort else list(data.keys())
-        key_widths = [len(repr(key)) for key in keys]
         if align_values:
             width = max(key_widths)
             fill = filler_calc(width)
-            items = ',\n'.join(item_format(key, data[key], width=width).replace('\n', fill) for key in keys)
+            items = ',\n'.join(item_format(key=key, value=data[key], width=width).replace('\n', fill) for key in keys)
         else:
             width = 0
             items = ',\n'.join(
-                item_format(key, data[key], width=width).replace('\n', filler_calc(key_width)) for key, key_width in
-                zip(keys, key_widths))
+                item_format(key=key, value=data[key], width=width).replace('\n', filler_calc(key_width)) for
+                key, key_width in zip(keys, key_widths))
 
-    type_name = type_name or type(data).__name__
-    repr_format = '{0}(\n{1}{2})'.format if data else '{0}({1}{2})'.format
-    return repr_format(type_name, key_arg, items)
+    type_name = type_name if type_name is not None else type(data).__name__
+    repr_format = repr_format_str.format
+    return repr_format(type_name=type_name, key_arg=key_arg, items=items)
 
 
 class StructDictMixin:
