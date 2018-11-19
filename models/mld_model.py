@@ -7,7 +7,6 @@ import numpy as np
 import scipy.linalg as scl
 import scipy.sparse as scs
 import sympy as sp
-
 from utils.structdict import StructDict, OrderedStructDict, struct_repr
 
 
@@ -53,6 +52,12 @@ class MldBase(StructDict):
 
     def clear(self):
         super(MldBase, self).update(dict.fromkeys(self._allowed_data_set))
+
+    def pop(self, *args, **kwargs):
+        raise PermissionError("Items can not be removed from mld_model.")
+
+    def popitem(self, *args, **kwargs):
+        raise PermissionError("Items can not be removed from mld_model.")
 
     def get_sub_struct(self, keys):
         return StructDict(self.get_sub_dict(keys))
@@ -285,7 +290,7 @@ class MldModel(MldBase):
 
         return OrderedStructDict(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out)
 
-    def to_numeric(self, param_struct=None):
+    def to_numeric(self, param_struct=None, copy=True):
         if param_struct is None:
             param_struct = {}
 
@@ -300,10 +305,12 @@ class MldModel(MldBase):
         else:
             numeric_dict = _deepcopy(dict(self))
 
-        return self.__class__._constructor(numeric_dict, _deepcopy(self.__dict__),
+        attrs = _deepcopy(self.__dict__) if copy else self.__dict__
+
+        return self.__class__._constructor(numeric_dict, attrs,
                                            attribute_override={'_mld_type': MldModelTypes.numeric})
 
-    def to_eval(self):
+    def to_eval(self, copy=True):
         if self.mld_type in (MldModelTypes.numeric, MldModelTypes.symbolic):
             mld_eval_dict = {}
             for mat_id, expr in self.items():
@@ -313,7 +320,8 @@ class MldModel(MldBase):
                 lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
                 mld_eval_dict[mat_id] = _lambda_wrapper(lam, syms_str_tup, wrapped_name="".join([mat_id, "_eval"]))
 
-            return self.__class__._constructor(mld_eval_dict, _deepcopy(self.__dict__),
+            attrs = _deepcopy(self.__dict__) if copy else self.__dict__
+            return self.__class__._constructor(mld_eval_dict, attrs,
                                                attribute_override={'_mld_type': MldModelTypes.callable})
         else:
             return self.deepcopy()
@@ -673,8 +681,8 @@ def _get_expr_shape(expr):
     else:
         try:
             expr_shape = expr.shape
-            # if 0 in expr_shape:
-            #     return (0, 0)
+            if 0 in expr_shape:
+                return (0, 0)
             if len(expr_shape) == 1:
                 return (expr_shape[0], 1)
             elif len(expr_shape) == 2:

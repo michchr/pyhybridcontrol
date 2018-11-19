@@ -24,14 +24,14 @@ mld = dewh_gen.get_mld_numeric(dewh_p)
 agent = MpcAgent('dewh', None, dewh_gen, dewh_p)
 agent2= MpcAgent('test', None, None, mld_numeric=mld2)
 
-# gam=agent.gen_gamma_V(3, sparse=True)
+# gam=agent._gen_gamma_V(3, sparse=True)
 
 
 
 
 
-# gam2 = agent.gen_gamma_V(96, sparse=False)
-# gam2s = agent.gen_gamma_V(4, sparse=True)
+# gam2 = agent._gen_gamma_V(96, sparse=False)
+# gam2s = agent._gen_gamma_V(4, sparse=True)
 
 
 
