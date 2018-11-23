@@ -26,10 +26,6 @@ agent2= MpcAgent('test', None, None, mld_numeric=mld2)
 
 # gam=agent._gen_gamma_V(3, sparse=True)
 
-
-
-
-
 # gam2 = agent._gen_gamma_V(96, sparse=False)
 # gam2s = agent._gen_gamma_V(4, sparse=True)
 
