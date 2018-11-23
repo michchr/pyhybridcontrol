@@ -52,6 +52,7 @@ class Agent:
 
         self._mld_numeric = mld_numeric
         self._agent_model_generator = agent_model_generator
+        self._param_struct = {}
         self._param_struct = self._validate_param_struct(param_struct=param_struct, missing_param_check=True,
                                                          invalid_param_check=False)
         if self._agent_model_generator is not None:
@@ -124,19 +125,18 @@ class Agent:
     def _validate_param_struct(self, param_struct=None, param_struct_subset=None, missing_param_check=False,
                                invalid_param_check=False, **kwargs):
         param_struct_subset = param_struct_subset if param_struct_subset is not None else {}
-        param_struct = param_struct if param_struct is not None else {}
+        param_struct = param_struct if param_struct is not None else self._param_struct
         try:
             param_struct_subset.update(kwargs)
         except AttributeError:
             raise TypeError("Invalid type for 'param_struct_subset', must be dictionary like or None.")
 
-        if not param_struct and hasattr(self, "_param_struct"):
+        if not param_struct_subset and param_struct is self._param_struct:
+            return self._param_struct
+        elif not param_struct or param_struct is self._param_struct:
             given_params = param_struct_subset
-            if param_struct_subset:
-                param_struct = _copy(self._param_struct)
-                param_struct.update(param_struct_subset)
-            else:
-                return self._param_struct
+            param_struct = _copy(self._param_struct)
+            param_struct.update(param_struct_subset)
         else:
             try:
                 param_struct.update(param_struct_subset)
@@ -165,7 +165,8 @@ class Agent:
                     "either disable 'invalid_param_check' or update self.param_struct.".format(invalid_params)
                 )
 
-        return StructDict(param_struct)
+        valid_param_struct = param_struct if isinstance(param_struct, StructDict) else StructDict(param_struct)
+        return valid_param_struct
 
     def get_mld_numeric(self, param_struct=None, param_struct_subset=None, missing_param_check=False,
                         invalid_param_check=True, copy=True, **kwargs):
@@ -274,53 +275,73 @@ class MpcAgent(Agent):
                                A_pow_tilde=_ParNotReq, sparse=_ParNotReq, mat_ops=_ParNotReq, copy=_ParNotReq,
                                **kwargs):
 
-        N_p = self.N_p if N_p is None else None if N_p is _ParNotReq else N_p
-        include_term_cons = True if include_term_cons is None else (None if include_term_cons is _ParNotReq else
-                                                                    include_term_cons)
-        sparse = False if sparse is None else None if sparse is _ParNotReq else sparse
-        copy = True if copy is None else None if copy is _ParNotReq else copy
+        if N_p is None:
+            f_kwargs['N_p'] = N_p = self.N_p
+        else:
+            N_p = f_kwargs.get('N_p')
+
+        if include_term_cons is None:
+            f_kwargs['include_term_cons'] = include_term_cons = True
+        else:
+            include_term_cons = f_kwargs.get('include_term_cons')
+
+        if sparse is None:
+            f_kwargs['sparse'] = sparse = False
+        else:
+            sparse= f_kwargs.get('sparse')
+
+        if copy is None:
+            f_kwargs['copy'] = copy = True
+        else:
+            copy = f_kwargs.get('copy')
 
         if mat_ops is None:
-            mat_ops = self._get_mat_ops(sparse)
-        mat_ops = mat_ops if mat_ops is not _ParNotReq else None
+            f_kwargs['mat_ops'] = mat_ops = self._get_mat_ops(sparse)
+        else:
+            mat_ops = f_kwargs.get('mat_ops')
 
         if param_struct is None:
-            param_struct = self._validate_param_struct(param_struct=self._param_struct,
-                                                       param_struct_subset=param_struct_subset,
-                                                       missing_param_check=False, invalid_param_check=True)
-        param_struct = param_struct if param_struct is not _ParNotReq else None
+            f_kwargs['param_struct'] = param_struct = (
+                self._validate_param_struct(param_struct=self._param_struct, param_struct_subset=param_struct_subset,
+                                            missing_param_check=False, invalid_param_check=False))
+        else:
+            param_struct = f_kwargs.get('param_struct')
 
         if (schedule_params_tilde or kwargs) and param_struct_tilde is None:
-            param_struct_tilde = self._gen_param_struct_tilde(N_p=N_p, param_struct=param_struct,
-                                                              param_struct_subset=param_struct_subset,
-                                                              schedule_params_tilde=schedule_params_tilde,
-                                                              **kwargs)
-        param_struct_tilde = param_struct_tilde if param_struct_tilde is not _ParNotReq else None
+            f_kwargs['param_struct_tilde'] = param_struct_tilde = (
+                self._gen_param_struct_tilde(N_p=N_p, param_struct=param_struct,
+                                             param_struct_subset=param_struct_subset,
+                                             schedule_params_tilde=schedule_params_tilde,
+                                             include_term_cons=include_term_cons, **kwargs))
+        else:
+            param_struct_tilde = f_kwargs.get('param_struct_tilde')
 
         if param_struct_tilde and mld_numeric_tilde is None:
-            mld_numeric_tilde = self._gen_mld_numeric_tilde(N_p=N_p, param_struct=param_struct,
-                                                            param_struct_subset=param_struct_subset,
-                                                            schedule_params_tilde=schedule_params_tilde,
-                                                            param_struct_tilde=param_struct_tilde,
-                                                            sparse=sparse, copy=copy, **kwargs)
-        mld_numeric_tilde = mld_numeric_tilde if mld_numeric_tilde is not _ParNotReq else None
+            f_kwargs['mld_numeric_tilde'] = mld_numeric_tilde = (
+                self._gen_mld_numeric_tilde(N_p=N_p, param_struct=param_struct, param_struct_subset=param_struct_subset,
+                                            schedule_params_tilde=schedule_params_tilde,
+                                            param_struct_tilde=param_struct_tilde, include_term_cons=include_term_cons,
+                                            sparse=sparse, copy=copy, **kwargs))
+        else:
+            mld_numeric_tilde = f_kwargs.get('mld_numeric_tilde')
 
         if mld_numeric is None:
             if param_struct is self._param_struct:
                 mld_numeric = self.mld_numeric
             else:
-                mld_numeric = self.get_mld_numeric(param_struct=param_struct)
-        mld_numeric = mld_numeric if mld_numeric is not _ParNotReq else None
+                mld_numeric = self.get_mld_numeric(param_struct=param_struct, missing_param_check=False,
+                                                   invalid_param_check=False, copy=copy)
+            f_kwargs['mld_numeric'] = mld_numeric
+        else:
+            mld_numeric = f_kwargs.get('mld_numeric')
 
         if A_pow_tilde is None:
-            A_pow_tilde = self._gen_A_pow_tilde(N_p=N_p, param_struct=param_struct,
-                                                param_struct_subset=param_struct_subset,
-                                                schedule_params_tilde=schedule_params_tilde,
-                                                param_struct_tilde=param_struct_tilde,
-                                                mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
-                                                sparse=sparse, mat_ops=mat_ops, copy=copy,
-                                                **kwargs)
-        A_pow_tilde = A_pow_tilde if A_pow_tilde is not _ParNotReq else None
+            f_kwargs['A_pow_tilde'] = (
+                self._gen_A_pow_tilde(N_p=N_p, param_struct=param_struct, param_struct_subset=param_struct_subset,
+                                      schedule_params_tilde=schedule_params_tilde,
+                                      param_struct_tilde=param_struct_tilde, mld_numeric=mld_numeric,
+                                      mld_numeric_tilde=mld_numeric_tilde, sparse=sparse, mat_ops=mat_ops, copy=copy,
+                                      **kwargs))
 
         arg_valid_test = False
         if arg_valid_test:
@@ -336,20 +357,7 @@ class MpcAgent(Agent):
                 if not isinstance(mld_numeric, MldModel):
                     raise TypeError("mld_numeric must be an instance of MldModel")
 
-        processed_kwargs = {kw_name: value for kw_name, value in locals().items() if kw_name in f_kwargs}
-        processed_kwargs.update(**kwargs)
-
-        # f_params = list(f_signature.parameters.values())
-        # if f_params[-1:] and f_params[-1].kind == inspect.Parameter.VAR_KEYWORD:
-        #     processed_kwargs.update(**kwargs)
-
-        return processed_kwargs
-
-    # self, N_p = None, param_struct = None, param_struct_subset = None,
-    # schedule_params_tilde = None, param_struct_tilde = None,
-    # mld_numeric = None, mld_numeric_tilde = None,
-    # A_pow_tilde = None, sparse = None, mat_ops = None, copy = True,
-    # **kwargs
+        return f_kwargs
 
     @_process_args_mpc_decor
     def _gen_param_struct_tilde(self, N_p=None, param_struct=None, param_struct_subset=None,
