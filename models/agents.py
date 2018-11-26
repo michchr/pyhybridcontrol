@@ -2,7 +2,7 @@ import bisect
 import inspect
 import itertools
 from collections import OrderedDict
-from copy import copy as _copy
+from copy import copy as _copy_
 from reprlib import recursive_repr as _recursive_repr
 import types
 
@@ -109,7 +109,7 @@ class Agent:
 
     @property
     def param_struct(self):
-        return _copy(self._param_struct)
+        return _copy_(self._param_struct)
 
     @param_struct.setter
     def param_struct(self, param_struct):
@@ -122,6 +122,7 @@ class Agent:
                                                          missing_param_check=missing_param_check,
                                                          invalid_param_check=invalid_param_check, **kwargs)
 
+
     def _validate_param_struct(self, param_struct=None, param_struct_subset=None, missing_param_check=False,
                                invalid_param_check=False, **kwargs):
         param_struct_subset = param_struct_subset if param_struct_subset is not None else {}
@@ -133,9 +134,9 @@ class Agent:
 
         if not param_struct_subset and param_struct is self._param_struct:
             return self._param_struct
-        elif not param_struct or param_struct is self._param_struct:
+        elif param_struct is self._param_struct:
             given_params = param_struct_subset
-            param_struct = _copy(self._param_struct)
+            param_struct = _copy_(self._param_struct)
             param_struct.update(param_struct_subset)
         else:
             try:
@@ -177,7 +178,7 @@ class Agent:
                                                            invalid_param_check=invalid_param_check,
                                                            **kwargs)
 
-        if compute_param_struct:
+        if compute_param_struct is not self._param_struct:
             try:
                 return self._agent_model_generator.get_mld_numeric(compute_param_struct, copy=copy)
             except AttributeError:
@@ -185,17 +186,20 @@ class Agent:
         else:
             return self._mld_numeric
 
-    def update_mld_numeric(self, param_struct=None, mld_numeric=None, copy=True, **kwargs):
+    def update_mld_numeric(self, param_struct=None, param_struct_subset=None, mld_numeric=None, copy=True, **kwargs):
         if isinstance(mld_numeric, MldModel) and mld_numeric.mld_type == MldModelTypes.numeric:
             self._mld_numeric = mld_numeric
             return self.mld_numeric
         else:
-            self.update_param_struct(param_struct, **kwargs)
+            self.update_param_struct(param_struct=param_struct, param_struct_subset=param_struct_subset,
+                                     **kwargs)
 
         try:
-            return self._agent_model_generator.get_mld_numeric(param_struct=self._param_struct, copy=copy)
+            self._mld_numeric = self._agent_model_generator.get_mld_numeric(param_struct=self._param_struct, copy=copy)
         except AttributeError:
             raise TypeError("Agent does not contain valid agent_model_generator.")
+
+        return self.mld_numeric
 
     @_recursive_repr()
     def __repr__(self):
@@ -233,6 +237,9 @@ def _cache_hashable_args(maxsize=128, typed=False):
 
 @wrapt.decorator
 def _process_args_mpc_decor(func, self, args_in, kwargs_in):
+    if kwargs_in.pop('_disable_process_args', False):
+        return func(*args_in, **kwargs_in)
+
     f_signature = _get_cached_signature(func)
     f_kwargs_default = {param_name: param.default for param_name, param in f_signature.parameters.items() if
                         param.default is not inspect.Parameter.empty}
@@ -269,79 +276,75 @@ class MpcAgent(Agent):
         self.con_evolution_struct = StructDict(time_k0=None)
 
     def _process_mpc_func_args(self, f_kwargs=None, f_signature=None, *args,
-                               N_p=_ParNotReq, param_struct=_ParNotReq, param_struct_subset=_ParNotReq,
-                               schedule_params_tilde=_ParNotReq, param_struct_tilde=_ParNotReq,
+                               N_p=_ParNotReq, param_struct=_ParNotReq, param_struct_subset=None,
+                               param_struct_tilde=_ParNotReq, schedule_params_tilde=None,
                                include_term_cons=_ParNotReq, mld_numeric=_ParNotReq, mld_numeric_tilde=_ParNotReq,
                                A_pow_tilde=_ParNotReq, sparse=_ParNotReq, mat_ops=_ParNotReq, copy=_ParNotReq,
                                **kwargs):
 
+        _N_p = self.N_p if f_kwargs.get('N_p') is None else f_kwargs.get('N_p')
         if N_p is None:
-            f_kwargs['N_p'] = N_p = self.N_p
-        else:
-            N_p = f_kwargs.get('N_p')
+            f_kwargs['N_p'] = _N_p
 
+        _include_term_cons = True if f_kwargs.get('include_term_cons') is None else f_kwargs.get('include_term_cons')
         if include_term_cons is None:
-            f_kwargs['include_term_cons'] = include_term_cons = True
-        else:
-            include_term_cons = f_kwargs.get('include_term_cons')
+            f_kwargs['include_term_cons'] = _include_term_cons
 
+        _sparse = False if f_kwargs.get('sparse') is None else f_kwargs.get('sparse')
         if sparse is None:
-            f_kwargs['sparse'] = sparse = False
-        else:
-            sparse= f_kwargs.get('sparse')
+            f_kwargs['sparse'] = _sparse
 
+        _copy = True if f_kwargs.get('copy') is None else f_kwargs.get('copy')
         if copy is None:
-            f_kwargs['copy'] = copy = True
-        else:
-            copy = f_kwargs.get('copy')
+            f_kwargs['copy'] = _copy
 
+        _mat_ops = f_kwargs.get('mat_ops') or self._get_mat_ops(sparse=_sparse)
         if mat_ops is None:
-            f_kwargs['mat_ops'] = mat_ops = self._get_mat_ops(sparse)
-        else:
-            mat_ops = f_kwargs.get('mat_ops')
+            f_kwargs['mat_ops'] = _mat_ops
 
+        _param_struct = self._validate_param_struct(param_struct=f_kwargs.get('param_struct'),
+                                                    param_struct_subset=param_struct_subset,
+                                                    missing_param_check=False, invalid_param_check=False)
         if param_struct is None:
-            f_kwargs['param_struct'] = param_struct = (
-                self._validate_param_struct(param_struct=self._param_struct, param_struct_subset=param_struct_subset,
-                                            missing_param_check=False, invalid_param_check=False))
-        else:
-            param_struct = f_kwargs.get('param_struct')
+            f_kwargs['param_struct'] = _param_struct
 
-        if (schedule_params_tilde or kwargs) and param_struct_tilde is None:
-            f_kwargs['param_struct_tilde'] = param_struct_tilde = (
-                self._gen_param_struct_tilde(N_p=N_p, param_struct=param_struct,
-                                             param_struct_subset=param_struct_subset,
+        if schedule_params_tilde or kwargs:
+            _param_struct_tilde = f_kwargs.get('param_struct_tilde') or (
+                self._gen_param_struct_tilde(_disable_process_args=True, N_p=_N_p, param_struct=_param_struct,
                                              schedule_params_tilde=schedule_params_tilde,
-                                             include_term_cons=include_term_cons, **kwargs))
+                                             include_term_cons=_include_term_cons, **kwargs))
         else:
-            param_struct_tilde = f_kwargs.get('param_struct_tilde')
+            _param_struct_tilde = f_kwargs.get('param_struct_tilde')
 
-        if param_struct_tilde and mld_numeric_tilde is None:
-            f_kwargs['mld_numeric_tilde'] = mld_numeric_tilde = (
-                self._gen_mld_numeric_tilde(N_p=N_p, param_struct=param_struct, param_struct_subset=param_struct_subset,
-                                            schedule_params_tilde=schedule_params_tilde,
-                                            param_struct_tilde=param_struct_tilde, include_term_cons=include_term_cons,
-                                            sparse=sparse, copy=copy, **kwargs))
+        if param_struct_tilde is None:
+            f_kwargs['param_struct_tilde'] = _param_struct_tilde
+
+        if _param_struct_tilde is not None:
+            _mld_numeric_tilde = f_kwargs.get('mld_numeric_tilde') or (
+                self._gen_mld_numeric_tilde(_disable_process_args=True, N_p=_N_p, param_struct=_param_struct,
+                                            param_struct_tilde=_param_struct_tilde,
+                                            include_term_cons=_include_term_cons,
+                                            sparse=_sparse, copy=_copy))
         else:
-            mld_numeric_tilde = f_kwargs.get('mld_numeric_tilde')
+            _mld_numeric_tilde = f_kwargs.get('mld_numeric_tilde')
 
+        if mld_numeric_tilde is None:
+            f_kwargs['mld_numeric_tilde'] = _mld_numeric_tilde
+
+        if _param_struct is self._param_struct:
+            _mld_numeric = self.mld_numeric
+        else:
+            _mld_numeric = self.get_mld_numeric(param_struct=_param_struct,
+                                                missing_param_check=False,
+                                                invalid_param_check=False, copy=_copy)
         if mld_numeric is None:
-            if param_struct is self._param_struct:
-                mld_numeric = self.mld_numeric
-            else:
-                mld_numeric = self.get_mld_numeric(param_struct=param_struct, missing_param_check=False,
-                                                   invalid_param_check=False, copy=copy)
-            f_kwargs['mld_numeric'] = mld_numeric
-        else:
-            mld_numeric = f_kwargs.get('mld_numeric')
+            f_kwargs['mld_numeric'] = _mld_numeric
 
         if A_pow_tilde is None:
             f_kwargs['A_pow_tilde'] = (
-                self._gen_A_pow_tilde(N_p=N_p, param_struct=param_struct, param_struct_subset=param_struct_subset,
-                                      schedule_params_tilde=schedule_params_tilde,
-                                      param_struct_tilde=param_struct_tilde, mld_numeric=mld_numeric,
-                                      mld_numeric_tilde=mld_numeric_tilde, sparse=sparse, mat_ops=mat_ops, copy=copy,
-                                      **kwargs))
+                self._gen_A_pow_tilde(_disable_process_args=True, N_p=_N_p, param_struct=_param_struct,
+                                      mld_numeric=_mld_numeric, mld_numeric_tilde=_mld_numeric_tilde, sparse=_sparse,
+                                      mat_ops=_mat_ops, copy=_copy, **kwargs))
 
         arg_valid_test = False
         if arg_valid_test:
@@ -361,14 +364,15 @@ class MpcAgent(Agent):
 
     @_process_args_mpc_decor
     def _gen_param_struct_tilde(self, N_p=None, param_struct=None, param_struct_subset=None,
-                                schedule_params_tilde=None, include_term_cons=True, **kwargs):
+                                schedule_params_tilde=None, include_term_cons=None, **kwargs):
+
         schedule_params_tilde = schedule_params_tilde if schedule_params_tilde is not None else {}
         try:
             schedule_params_tilde.update(kwargs)
         except AttributeError as ae:
             raise TypeError("schedule_params_tilde must be dictionary like or None: " + ae.args[0])
 
-        param_struct_tilde = _copy(param_struct)
+        param_struct_tilde = _copy_(param_struct)
         param_struct_tilde['schedule_params_tilde'] = None
         N_cons = N_p + 1 if include_term_cons else N_p
         if schedule_params_tilde:
@@ -390,9 +394,8 @@ class MpcAgent(Agent):
         return param_struct_tilde
 
     @_process_args_mpc_decor
-    def _gen_mld_numeric_tilde(self, N_p=None, param_struct=None, param_struct_subset=None,
-                               schedule_params_tilde=None, param_struct_tilde=None, include_term_cons=True,
-                               sparse=None, copy=True, **kwargs):
+    def _gen_mld_numeric_tilde(self, N_p=None, param_struct_tilde=None, include_term_cons=None,
+                               sparse=None, copy=None, **kwargs):
         param_struct_tilde = param_struct_tilde or {}
         try:
             schedule_params_tilde = param_struct_tilde.get('schedule_params_tilde')
@@ -411,22 +414,20 @@ class MpcAgent(Agent):
         else:
             raise ValueError(
                 "Invalid length:'{0}' for param_struct_tilde.schedule_param_tilde, length of schedule_param_tilde "
-                "must be equal to N_cons:'{1}', where N_cons = N_p+1 if include_term_cons else N_p".format(
+                "must be equal to N_cons:'{1}', where N_cons = N_p+1 if include_term_cons else N_p.".format(
                     len(schedule_params_tilde), N_cons))
 
         return mld_numeric_tilde
 
     @_process_args_mpc_decor
     def gen_state_input_evolution_matrices(self, N_p=None, param_struct=None, param_struct_subset=None,
-                                           schedule_params_tilde=None, param_struct_tilde=None,
+                                           param_struct_tilde=None, schedule_params_tilde=None,
                                            include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                                           A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
+                                           A_pow_tilde=None, sparse=None, mat_ops=None, copy=None,
                                            **kwargs):
 
         new_state_input_evolution_struct = StructDict()
-        state_gen_kwargs = dict(N_p=N_p,
-                                param_struct=param_struct, schedule_params_tilde=schedule_params_tilde,
-                                param_struct_tilde=param_struct_tilde, include_term_cons=include_term_cons,
+        state_gen_kwargs = dict(N_p=N_p, include_term_cons=include_term_cons,
                                 mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                 A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
 
@@ -442,14 +443,11 @@ class MpcAgent(Agent):
 
     @_process_args_mpc_decor
     def gen_cons_evolution_matrices(self, N_p=None, param_struct=None, param_struct_subset=None,
-                                    schedule_params_tilde=None, param_struct_tilde=None,
+                                    param_struct_tilde=None, schedule_params_tilde=None,
                                     include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                                    A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
+                                    A_pow_tilde=None, sparse=None, mat_ops=None, copy=None,
                                     **kwargs):
-
-        state_gen_kwargs = dict(N_p=N_p,
-                                param_struct=param_struct, schedule_params_tilde=schedule_params_tilde,
-                                param_struct_tilde=param_struct_tilde,
+        state_gen_kwargs = dict(N_p=N_p, include_term_cons=include_term_cons,
                                 mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                 A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
 
@@ -460,9 +458,7 @@ class MpcAgent(Agent):
         Gamma_b5 = state_input_evolution_struct['Gamma_b5']
 
         cons_evo_struct = StructDict()
-        con_gen_kwargs = dict(N_p=N_p,
-                              param_struct=param_struct, schedule_params_tilde=schedule_params_tilde,
-                              param_struct_tilde=param_struct_tilde, include_term_cons=include_term_cons,
+        con_gen_kwargs = dict(N_p=N_p, include_term_cons=include_term_cons,
                               mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                               A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
 
@@ -479,11 +475,8 @@ class MpcAgent(Agent):
         return cons_evo_struct
 
     @_process_args_mpc_decor
-    def _gen_A_pow_tilde(self, N_p=None, param_struct=None, param_struct_subset=None,
-                         schedule_params_tilde=None, param_struct_tilde=None,
-                         mld_numeric=None, mld_numeric_tilde=None,
-                         sparse=None, mat_ops=None, copy=True,
-                         **kwargs):
+    def _gen_A_pow_tilde(self, N_p=None, mld_numeric=None, mld_numeric_tilde=None,
+                         sparse=None, mat_ops=None, copy=True, **kwargs):
 
         # A_pow_tilde = [(A_k)^0, (A_k+1)^1, (A_k+2)^2, ..., (A_k+N_p)^(N_p)]
         if mld_numeric_tilde:
@@ -495,22 +488,16 @@ class MpcAgent(Agent):
         return tuple(itertools.accumulate(A_tilde, lambda x, y: mat_ops.vmatrix(x @ y)))
 
     @_process_args_mpc_decor
-    def _gen_phi_x(self, N_p=None, param_struct=None, param_struct_subset=None,
-                   schedule_params_tilde=None, param_struct_tilde=None,
-                   mld_numeric=None, mld_numeric_tilde=None,
-                   A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
-                   **kwargs):
+    def _gen_phi_x(self, N_p=None, mld_numeric=None, mld_numeric_tilde=None,
+                   A_pow_tilde=None, sparse=None, mat_ops=None, copy=None, **kwargs):
 
         # Phi_x = [(A_k)^0; (A_k+1)^1; (A_k+2)^2; ... ;(A_k+N_p)^(N_p)]
         Phi_x = mat_ops.pack.vstack(A_pow_tilde)
         return Phi_x
 
     @_process_args_mpc_decor
-    def _gen_gamma_V(self, N_p=None, param_struct=None, param_struct_subset=None,
-                     schedule_params_tilde=None, param_struct_tilde=None,
-                     include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                     A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
-                     **kwargs):
+    def _gen_gamma_V(self, N_p=None, include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
+                     A_pow_tilde=None, sparse=None, mat_ops=None, copy=None, **kwargs):
         # col = [[0s],(A_k)^0*[B1_k, B2_k, B3_k],..., (A_k+N_p-1)^(N_p-1)*[B1_k+N_p-1, B2_k+N_p-1, B3_k+N_p-1]]
         # row = [[0s], ... ,[0s]]
         # Gamma_V = toeplitz(col, row)
@@ -524,11 +511,8 @@ class MpcAgent(Agent):
         return Gamma_V
 
     @_process_args_mpc_decor
-    def _gen_gamma_W(self, N_p=None, param_struct=None, param_struct_subset=None,
-                     schedule_params_tilde=None, param_struct_tilde=None,
-                     include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                     A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
-                     **kwargs):
+    def _gen_gamma_W(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                     A_pow_tilde=None, sparse=None, mat_ops=None, copy=None, **kwargs):
 
         # col = [[0s],(A_k)^0*[B4],..., (A_k+N_p-1)^(N_p-1)*[B4_k+N_p-1]]
         # row = [[0s], ... ,[0s]]
@@ -542,11 +526,8 @@ class MpcAgent(Agent):
         return Gamma_W
 
     @_process_args_mpc_decor
-    def _gen_gamma_b5(self, N_p=None, param_struct=None, param_struct_subset=None,
-                      schedule_params_tilde=None, param_struct_tilde=None,
-                      include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                      A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
-                      **kwargs):
+    def _gen_gamma_b5(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                      A_pow_tilde=None, sparse=None, mat_ops=None, copy=None, **kwargs):
 
         # col = [[0s],(A_k)^0*[b5],..., (A_k+N_p-1)^(N_p-1)*[b5_k+N_p-1]]
         # row = [[0s], ... ,[0s]]
@@ -560,11 +541,8 @@ class MpcAgent(Agent):
         return Gamma_b5
 
     @_process_args_mpc_decor
-    def _gen_E1_tilde_diag(self, N_p=None, param_struct=None, param_struct_subset=None,
-                           schedule_params_tilde=None, param_struct_tilde=None,
-                           include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                           sparse=None, mat_ops=None, copy=True,
-                           **kwargs):
+    def _gen_E1_tilde_diag(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                           sparse=None, mat_ops=None, copy=True, **kwargs):
 
         cons_mat_names = ['E1']
 
@@ -576,11 +554,8 @@ class MpcAgent(Agent):
         return E1_tilde
 
     @_process_args_mpc_decor
-    def _gen_E234_tilde_diag(self, N_p=None, param_struct=None, param_struct_subset=None,
-                             schedule_params_tilde=None, param_struct_tilde=None,
-                             include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                             sparse=None, mat_ops=None, copy=True,
-                             **kwargs):
+    def _gen_E234_tilde_diag(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                             sparse=None, mat_ops=None, copy=None, **kwargs):
 
         cons_mat_names = ['E2', 'E3', 'E4']
 
@@ -592,11 +567,8 @@ class MpcAgent(Agent):
         return E_234_tilde
 
     @_process_args_mpc_decor
-    def _gen_E5_tilde_diag(self, N_p=None, param_struct=None, param_struct_subset=None,
-                           schedule_params_tilde=None, param_struct_tilde=None,
-                           include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                           sparse=None, mat_ops=None, copy=True,
-                           **kwargs):
+    def _gen_E5_tilde_diag(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                           sparse=None, mat_ops=None, copy=None, **kwargs):
 
         cons_mat_names = ['E5']
 
@@ -608,11 +580,8 @@ class MpcAgent(Agent):
         return E5_tilde
 
     @_process_args_mpc_decor
-    def _gen_g6_tilde_diag(self, N_p=None, param_struct=None, param_struct_subset=None,
-                           schedule_params_tilde=None, param_struct_tilde=None,
-                           include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                           sparse=None, mat_ops=None, copy=True,
-                           **kwargs):
+    def _gen_g6_tilde_diag(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                           sparse=None, mat_ops=None, copy=None, **kwargs):
 
         N_cons = N_p + 1 if include_term_cons else N_p
         if mld_numeric_tilde:
@@ -625,8 +594,8 @@ class MpcAgent(Agent):
     @_process_args_mpc_decor
     def _test(self, N_p=None, param_struct=None, param_struct_subset=None,
               schedule_params_tilde=None, param_struct_tilde=None,
-              include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-              A_pow_tilde=None, sparse=None, mat_ops=None, copy=True,
+              include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+              A_pow_tilde=None, sparse=None, mat_ops=None, copy=None,
               **kwargs):
         # print(N_p)
         # print(mld_numeric)
@@ -638,8 +607,8 @@ class MpcAgent(Agent):
         return 1
 
     @staticmethod
-    def _gen_input_evolution_mat(N_p=None, include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                                 input_mat_names=None, A_pow_tilde=None, sparse=False, mat_ops=None):
+    def _gen_input_evolution_mat(N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                                 input_mat_names=None, A_pow_tilde=None, sparse=None, mat_ops=None):
 
         N_cons = N_p + 1 if include_term_cons else N_p
         if mld_numeric_tilde:
@@ -662,8 +631,8 @@ class MpcAgent(Agent):
         return _block_toeplitz(col_list, row_list, sparse=sparse)
 
     @staticmethod
-    def _gen_cons_tilde_diag(N_p=None, include_term_cons=True, mld_numeric=None, mld_numeric_tilde=None,
-                             cons_mat_names=None, sparse=False, mat_ops=None):
+    def _gen_cons_tilde_diag(N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None,
+                             cons_mat_names=None, sparse=None, mat_ops=None):
 
         N_cons = N_p + 1 if include_term_cons else N_p
         if mld_numeric_tilde:
@@ -678,13 +647,6 @@ class MpcAgent(Agent):
                 [mat_ops.hmatrix(mld_numeric[cons_mat_name]) for cons_mat_name in cons_mat_names]))] * N_cons
 
             E_hstack_tilde_diag = mat_ops.block_diag(E_hstack_tilde)
-
-        # if is_input_cons:
-        #     E_tilde_diag = mat_ops.pack.vstack(
-        #         [E_hstack_tilde_diag, mat_ops.zeros((E_hstack_tilde[0].shape[0], E_hstack_tilde[0].shape[1] *
-        # N_cons))])
-        # else:
-        #     E_tilde_diag = E_hstack_tilde_diag
 
         return E_hstack_tilde_diag
 
