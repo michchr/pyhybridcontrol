@@ -129,18 +129,18 @@ if __name__ == '__main__':
     from datetime import datetime as DateTime
     from models.parameters import dewh_p
 
-    start_datetime = DateTime(2018, 8, 13)
+    start_datetime = DateTime(2018, 8, 26)
     end_datetime = DateTime(2018, 8, 30)
 
     dewh_g = DewhModelGenerator(const_heat=True)
-    for dev_id in range(1, 2):
+    for dev_id in range(3, 4):
         dewh = Dewh(dewh_g, dev_id=dev_id, param_struct=dewh_p)
         df = dewh.load_historical(start_datetime, end_datetime)
         dewh.compute_historical_demand()
         dewh.lsim()
         print(dewh.historical_df.head())
         print(np.mean(np.abs(dewh.historical_df[dev_id].Temp - dewh.historical_df[dev_id].X_k)))
-        df_plt = dewh.historical_df.loc[:, IDX[dev_id, ['Temp', 'Demand', 'Status', 'X_k']]].resample_device('15Min')
+        df_plt = dewh.historical_df.loc[:, IDX[dev_id, ['Temp', 'Demand', 'Status']]].resample_device('15Min')
         df_plt.stair_plot(subplots=True)
 
         manager = plt.get_current_fig_manager()

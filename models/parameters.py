@@ -5,7 +5,7 @@ import numpy as np
 
 __all__ = ['dewh_p', 'grid_p']
 
-control_dt = TimeDelta(minutes=3)
+control_dt = TimeDelta(minutes=15)
 
 dewh_p = StructDict()
 dewh_p.C_w = 4.1816 * 10 ** 3   #J/kg/K

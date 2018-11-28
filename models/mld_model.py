@@ -173,12 +173,12 @@ class MldModel(MldBase):
         try:
             for sys_matrix_id, system_matrix in creation_matrices.items():
                 if sys_matrix_id in self._allowed_data_set:
-                    old_val = self.get(sys_matrix_id)
-                    if isinstance(system_matrix, (sp.Expr)):
-                        system_matrix = sp.Matrix([system_matrix])
-                    elif not isinstance(system_matrix, sp.Matrix) and not callable(system_matrix):
-                        system_matrix = np.atleast_2d(system_matrix)
-                    new_sys_mats[sys_matrix_id] = system_matrix if system_matrix is not None else old_val
+                    if system_matrix is not None:
+                        if isinstance(system_matrix, (sp.Expr)):
+                            system_matrix = sp.Matrix([system_matrix])
+                        elif not isinstance(system_matrix, sp.Matrix) and not callable(system_matrix):
+                            system_matrix = np.atleast_2d(system_matrix)
+                        new_sys_mats[sys_matrix_id] = system_matrix
                 else:
                     if kwargs:
                         raise ValueError("Invalid matrix name in kwargs: {}".format(sys_matrix_id))
@@ -610,7 +610,7 @@ class MldInfo(MldBase):
                 new_var_info[bin_dim_name] = bin_dim
 
             if var_type is not None:
-                var_type = self._check_var_types_vect_valid(var_type, new_var_info, bin_dim_name)
+                var_type = self._validate_var_types_vect(var_type, new_var_info, bin_dim_name)
                 if var_type.size != self[state_input_dim_name]:
                     raise ValueError(
                         "Dimension of '{0}' must match dimension: '{1}'".format(var_type_name, state_input_dim_name))
@@ -618,8 +618,8 @@ class MldInfo(MldBase):
                     new_var_info[var_type_name] = var_type
             else:
                 try:
-                    new_var_info[var_type_name] = np.hstack(
-                        [np.repeat('c', state_input_dim - bin_dim), np.repeat('b', bin_dim)])
+                    new_var_info[var_type_name] = np.vstack(
+                        [np.repeat([['c']], state_input_dim - bin_dim, axis=0), np.repeat([['b']], bin_dim, axis=0)])
                 except ValueError:
                     raise ValueError(
                         "Value of '{0}':{1} must be non-negative value <= dimension '{2}':{3}".format(
@@ -627,11 +627,11 @@ class MldInfo(MldBase):
 
         super(MldInfo, self).update(new_var_info)
 
-    def _check_var_types_vect_valid(self, var_types_vect, mld_info_data, bin_dim_name=None):
+    def _validate_var_types_vect(self, var_types_vect, mld_info_data, bin_dim_name=None):
         if var_types_vect is None:
             return var_types_vect
         else:
-            var_types_vect = np.ravel(var_types_vect)
+            var_types_vect = np.ravel(var_types_vect)[:,np.newaxis]
             if not np.setdiff1d(var_types_vect, self._valid_var_types).size == 0:
                 raise ValueError('All elements of var_type_vectors must be in {}'.format(self._valid_var_types))
             if mld_info_data and bin_dim_name and (
@@ -668,7 +668,7 @@ def _as2darray(array):
         out_array = np.empty(shape=(0, 0))
     else:
         out_array = np.array(array)
-        if len(out_array.shape) == 1:  # return column array if 1 dim
+        if out_array.ndim == 1:  # return column array if 1 dim
             out_array = out_array[:, np.newaxis]
     return out_array
 
