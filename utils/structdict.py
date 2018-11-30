@@ -159,7 +159,16 @@ class StructDictMixin:
     __deepcopy__ = deepcopy
 
     def get_sub_dict(self, keys):
-        return {key: self[key] for key in keys}
+        try:
+            return {key: self[key] for key in keys}
+        except KeyError as ke:
+            raise KeyError("Invalid key in keys: "+ke.args[0])
+
+    def get_sub_list(self, keys):
+        try:
+            return [self[key] for key in keys]
+        except KeyError as ke:
+            raise KeyError("Invalid key in keys: "+ke.args[0])
 
     def get_sub_struct(self, keys):
         return self.__class__(self.get_sub_dict(keys))

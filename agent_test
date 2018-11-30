@@ -1,10 +1,12 @@
-from models.agents import Agent, MpcAgent, _block_toeplitz_alt, _block_toeplitz, _atleast_3d_toeplitz
+from models.agents import Agent, MpcAgent
+from utils.matrix_utils import block_toeplitz_alt, block_toeplitz, _atleast_3d_toeplitz
 from models.micro_grid_agents import DewhModelGenerator, Dewh
 from models.mld_model import MldModel, MldInfo
 from utils.structdict import StructDict, SortedDict, SortedStructDict
 from models.parameters import dewh_p, grid_p
 from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries
 from numpy.lib.stride_tricks import as_strided as _as_strided
+import cvxpy as cvx
 
 import scipy.sparse as scs
 import scipy.linalg as scl
@@ -25,10 +27,7 @@ agent = MpcAgent('dewh', None, dewh_gen, dewh_p)
 agent2= MpcAgent('test', None, None, mld_numeric=mld2)
 
 
-import cvxpy as cvx
-
-
-con_mats = agent.gen_cons_evolution_matrices(96)
+# con_mats = agent.gen_cons_evolution_matrices(96)
 # opt_var_struct = agent._gen_optimization_vars(96)
 # V_N_p = opt_var_struct.V_tilde_N_p
 # V_N_cons = opt_var_struct.V_tilde_N_cons
