@@ -50,8 +50,8 @@ class DewhModelGenerator(AgentModelGenerator):
         mld_sym_struct.B4 = B4
         mld_sym_struct.b5 = b5
 
-        mld_sym_struct.E1 = sp.Matrix([1, -1])
-        mld_sym_struct.g6 = sp.Matrix([T_h_max, -T_h_min])
+        mld_sym_struct.E = sp.Matrix([1, -1])
+        mld_sym_struct.f5 = sp.Matrix([T_h_max, -T_h_min])
 
         MldModel_sym = MldModel(mld_sym_struct, nu_l=1)
 
@@ -66,10 +66,10 @@ class GridModelGenerator(AgentModelGenerator):
 
         mld_sym_struct = StructDict()
 
-        mld_sym_struct.E2 = sp.Matrix([-1, 1, 0, 0, -1, 1])
-        mld_sym_struct.E3 = sp.Matrix([-P_g_min, -(P_g_max + eps), -P_g_max, P_g_min, -P_g_min, P_g_max])
-        mld_sym_struct.E4 = sp.Matrix([0, 0, 1, -1, 1, -1])
-        mld_sym_struct.g6 = sp.Matrix([-P_g_min, -eps, 0, 0, -P_g_min, P_g_max])
+        mld_sym_struct.F1 = sp.Matrix([-1, 1, 0, 0, -1, 1])
+        mld_sym_struct.F2 = sp.Matrix([-P_g_min, -(P_g_max + eps), -P_g_max, P_g_min, -P_g_min, P_g_max])
+        mld_sym_struct.F3 = sp.Matrix([0, 0, 1, -1, 1, -1])
+        mld_sym_struct.f5 = sp.Matrix([-P_g_min, -eps, 0, 0, -P_g_min, P_g_max])
 
         MldModel_sym = MldModel(mld_sym_struct, nu_l=0, nx_l=0, nomega_l=0)
 

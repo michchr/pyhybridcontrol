@@ -5,7 +5,7 @@ from reprlib import recursive_repr as _recursive_repr
 
 import pandas as pd
 
-from models.mld_model import MldModel, MldModelTypes
+from models.mld_model import MldModel
 from tools.mpc_tools import MpcEvoGenerator
 from utils.decorator_utils import process_method_args_decor, ParNotReq
 from utils.structdict import StructDict, struct_repr
@@ -144,7 +144,7 @@ class Agent:
         if missing_param_check:
             try:
                 required_params = set(self._agent_model_generator.get_required_params())
-            except AttributeError:
+            except TypeError:
                 required_params = set()
 
             if required_params:
@@ -187,9 +187,8 @@ class Agent:
 
     def update_mld_numeric(self, param_struct=None, param_struct_subset=None, missing_param_check=False,
                         invalid_param_check=False, mld_numeric=None, copy=True, **kwargs):
-        if isinstance(mld_numeric, MldModel) and mld_numeric.mld_type == MldModelTypes.numeric:
+        if isinstance(mld_numeric, MldModel) and mld_numeric.mld_type == mld_numeric.MldModelTypes.numeric:
             self._mld_numeric = mld_numeric
-            return self.mld_numeric
         else:
             new_param_struct = self._validate_param_struct(param_struct=param_struct,
                                                            param_struct_subset=param_struct_subset,
