@@ -5,16 +5,13 @@ from datetime import datetime as DateTime
 
 from utils.structdict import StructDict
 
-from models.model_generators_old import DewhModelGenerator
-from models.device_repository_old import DewhRepository
-from models.micro_grid_model import MicroGridModel
 
 from tools.tariff_generator import TariffGenerator
 
 
 class MpcProblem():
 
-    def __init__(self, micro_grid_model: MicroGridModel, N_p=None):
+    def __init__(self, micro_grid_model, N_p=None):
         self._mg_grid_cons_evo_stuct = None
         self._mg_tariff_generator = None
         self._micro_grid_model = micro_grid_model
@@ -259,73 +256,3 @@ def mat_evo_gen(N_p, A, A_pow=None, B=None, with_zero=True):
         h_stacked[ind] = scs.hstack(row).tocsr()
 
     return scs.bmat(h_stacked)
-
-
-################################################################################
-################################    MAIN     ###################################
-################################################################################
-
-if __name__ == '__main__':
-    import timeit
-    from models.parameters import dewh_p, grid_p
-
-
-    def main():
-        N_h = 1
-        N_p = 3
-
-        dewh_repo = DewhRepository(DewhModelGenerator)
-        dewh_repo.default_param_struct = dewh_p
-
-        for i in range(N_h):
-            dewh_repo.add_device_by_default_data(i)
-
-        mg_model = MicroGridModel()
-        mg_model.grid_param_struct = grid_p
-        mg_model.date_time_0 = DateTime(2018, 5, 1)
-
-        mg_model.add_device_repository(dewh_repo)
-        mg_model.gen_concat_device_system_mld()
-
-        mg_model.gen_power_balance_constraint_mld()
-
-        mg_model.get_decision_var_type()
-
-        mpc_prob = MpcProblem(mg_model, N_p=N_p)
-        tariff_gen = TariffGenerator(low_off_peak=48.40, low_stnd=76.28, low_peak=110.84, high_off_peak=55.90,
-                                     high_stnd=102.95, high_peak=339.77)
-
-        mpc_prob.tariff_generator = tariff_gen
-
-        mpc_prob.gen_mpc_objective()
-
-        # mpc_prob.gen_device_state_evolution_matrices()
-        # mpc_prob.gen_device_cons_evolution_matrices()
-        # mpc_prob.gen_grid_cons_evolution_matrices()
-
-        mpc_prob.gen_mpc_cons_matrices()
-        mpc_prob.gen_mpc_objective()
-        mpc_prob.gen_mpc_decision_var_types()
-
-        # pprint.pprint(mpc_prob._mpc_obj_struct)
-        # pprint.pprint(mpc_prob._mpc_cons_struct)
-        #
-        # print(mpc_prob._mpc_obj_struct.S_V.T.shape)
-        # print(mpc_prob._mpc_obj_struct.S_W.T.shape)
-        #
-        # print(mpc_prob._mpc_cons_struct.G_V.shape)
-        # print(mpc_prob._mpc_cons_struct.G_W.shape)
-
-        # print(mpc_prob.decision_var_types)
-
-
-    def func():
-        def closure():
-            main()
-            return 1
-
-        return closure
-
-
-    t1 = timeit.timeit(func(), number=1)
-    print(t1)

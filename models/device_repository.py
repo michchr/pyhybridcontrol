@@ -62,34 +62,3 @@ class DeviceRepository(SortedDict):
 
     def _device_creator(self, device_param_struct, dev_id):
         return dev_id
-
-
-if __name__ == '__main__':
-    import timeit
-    from models.parameters import dewh_p
-    from models.model_generators_old import DewhModelGenerator
-
-
-    def main():
-        N_h = 1
-        N_p = 3
-
-        dewh_repo = DewhRepository(DewhModelGenerator)
-        dewh_repo.default_param_struct = dewh_p
-
-        for i in range(N_h):
-            dewh_repo.add_device_by_default_data(i)
-
-        sys = dewh_repo[0].mld_mat_struct
-
-
-    def func():
-        def closure():
-            main()
-            return 1
-
-        return closure
-
-
-    t1 = timeit.timeit(func(), number=1)
-    print(t1)

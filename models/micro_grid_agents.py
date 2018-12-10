@@ -60,20 +60,27 @@ class DewhModelGenerator(AgentModelGenerator):
 
 class GridModelGenerator(AgentModelGenerator):
 
+    def __init__(self, num_devices=1):
+        self.num_devices = num_devices
+        super(GridModelGenerator, self).__init__()
+
     def get_mld_symbolic(self):
         P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
         eps = sp.symbols('eps')
 
         mld_sym_struct = StructDict()
 
-        mld_sym_struct.F1 = sp.Matrix([-1, 1, 0, 0, -1, 1])
+        mld_sym_struct.D4 = np.ones((1, self.num_devices))
+
         mld_sym_struct.F2 = sp.Matrix([-P_g_min, -(P_g_max + eps), -P_g_max, P_g_min, -P_g_min, P_g_max])
         mld_sym_struct.F3 = sp.Matrix([0, 0, 1, -1, 1, -1])
         mld_sym_struct.f5 = sp.Matrix([-P_g_min, -eps, 0, 0, -P_g_min, P_g_max])
+        mld_sym_struct.G = sp.Matrix([-1, 1, 0, 0, -1, 1])
 
-        MldModel_sym = MldModel(mld_sym_struct, nu_l=0, nx_l=0, nomega_l=0)
+        MldModel_sym = MldModel(mld_sym_struct)
 
         return MldModel_sym
+
 
 class Dewh:
     def __init__(self, device_model_generator: AgentModelGenerator, dev_id=None, param_struct=None):

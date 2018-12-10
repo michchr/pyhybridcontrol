@@ -1,7 +1,7 @@
 from types import MethodType, BuiltinMethodType
 from reprlib import recursive_repr
 from sortedcontainers import SortedDict
-from collections import OrderedDict
+from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy
 
 from contextlib import contextmanager
@@ -162,16 +162,21 @@ class StructDictMixin:
         try:
             return {key: self[key] for key in keys}
         except KeyError as ke:
-            raise KeyError("Invalid key in keys: "+ke.args[0])
+            raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
 
     def get_sub_list(self, keys):
         try:
             return [self[key] for key in keys]
         except KeyError as ke:
-            raise KeyError("Invalid key in keys: "+ke.args[0])
+            raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
+
 
     def get_sub_struct(self, keys):
         return self.__class__(self.get_sub_dict(keys))
+
+    @classmethod
+    def sub_struct_fromdict(cls, dict_, keys):
+        return cls(cls.get_sub_dict(dict_, keys))
 
     def as_dict(self):
         return dict(self)

@@ -6,8 +6,8 @@ from reprlib import recursive_repr as _recursive_repr
 import pandas as pd
 
 from models.mld_model import MldModel
-from tools.mpc_tools import MpcEvoGenerator
-from utils.decorator_utils import process_method_args_decor, ParNotReq
+from tools.mpc_tools import MpcEvoGenerator, MpcOptVariables
+from utils.decorator_utils import ParNotReq, process_method_args_decor
 from utils.structdict import StructDict, struct_repr
 
 pd.set_option('mode.chained_assignment', 'raise')
@@ -20,15 +20,15 @@ class AgentModelGenerator:
         self.mld_eval = self.get_mld_eval()
 
     def get_mld_symbolic(self, *args, **kwargs):
-        raise NotImplementedError("Need to implement symbolic mld")
+        raise NotImplementedError("Need to implement symbolic mld in subclass.")
 
-    def get_mld_eval(self, symbolic_mld=None):
-        symbolic_mld = symbolic_mld or self.mld_symbolic
-        return symbolic_mld.to_eval()
+    def get_mld_eval(self, mld_symbolic=None):
+        mld_symbolic = mld_symbolic or self.mld_symbolic
+        return mld_symbolic.to_eval()
 
-    def get_mld_numeric(self, param_struct=None, mld=None, copy=True):
-        mld = mld or self.mld_eval or self.mld_symbolic
-        return mld.to_numeric(param_struct=param_struct, copy=copy)
+    def get_mld_numeric(self, param_struct=None, mld_model=None, copy=True):
+        mld_model = mld_model or self.mld_eval or self.mld_symbolic
+        return mld_model.to_numeric(param_struct=param_struct, copy=copy)
 
     def get_required_params(self):
         return self.mld_symbolic.mld_info['required_params']
@@ -37,8 +37,8 @@ class AgentModelGenerator:
 class Agent:
     _agent_type_id_struct = StructDict()
 
-    def __init__(self, agent_type=None, agent_id=None, agent_model_generator: AgentModelGenerator = None,
-                 param_struct=None, mld_numeric: MldModel = None):
+    def __init__(self, agent_type=None, agent_id=None, agent_model_generator = None,
+                 param_struct=None, mld_numeric = None):
 
         self._mld_numeric = mld_numeric
         self._agent_model_generator = agent_model_generator
@@ -46,8 +46,6 @@ class Agent:
         self._param_struct = self._validate_param_struct(param_struct=param_struct, missing_param_check=True,
                                                          invalid_param_check=False)
         if self._agent_model_generator is not None:
-            self._symbolic_mld = agent_model_generator.mld_symbolic
-            self._eval_mld = agent_model_generator.mld_eval
             self._mld_numeric = self._mld_numeric or agent_model_generator.get_mld_numeric(
                 param_struct=self._param_struct)
 
@@ -217,6 +215,7 @@ class MpcAgent(Agent):
         self._include_term_cons = include_term_cons
         self._mld_numeric_tilde = None
         self._mpc_evo_gen = MpcEvoGenerator(self)
+        self._opt_var_gen = MpcOptVariables(self)
 
     @property
     def N_p(self):
@@ -272,7 +271,7 @@ class MpcAgent(Agent):
         # return obj
 
     def _process_base_args(self, f_kwargs=None, *,
-                           N_p=ParNotReq, include_term_cons=ParNotReq, copy=ParNotReq, ):
+                           N_p=ParNotReq, include_term_cons=ParNotReq, copy=ParNotReq):
 
         if N_p is None:
             f_kwargs['N_p'] = self.N_p

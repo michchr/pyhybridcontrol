@@ -1,16 +1,18 @@
 import functools
 import inspect
-import wrapt
+import itertools
 from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy, copy as _copy
+from itertools import zip_longest
+
 import numpy as np
 import scipy.linalg as scl
 import scipy.sparse as scs
 import sympy as sp
-from utils.structdict import StructDict, OrderedStructDict, struct_repr
+import wrapt
 
-import itertools
-from itertools import zip_longest
+from utils.structdict import StructDict, OrderedStructDict, struct_repr
+from utils.func_utils import get_cached_func_spec
 
 
 class MldBase(StructDict):
@@ -46,7 +48,7 @@ class MldBase(StructDict):
         raise PermissionError("Items can not be removed from mld_model.")
 
     def get_sub_struct(self, keys):
-        return StructDict(self.get_sub_dict(keys))
+        return StructDict.sub_struct_fromdict(self,keys)
 
     def __delitem__(self, key):
         super(MldBase, self).__setitem__(key, None)
@@ -93,8 +95,8 @@ def _process_mld_args_decor(func, self, args, kwargs):
     bin_dims_struct = kwargs.get('bin_dims_struct') or {}
     var_types_struct = kwargs.get('var_types_struct') or {}
     if kwargs:
-        bin_dim_args = set(MldInfo._bin_dim_names).intersection(kwargs)
-        var_types_args = set(MldInfo._var_type_names).intersection(kwargs)
+        bin_dim_args = set(MldInfo._var_to_bin_dim_names_map.values()).intersection(kwargs)
+        var_types_args = set(MldInfo._var_to_type_names_map.values()).intersection(kwargs)
         bin_dims_struct.update({key: kwargs.pop(key) for key in bin_dim_args})
         var_types_struct.update({key: kwargs.pop(key) for key in var_types_args})
 
@@ -120,22 +122,21 @@ class MldInfo(MldBase):
     _sys_dim_names = ['n_states', 'n_outputs', 'n_cons']
 
     _state_names = ['x']
+    _input_names = ['u', 'delta', 'z', 'omega']
     _output_names = ['y']
     _slack_names = ['mu']
-    _input_names = ['u', 'delta', 'z', 'omega']
+    _var_names_non_setable = ['delta', 'z']
+    _var_names_controllable = ['u', 'delta', 'z', 'mu']
+
     _state_input_names = _state_names + _input_names
-    _state_input_names_non_setable = ['delta', 'z']
     _var_names = _state_input_names + _output_names + _slack_names
+    _var_const_names = _state_input_names + [None] + _output_names + _slack_names  # const has no name.
 
-    _state_input_dim_names = ["".join(['n', name]) for name in _state_input_names]
-    _output_dim_names = ["".join(['n', name]) for name in _output_names]
-    _slack_dim_names = ["".join(['n', name]) for name in _slack_names]
-    _var_dim_names = _state_input_dim_names + _output_dim_names + _slack_dim_names
-
-    _bin_dim_names = ["".join(['n', dim_name, '_l']) for dim_name in _var_names]
-    _bin_dim_names_non_setable = ["".join(['n', dim_name, '_l']) for dim_name in _state_input_names_non_setable]
-
-    _var_type_names = ["".join(['var_type_', name]) for name in _var_names]
+    _var_to_dim_names_map = OrderedStructDict([(name, "".join(['n', name])) for name in _var_names])
+    _var_to_const_dim_names_map = OrderedStructDict(
+        [(name, "".join(['n', name]) if name else None) for name in _var_const_names])
+    _var_to_bin_dim_names_map = OrderedStructDict([(name, "".join(['n', name, '_l'])) for name in _var_names])
+    _var_to_type_names_map = OrderedStructDict([(name, "".join(['var_type_', name])) for name in _var_names])
 
     # Mld dimension mapping
     _mld_dim_map = {
@@ -156,11 +157,12 @@ class MldInfo(MldBase):
     # MldInfo data layout
     _data_types = MldInfoDataTypes
     _data_layout = OrderedDict([(MldInfoDataTypes.sys_dims, _sys_dim_names),
-                                (MldInfoDataTypes.state_input_dims, _state_input_dim_names),
-                                (MldInfoDataTypes.output_dim, _output_dim_names),
-                                (MldInfoDataTypes.slack_dim, _slack_dim_names),
-                                (MldInfoDataTypes.bin_dims, _bin_dim_names),
-                                (MldInfoDataTypes.var_types, _var_type_names),
+                                (MldInfoDataTypes.state_input_dims,
+                                 _var_to_dim_names_map.get_sub_list(_state_input_names)),
+                                (MldInfoDataTypes.output_dim, _var_to_dim_names_map.get_sub_list(_output_names)),
+                                (MldInfoDataTypes.slack_dim, _var_to_dim_names_map.get_sub_list(_slack_names)),
+                                (MldInfoDataTypes.bin_dims, _var_to_bin_dim_names_map.get_sub_list(_var_names)),
+                                (MldInfoDataTypes.var_types, _var_to_type_names_map.get_sub_list(_var_names)),
                                 (MldInfoDataTypes.meta_data, _meta_data_names)])
     _allowed_data_set = set([data for data_type in _data_layout.values() for data in data_type])
 
@@ -176,11 +178,24 @@ class MldInfo(MldBase):
 
     @property
     def var_types_struct(self):
-        return self.get_sub_struct(self._data_layout[self.MldInfoDataTypes.var_types])
+        return StructDict({var_name:self[self._var_to_type_names_map[var_name]] for var_name in self._var_names})
 
     @property
-    def state_input_dims(self):
-        return self.get_sub_struct(self._data_layout[self.MldInfoDataTypes.state_input_dims])
+    def state_input_dims_struct(self):
+        return StructDict({var_name:self[self._var_to_dim_names_map[var_name]] for var_name in self._state_input_names})
+
+    @property
+    def var_dims_struct(self):
+        return StructDict({var_name:self[self._var_to_dim_names_map[var_name]] for var_name in self._var_names})
+
+    def get_var_type(self, var_name):
+        return self[self._var_to_type_names_map[var_name]]
+
+    def get_var_dim(self, var_name):
+        return self[self._var_to_dim_names_map[var_name]]
+
+    def get_var_bin_dim(self, var_name):
+        return self[self._var_to_bin_dim_names_map[var_name]]
 
     @_process_mld_args_decor
     def update(self, mld_info_data=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
@@ -229,23 +244,22 @@ class MldInfo(MldBase):
         var_types_struct = var_types_struct or {}
 
         new_var_info = dict(self.items())
-        zip_gen = zip(self._var_names,
-                      self._var_dim_names,
-                      self._bin_dim_names,
-                      self._var_type_names)
 
-        for (state_input_name, state_input_dim_name, bin_dim_name, var_type_name) in zip_gen:
+        for var_name in self._var_names:
+            var_dim_name = self._var_to_dim_names_map[var_name]
+            bin_dim_name = self._var_to_bin_dim_names_map[var_name]
+            var_type_name = self._var_to_type_names_map[var_name]
+            var_dim = self.get(var_dim_name)
             bin_dim = bin_dims_struct.get(bin_dim_name)
             var_type = var_types_struct.get(var_type_name)
-            state_input_dim = self.get(state_input_dim_name)
 
-            if bin_dim_name in self._bin_dim_names_non_setable:
+            if var_name in self._var_names_non_setable:
                 if bin_dim:
                     raise ValueError(
                         "Cannot manually set ndelta_l, nz_l - these are fixed by the MLD specification and dimension.")
-                elif state_input_name == 'delta':
-                    new_var_info[bin_dim_name] = bin_dim = self[state_input_dim_name]
-                elif state_input_name == 'z':
+                elif var_name == 'delta':
+                    new_var_info[bin_dim_name] = bin_dim = self[var_dim_name]
+                elif var_name == 'z':
                     new_var_info[bin_dim_name] = bin_dim = 0
             else:
                 bin_dim_queue = [self._get_num_var_bin(var_type), bin_dim, self.get(bin_dim_name)]
@@ -254,19 +268,19 @@ class MldInfo(MldBase):
 
             if var_type is not None:
                 var_type = self._validate_var_types_vect(var_type, new_var_info, bin_dim_name)
-                if var_type.size != self[state_input_dim_name]:
+                if var_type.size != self[var_name]:
                     raise ValueError(
-                        "Dimension of '{0}' must match dimension: '{1}'".format(var_type_name, state_input_dim_name))
+                        "Dimension of '{0}' must match dimension: '{1}'".format(var_type_name, var_dim_name))
                 else:
                     new_var_info[var_type_name] = var_type
             else:
                 try:
                     new_var_info[var_type_name] = np.vstack(
-                        [np.repeat([['c']], state_input_dim - bin_dim, axis=0), np.repeat([['b']], bin_dim, axis=0)])
+                        [np.repeat([['c']], var_dim - bin_dim, axis=0), np.repeat([['b']], bin_dim, axis=0)])
                 except ValueError:
                     raise ValueError(
                         "Value of '{0}':{1} must be non-negative value <= dimension '{2}':{3}".format(
-                            bin_dim_name, bin_dim, state_input_dim_name, self[state_input_dim_name]))
+                            bin_dim_name, bin_dim, var_dim_name, var_dim))
 
         super(MldInfo, self).update(new_var_info)
 
@@ -413,13 +427,13 @@ class MldModel(MldBase):
         except ValueError as ve:
             raise ve
 
+        self._shapes_struct = shapes_struct
+        super(MldModel, self).update(new_sys_mats)
+
         if self.mld_type == self.MldModelTypes.symbolic:
             required_params = self._get_all_syms_str_list()
         else:
             required_params = None
-
-        self._shapes_struct = shapes_struct
-        super(MldModel, self).update(new_sys_mats)
 
         self.mld_info.update(mld_info_data=mld_dims, dt=dt, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
                              var_types_struct=var_types_struct, required_params=required_params, **mld_info_kwargs)
@@ -518,7 +532,6 @@ class MldModel(MldBase):
         else:
             numeric_dict = _deepcopy(dict(self)) if copy else dict(self)
 
-
         new_state = _deepcopy(self.__dict__) if copy else self.__dict__
         new_mld_info = new_state['_mld_info'] if copy else self.mld_info.copy()
         new_mld_info._sdict_setitem('param_struct', _copy(param_struct))
@@ -534,7 +547,7 @@ class MldModel(MldBase):
             for mat_id, expr in self.items():
                 if not isinstance(expr, (sp.Expr, sp.Matrix)):
                     lam = functools.partial(lambda_cons, np.atleast_2d(expr))
-                    syms_str_tup=()
+                    syms_str_tup = ()
                 else:
                     if not isinstance(expr, sp.Matrix):
                         expr = sp.Matrix(np.atleast_2d(expr))
@@ -552,16 +565,16 @@ class MldModel(MldBase):
                                                                '_mld_info': new_mld_info})
 
     def _set_mld_type(self, mld_data):
-        is_callable = [callable(sys_mat) for sys_mat in mld_data.values()]
-        if any(is_callable):
-            if not all(is_callable):
-                raise ValueError("If any mld matrices callable, all must be callable")
-            else:
-                self._mld_type = self.MldModelTypes.callable
+        is_symbolic = [isinstance(sys_mat, (sp.Expr, sp.Matrix)) for sys_mat in mld_data.values()]
+        if any(is_symbolic):
+            self._mld_type = self.MldModelTypes.symbolic
         else:
-            is_symbolic = [isinstance(sys_mat, (sp.Expr, sp.Matrix)) for sys_mat in mld_data.values()]
-            if any(is_symbolic):
-                self._mld_type = self.MldModelTypes.symbolic
+            is_callable = [callable(sys_mat) for sys_mat in mld_data.values()]
+            if any(is_callable):
+                if not all(is_callable):
+                    raise ValueError("If any mld matrices callable, all must be callable")
+                else:
+                    self._mld_type = self.MldModelTypes.callable
             else:
                 self._mld_type = self.MldModelTypes.numeric
 
@@ -586,7 +599,7 @@ class MldModel(MldBase):
         col_fmt_str = ("(*, {0})").format
 
         def _validate_sys_matrix_shape(mat_type, mat_id, mat_shape, var_dim_name, sys_dim_name):
-            var_dim = mld_dims.get(var_dim_name, 0)
+            var_dim = mld_dims.get(var_dim_name)
             sys_dim = mld_dims[sys_dim_name]
             if mat_type is self.MldModelMatTypes.state_input and mat_shape[0] != A_shape[0] and (0 not in A_shape):
                 raise ValueError(
@@ -598,11 +611,11 @@ class MldModel(MldBase):
                     shape_mat_dim_err_fmt(mat_type=mat_type, mat_id=mat_id, mat_shape=mat_shape, dim_type='row',
                                           req_mat_type='output', req_mat_id='C',
                                           req_shape=row_fmt_str(C_shape[0])))
-            elif var_dim_name and mat_shape[1] != var_dim:
+            elif var_dim is not None and mat_shape[1] != var_dim:
                 raise ValueError(
                     f"Invalid shape for {mat_type} matrix/vector '{mat_id}':{mat_shape}, column dimension must be "
                     f"equal to var dim '{var_dim_name}':{var_dim}, i.e. '{col_fmt_str(var_dim)}'")
-            elif not var_dim_name and mat_shape[1] != 1:
+            elif var_dim is None and mat_shape[1] != 1:
                 raise ValueError(
                     f"'{mat_id}' must be of column vector, scalar or null array, currently has shape:{mat_shape}"
                 )
@@ -612,24 +625,25 @@ class MldModel(MldBase):
                     f"to system dimension - '{sys_dim_name}':{sys_dim}, i.e. '{row_fmt_str(sys_dim)}'. "
                     f"Note '{sys_dim_name}' is the maximum row dimension of all {mat_type} matrix/vectors.")
 
-        def _gen_zero_empty_sys_mat(var_dim_name, sys_dim_name):
-            var_dim = mld_dims.get(var_dim_name, 0)
+        def _gen_zero_empty_sys_mat(mat_type, mat_id, var_dim_name, sys_dim_name):
+            var_dim = mld_dims.get(var_dim_name)
             sys_dim = mld_dims[sys_dim_name]
-            if var_dim > 0:
+
+            if var_dim is None and mat_type is not self.MldModelMatTypes.constraint:
+                var_dim = 1
+
+            if var_dim and var_dim > 0:
                 shape = (sys_dim, var_dim)
                 return np.zeros(shape), shape
             else:
                 shape = (sys_dim, 0)
-                return np.empty(shape=shape), shape
+                return mld_data[mat_id].reshape(shape), shape
 
-        var_dim_names = itertools.chain(self._mld_info._state_input_dim_names,
-                                        [None],  # constant vectors in MLD model do not have a dimension name
-                                        self._mld_info._output_dim_names,
-                                        self._mld_info._slack_dim_names)
+        _var_const_dim_names = self._mld_info._var_to_const_dim_names_map.values()
 
         sys_dim_name_triad = self._MldModelMatTypesNamedTup._make(self._mld_info._sys_dim_names)
         sys_mat_ids_zip = zip_longest(self._state_input_mat_names, self._output_mat_names, self._constraint_mat_names)
-        for var_dim_name, sys_mat_name_triad in zip_longest(var_dim_names, sys_mat_ids_zip):
+        for var_dim_name, sys_mat_name_triad in zip_longest(_var_const_dim_names, sys_mat_ids_zip):
             for mat_type, mat_id, sys_dim_name in zip(self.MldModelMatTypes, sys_mat_name_triad, sys_dim_name_triad):
                 if mat_id is None:
                     continue
@@ -637,7 +651,7 @@ class MldModel(MldBase):
                 if 0 not in mat_shape:
                     _validate_sys_matrix_shape(mat_type, mat_id, mat_shape, var_dim_name, sys_dim_name)
                 elif not callable(mld_data[mat_id]):
-                    mld_data[mat_id], new_shape = _gen_zero_empty_sys_mat(var_dim_name, sys_dim_name)
+                    mld_data[mat_id], new_shape = _gen_zero_empty_sys_mat(mat_type, mat_id, var_dim_name, sys_dim_name)
                     shapes_struct[mat_id] = new_shape
                 # todo add callable option
 
@@ -669,7 +683,7 @@ class MldModel(MldBase):
             else:
                 concat_sys_mats[sys_matrix_id] = np.vstack(concat_mat_list)
 
-        concat_var_type_info = StructDict.fromkeys(MldInfo._var_type_names)
+        concat_var_type_info = StructDict.fromkeys(MldInfo._var_to_type_names_map)
         for var_type_name in concat_var_type_info:
             concat_info_list = []
             for model in mld_model_list:
@@ -716,13 +730,9 @@ def _get_expr_shape(expr):
         return (1, 1)
     elif callable(expr):
         try:
-            return _get_expr_shape(expr(empty_call=True))
-        except Exception:
-            try:
-                args = [1] * len(inspect.getfullargspec(expr).args)
-                return _get_expr_shape(expr(*args))
-            except Exception as e:
-                raise e
+            return _get_expr_shape(expr(_empty_call=True))
+        except TypeError as te:
+            raise te
     else:
         raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
 
@@ -770,7 +780,7 @@ def _lambda_wrapper(func, local_syms_str_tup, wrapped_name=None):
     @functools.wraps(func)
     def wrapped(*args, param_struct=None, **kwargs):
         arg_list = args
-        if kwargs.pop('empty_call', False):
+        if kwargs.pop('_empty_call', False):
             arg_list = [np.NaN] * len(local_syms_str_tup)
         elif args and isinstance(args[0], dict) or isinstance(param_struct, dict):
             param_struct = args[0] if args else param_struct

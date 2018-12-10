@@ -1,6 +1,6 @@
 from models.agents import Agent, MpcAgent
 from utils.matrix_utils import block_toeplitz_alt, block_toeplitz, _atleast_3d_toeplitz
-from models.micro_grid_agents import DewhModelGenerator, Dewh
+from models.micro_grid_agents import DewhModelGenerator, Dewh, GridModelGenerator
 from models.mld_model import MldModel, MldInfo
 from utils.structdict import StructDict, SortedDict, SortedStructDict
 from models.parameters import dewh_p, grid_p
@@ -16,6 +16,10 @@ import functools
 
 dewh_gen = DewhModelGenerator()
 
+num_devices = 3
+grid_gen = GridModelGenerator(num_devices=num_devices)
+
+
 a = dict.fromkeys(MldModel._allowed_data_set, np.random.rand(3, 3))
 a.update(b5=np.ones((3, 1)), d5=np.ones((3, 1)), f5=np.ones((3, 1)))
 a.update(A=np.random.rand(3, 3), B2=None, D2=None, F2=None)
@@ -25,8 +29,8 @@ mld = dewh_gen.get_mld_numeric(dewh_p)
 
 agent = MpcAgent('dewh', None, dewh_gen, dewh_p)
 agent2= MpcAgent('test', None, None, mld_numeric=mld2)
+agent_g = MpcAgent('grid', None, grid_gen, grid_p)
 
-import line_profiler
 
 mld3 = MldModel(D1=1,D2=3,D3=2,D4=4,d5=6)
 agent3 = MpcAgent(mld_numeric=mld3)

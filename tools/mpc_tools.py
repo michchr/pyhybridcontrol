@@ -4,13 +4,14 @@ import weakref
 import cvxpy as cvx
 import numpy as np
 
-from utils.decorator_utils import process_method_args_decor, ParNotReq
+from utils.decorator_utils import ParNotReq, process_method_args_decor
 from utils.matrix_utils import get_mat_ops, block_toeplitz
 from utils.structdict import StructDict
 
+from models.mld_model import MldModel, MldInfo
 
-class MpcEvoGenerator:
 
+class MpcBase:
     def __init__(self, agent=None, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None):
         if agent is not None:
             self._agent = weakref.proxy(agent)
@@ -24,6 +25,24 @@ class MpcEvoGenerator:
             self._include_term_cons = include_term_cons or True
             self._mld_numeric = mld_numeric
             self._mld_numeric_tilde = mld_numeric_tilde
+
+    def _process_base_args(self, f_kwargs=None, *,
+                           N_p=ParNotReq, include_term_cons=ParNotReq,
+                           mld_numeric=ParNotReq, mld_numeric_tilde=ParNotReq):
+
+        if N_p is None:
+            f_kwargs['N_p'] = self.N_p
+
+        if include_term_cons is None:
+            f_kwargs['include_term_cons'] = self.include_term_cons
+
+        if mld_numeric_tilde is None:
+            f_kwargs['mld_numeric_tilde'] = self.mld_numeric_tilde
+
+        if mld_numeric is None:
+            f_kwargs['mld_numeric'] = self.mld_numeric
+
+        return f_kwargs
 
     @property
     def N_p(self):
@@ -41,28 +60,90 @@ class MpcEvoGenerator:
     def mld_numeric_tilde(self):
         return (self._agent.mld_numeric_tilde if self._agent else self._mld_numeric_tilde)
 
-    def _process_base_args(self, f_kwargs=None, *,
-                           N_p=ParNotReq, include_term_cons=ParNotReq,
-                           mld_numeric=ParNotReq, mld_numeric_tilde=ParNotReq,
-                           sparse=ParNotReq, mat_ops=ParNotReq):
 
-        if N_p is None:
-            f_kwargs['N_p'] = self.N_p
+class MpcOptVariables(MpcBase):
+    def __init__(self, agent=None, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None):
+        super(MpcOptVariables, self).__init__(agent=agent, N_p=N_p, include_term_cons=include_term_cons,
+                                              mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde)
 
-        if include_term_cons is None:
-            f_kwargs['include_term_cons'] = self.include_term_cons
+    @process_method_args_decor('_process_base_args')
+    def gen_optimization_vars(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None):
+        N_cons = N_p + 1 if include_term_cons else N_p
 
+        mld_info: MldInfo = mld_numeric_tilde[0].mld_info if mld_numeric_tilde else mld_numeric.mld_info
+
+        var_names = mld_info._var_names_controllable
+        V_opt_var_names = ['u', 'delta', 'z']
+
+        #extract variable types from mld mld_info's
+        if mld_numeric_tilde:
+            var_types_tilde_mats = {
+                var_name: (
+                    np.hstack(
+                        [mld_numeric_tilde[k].mld_info.get_var_type(var_name) for k in range(N_cons)]
+                    ) if mld_info.get_var_dim(var_name) else np.empty((0, mld_info.get_var_dim(var_name)), dtype=np.str)
+                ) for var_name in var_names
+            }
+        else:
+            var_types_tilde_mats = {
+                var_name: (
+                    np.repeat(mld_numeric.mld_info.get_var_type(var_name), N_cons, axis=1))
+                for var_name in var_names
+            }
+
+        to_bin_index = lambda type_mat: list(map(tuple, np.argwhere(type_mat == 'b').tolist()))
+
+        #generate individual variable tilde mats
+        opt_var_tilde_mats = {
+            var_name: (
+                cvx.Variable(var_type_mat.shape, boolean=to_bin_index(var_type_mat)) if var_type_mat.size
+                else np.empty((0, N_cons))
+            ) for var_name, var_type_mat in var_types_tilde_mats.items()
+        }
+
+        #add combined input variable tilde mat
+        opt_var_tilde_mats['v'] = cvx.vstack(
+            [opt_var_tilde_mats[var_name] for var_name in V_opt_var_names if opt_var_tilde_mats[var_name]])
+
+        opt_var_struct = StructDict()
+        app_tilde = lambda var_name, post: "".join([var_name.capitalize(), '_tilde_', post])
+
+        #add named tilde_mat_N_cons to output
+        opt_var_struct.update({
+            app_tilde(var_name, 'mat_N_cons'): (opt_var_tilde_mat)
+            for var_name, opt_var_tilde_mat in opt_var_tilde_mats.items()}
+        )
+
+        #add named tilde_N_cons to output
+        opt_var_struct.update({
+            app_tilde(var_name, 'N_cons'): (
+                cvx.reshape(var_mat_tilde, (var_mat_tilde.size, 1)) if var_mat_tilde.size else np.empty((0, 1))
+            ) for var_name, var_mat_tilde in opt_var_tilde_mats.items()
+        })
+
+        #add named tilde_N_p to output
+        opt_var_struct.update({
+            app_tilde(var_name, 'N_p'): (
+                cvx.reshape(var_mat_tilde[:, :N_p],
+                            (var_mat_tilde.shape[0] * N_p, 1)) if var_mat_tilde.size else np.empty((0, 1))
+            ) for var_name, var_mat_tilde in opt_var_tilde_mats.items()
+        })
+
+        return opt_var_struct
+
+
+class MpcEvoGenerator(MpcBase):
+    def __init__(self, agent=None, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None):
+        super(MpcEvoGenerator, self).__init__(agent=agent, N_p=N_p, include_term_cons=include_term_cons,
+                                              mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde)
+
+    def _process_mat_op_args(self, f_kwargs=None, *,
+                             sparse=ParNotReq, mat_ops=ParNotReq):
         if sparse is None:
             f_kwargs['sparse'] = False
 
         if mat_ops is None:
             f_kwargs['mat_ops'] = get_mat_ops(sparse=f_kwargs['sparse'])
-
-        if mld_numeric_tilde is None:
-            f_kwargs['mld_numeric_tilde'] = self.mld_numeric_tilde
-
-        if mld_numeric is None:
-            f_kwargs['mld_numeric'] = self.mld_numeric
 
         return f_kwargs
 
@@ -78,7 +159,7 @@ class MpcEvoGenerator:
 
         return f_kwargs
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def gen_mpc_evolution_matrices(self, N_p=None, include_term_cons=None,
                                    mld_numeric=None, mld_numeric_tilde=None,
                                    A_pow_tilde=None, sparse=None, mat_ops=None):
@@ -102,10 +183,9 @@ class MpcEvoGenerator:
         mpc_evolution_struct.update(output_evolution_struct)
         mpc_evolution_struct.update(cons_evolution_struct)
 
-
         return mpc_evolution_struct
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def gen_state_input_evolution_matrices(self, N_p=None, include_term_cons=None,
                                            mld_numeric=None, mld_numeric_tilde=None,
                                            A_pow_tilde=None, sparse=None, mat_ops=None):
@@ -128,13 +208,13 @@ class MpcEvoGenerator:
 
         N_cons = N_p + 1 if include_term_cons else N_p
         state_input_evolution_struct['Phi_x_N_cons'] = Phi_x[:N_cons * nx, :]
-        state_input_evolution_struct['Gamma_V_N_cons'] = Gamma_V[:N_cons * (nu + ndelta + nz), :]
-        state_input_evolution_struct['Gamma_W_N_cons'] = Gamma_W[:N_cons * nomega, :]
+        state_input_evolution_struct['Gamma_V_N_cons'] = Gamma_V[:N_cons * nx, :]
+        state_input_evolution_struct['Gamma_W_N_cons'] = Gamma_W[:N_cons * nx, :]
         state_input_evolution_struct['Gamma_b5_N_cons'] = Gamma_b5[:N_cons * nx, :]
 
         return state_input_evolution_struct
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def gen_output_evolution_matrices(self, N_p=None, include_term_cons=None,
                                       mld_numeric=None, mld_numeric_tilde=None,
                                       state_input_evolution_struct=None,
@@ -171,7 +251,7 @@ class MpcEvoGenerator:
 
         return output_evo_struct
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def gen_cons_evolution_matrices(self, N_p=None, include_term_cons=None,
                                     mld_numeric=None, mld_numeric_tilde=None,
                                     state_input_evolution_struct=None,
@@ -194,7 +274,8 @@ class MpcEvoGenerator:
             ))
 
         if output_evolution_struct is None:
-            output_evolution_struct = self.gen_output_evolution_matrices(**gen_kwargs)
+            output_evolution_struct = self.gen_output_evolution_matrices(
+                state_input_evolution_struct=state_input_evolution_struct, **gen_kwargs)
 
         L_x_N_cons, L_V_N_cons, L_W_N_cons, L_5_N_cons = (
             output_evolution_struct.get_sub_list(
@@ -215,56 +296,11 @@ class MpcEvoGenerator:
         cons_evo_struct['H_x'] = - (E_tilde @ Phi_x_N_cons + G_tilde @ L_x_N_cons)
         cons_evo_struct['H_V'] = E_tilde @ Gamma_V_N_cons + F_123_tilde + G_tilde @ L_V_N_cons
         cons_evo_struct['H_W'] = -(E_tilde @ Gamma_W_N_cons + F4_tilde + G_tilde @ L_W_N_cons)
-        cons_evo_struct['H_5'] = f5_tilde - (E_tilde @ Gamma_b5_N_cons + G_tilde @ Gamma_b5_N_cons)
+        cons_evo_struct['H_5'] = f5_tilde - (E_tilde @ Gamma_b5_N_cons + G_tilde @ L_5_N_cons)
 
         return cons_evo_struct
 
-    @process_method_args_decor('_process_base_args')
-    def _gen_optimization_vars(self, N_p=None, include_term_cons=None, mld_numeric=None, mld_numeric_tilde=None):
-        N_cons = N_p + 1 if include_term_cons else N_p
-        var_names = ['u', 'delta', 'z']
-        var_type_map = {var_name: ("".join(["var_type_", var_name])) for var_name in var_names}
-
-        if mld_numeric_tilde:
-            V_types_tilde_mat = np.hstack([
-                np.vstack(
-                    [mld_numeric_tilde[k].mld_info[var_type_map[var_name]] for var_name in var_names]
-                ) for k in range(N_cons)]
-            )
-            mld_info = mld_numeric_tilde[0].mld_info
-        else:
-            mld_info = mld_numeric.mld_info
-            V_types_tilde_mat = np.hstack(
-                [
-                    np.vstack(
-                        [mld_info[var_type_map[var_name]] for var_name in var_names]
-                    )
-                ] * N_cons
-            )
-
-        opt_var_struct = StructDict()
-
-        bin_index = list(map(tuple, np.argwhere(V_types_tilde_mat == 'b').tolist()))
-        opt_var_struct['V_tilde_mat_N_cons'] = V_tilde_mat_N_cons = cvx.Variable(V_types_tilde_mat.shape,
-                                                                                 boolean=bin_index)
-
-        nu = mld_info['nu']
-        ndelta = mld_info['ndelta']
-        nz = mld_info['nz']
-
-        opt_var_struct['V_tilde_N_cons'] = cvx.reshape(V_tilde_mat_N_cons, (V_tilde_mat_N_cons.size, 1))
-        opt_var_struct['U_tilde_N_cons'] = cvx.reshape(V_tilde_mat_N_cons[:nu, :], (N_cons * nu, 1))
-        opt_var_struct['Delta_tilde_N_cons'] = cvx.reshape(V_tilde_mat_N_cons[nu:(nu + ndelta), :],
-                                                           (N_cons * ndelta, 1))
-        opt_var_struct['Z_tilde_N_cons'] = cvx.reshape(V_tilde_mat_N_cons[(nu + ndelta):, :], (N_cons * nz, 1))
-
-        opt_var_struct['V_tilde_N_p'] = opt_var_struct['V_tilde_N_cons'][:N_p * (nu + ndelta + nz), :]
-        opt_var_struct['U_tilde_N_p'] = opt_var_struct['U_tilde_N_cons'][:N_p * nu, :]
-        opt_var_struct['Delta_tilde_N_p'] = opt_var_struct['Delta_tilde_N_cons'][:N_p * ndelta, :]
-        opt_var_struct['Z_tilde_N_p'] = opt_var_struct['Z_tilde_N_cons'][:N_p * nz, :]
-        return opt_var_struct
-
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_A_pow_tilde(self, N_p=None, mld_numeric=None, mld_numeric_tilde=None,
                          sparse=None, mat_ops=None):
 
@@ -277,7 +313,7 @@ class MpcEvoGenerator:
 
         return tuple(itertools.accumulate(A_tilde, lambda x, y: mat_ops.vmatrix(x @ y)))
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', )
     def _gen_phi_x(self, N_p=None, mld_numeric=None, mld_numeric_tilde=None,
                    A_pow_tilde=None, sparse=None, mat_ops=None, copy=None, **kwargs):
 
@@ -285,7 +321,7 @@ class MpcEvoGenerator:
         Phi_x = mat_ops.pack.vstack(A_pow_tilde)
         return Phi_x
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def _gen_gamma_V(self, N_p=None, include_term_cons=None,
                      mld_numeric=None, mld_numeric_tilde=None,
                      A_pow_tilde=None,
@@ -302,7 +338,7 @@ class MpcEvoGenerator:
 
         return Gamma_V
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def _gen_gamma_W(self, N_p=None, include_term_cons=None,
                      mld_numeric=None, mld_numeric_tilde=None,
                      A_pow_tilde=None,
@@ -319,7 +355,7 @@ class MpcEvoGenerator:
                                                 A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
         return Gamma_W
 
-    @process_method_args_decor('_process_base_args', '_process_A_pow_tilde_arg')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
     def _gen_gamma_b5(self, N_p=None, include_term_cons=None,
                       mld_numeric=None, mld_numeric_tilde=None,
                       A_pow_tilde=None,
@@ -339,7 +375,7 @@ class MpcEvoGenerator:
 
     ### OUTPUT EVOLUTION MATRIX COMPONENTS ###
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_C_tilde_diag(self, N_p=None, include_term_cons=None,
                           mld_numeric=None, mld_numeric_tilde=None,
                           sparse=None, mat_ops=None):
@@ -353,7 +389,7 @@ class MpcEvoGenerator:
 
         return C_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_D123_tilde_diag(self, N_p=None, include_term_cons=None,
                              mld_numeric=None, mld_numeric_tilde=None,
                              sparse=None, mat_ops=None):
@@ -367,7 +403,7 @@ class MpcEvoGenerator:
 
         return D_123_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_D4_tilde_diag(self, N_p=None, include_term_cons=None,
                            mld_numeric=None, mld_numeric_tilde=None,
                            sparse=None, mat_ops=None):
@@ -381,7 +417,7 @@ class MpcEvoGenerator:
 
         return D4_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_d5_tilde(self, N_p=None, include_term_cons=None,
                       mld_numeric=None, mld_numeric_tilde=None,
                       sparse=None, mat_ops=None):
@@ -396,7 +432,7 @@ class MpcEvoGenerator:
 
     ### CONSTRAINT EVOLUTION MATRIX COMPONENTS ###
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_E_tilde_diag(self, N_p=None, include_term_cons=None,
                           mld_numeric=None, mld_numeric_tilde=None,
                           sparse=None, mat_ops=None):
@@ -410,7 +446,7 @@ class MpcEvoGenerator:
 
         return E_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_F123_tilde_diag(self, N_p=None, include_term_cons=None,
                              mld_numeric=None, mld_numeric_tilde=None,
                              sparse=None, mat_ops=None):
@@ -424,7 +460,7 @@ class MpcEvoGenerator:
 
         return F_123_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_F4_tilde_diag(self, N_p=None, include_term_cons=None,
                            mld_numeric=None, mld_numeric_tilde=None,
                            sparse=None, mat_ops=None):
@@ -438,7 +474,7 @@ class MpcEvoGenerator:
 
         return F4_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_f5_tilde(self, N_p=None, include_term_cons=None,
                       mld_numeric=None, mld_numeric_tilde=None,
                       sparse=None, mat_ops=None):
@@ -451,7 +487,7 @@ class MpcEvoGenerator:
 
         return f5_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_G_tilde_diag(self, N_p=None, include_term_cons=None,
                           mld_numeric=None, mld_numeric_tilde=None,
                           sparse=None, mat_ops=None):
@@ -465,7 +501,7 @@ class MpcEvoGenerator:
 
         return G_tilde
 
-    @process_method_args_decor('_process_base_args')
+    @process_method_args_decor('_process_base_args', '_process_mat_op_args')
     def _gen_Psi_tilde_diag(self, N_p=None, include_term_cons=None,
                             mld_numeric=None, mld_numeric_tilde=None,
                             sparse=None, mat_ops=None):
