@@ -1,9 +1,11 @@
 import functools
 import inspect
-import itertools
 from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy, copy as _copy
 from itertools import zip_longest
+
+from operator import itemgetter as _itemgetter
+from builtins import property as _property
 
 import numpy as np
 import scipy.linalg as scl
@@ -11,11 +13,17 @@ import scipy.sparse as scs
 import sympy as sp
 import wrapt
 
-from utils.structdict import StructDict, OrderedStructDict, struct_repr
-from utils.func_utils import get_cached_func_spec
+from utils.structdict import StructDict, OrderedStructDict, struct_repr, StructDictMeta
 
 
-class MldBase(StructDict):
+class _MldMeta(StructDictMeta):
+    def __new__(cls, name, bases, _dict):
+        kls = super(_MldMeta, cls).__new__(cls, name, bases, _dict)
+        for name in getattr(kls, '_allowed_data_set'):
+            setattr(kls, name, _property(_itemgetter(name), doc=f"Alias for self['{name}']"))
+        return kls
+
+class MldBase(StructDict, metaclass=_MldMeta):
     __internal_names = []
     _internal_names_set = StructDict._internal_names_set.union(__internal_names)
 
@@ -30,8 +38,6 @@ class MldBase(StructDict):
     def __setitem__(self, key, value):
         if key in self._allowed_data_set:
             self.update(**{key: value})
-        elif self._internal_names_set and key in self._internal_names_set:
-            object.__setattr__(self, key, value)
         else:
             raise KeyError("key: '{}' is not in _allowed_data_set.".format(key))
 
@@ -39,7 +45,7 @@ class MldBase(StructDict):
         super(MldBase, self).__setitem__(key, value)
 
     def clear(self):
-        super(MldBase, self).update(dict.fromkeys(self._allowed_data_set))
+        self.__init__()
 
     def pop(self, *args, **kwargs):
         raise PermissionError("Items can not be removed from mld_model.")
@@ -48,10 +54,10 @@ class MldBase(StructDict):
         raise PermissionError("Items can not be removed from mld_model.")
 
     def get_sub_struct(self, keys):
-        return StructDict.sub_struct_fromdict(self,keys)
+        return StructDict.sub_struct_fromdict(self, keys)
 
     def __delitem__(self, key):
-        super(MldBase, self).__setitem__(key, None)
+        raise PermissionError("Items can not be removed from mld_model.")
 
     def __repr__(self):
         value_repr = lambda value: struct_repr(value, type_name='', repr_format_str='{type_name}{{{key_arg}{items}}}',
@@ -178,15 +184,16 @@ class MldInfo(MldBase):
 
     @property
     def var_types_struct(self):
-        return StructDict({var_name:self[self._var_to_type_names_map[var_name]] for var_name in self._var_names})
+        return StructDict({var_name: self[self._var_to_type_names_map[var_name]] for var_name in self._var_names})
 
     @property
     def state_input_dims_struct(self):
-        return StructDict({var_name:self[self._var_to_dim_names_map[var_name]] for var_name in self._state_input_names})
+        return StructDict(
+            {var_name: self[self._var_to_dim_names_map[var_name]] for var_name in self._state_input_names})
 
     @property
     def var_dims_struct(self):
-        return StructDict({var_name:self[self._var_to_dim_names_map[var_name]] for var_name in self._var_names})
+        return StructDict({var_name: self[self._var_to_dim_names_map[var_name]] for var_name in self._var_names})
 
     def get_var_type(self, var_name):
         return self[self._var_to_type_names_map[var_name]]
@@ -344,7 +351,7 @@ class MldModel(MldBase):
 
     _allowed_data_set = set([data for data_type in _data_layout.values() for data in data_type])
 
-    _sys_matrix_names = _data_layout
+    _sys_matrix_names_map =_MldModelMatTypesNamedTup(_state_input_mat_names, _output_mat_names, _constraint_mat_names)
 
     def __init__(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  **kwargs):

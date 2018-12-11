@@ -318,7 +318,7 @@ class MpcEvoGenerator(MpcBase):
                    A_pow_tilde=None, sparse=None, mat_ops=None, copy=None, **kwargs):
 
         # Phi_x = [(A_k)^0; (A_k+1)^1; (A_k+2)^2; ... ;(A_k+N_p)^(N_p)]
-        Phi_x = mat_ops.pack.vstack(A_pow_tilde)
+        Phi_x = mat_ops.package.vstack(A_pow_tilde)
         return Phi_x
 
     @process_method_args_decor('_process_base_args', '_process_mat_op_args', '_process_A_pow_tilde_arg')
@@ -524,7 +524,7 @@ class MpcEvoGenerator(MpcBase):
         N_cons = N_p + 1 if include_term_cons else N_p
         if mld_numeric_tilde:
             B_hstack_tilde = [
-                mat_ops.vmatrix(mat_ops.pack.hstack(
+                mat_ops.vmatrix(mat_ops.package.hstack(
                     [mat_ops.hmatrix(mld_numeric_tilde[k][input_mat_name]) for input_mat_name in input_mat_names])
                 ) for k in range(N_p)]
 
@@ -532,7 +532,7 @@ class MpcEvoGenerator(MpcBase):
                         [mat_ops.vmatrix(A_pow_tilde[k] @ B_hstack_tilde[k]) for k in range(N_p)])
             row_list = [mat_ops.zeros(B_hstack_tilde[0].shape)] * (N_cons)
         else:
-            B_hstack = mat_ops.vmatrix(mat_ops.pack.hstack(
+            B_hstack = mat_ops.vmatrix(mat_ops.package.hstack(
                 [mat_ops.hmatrix(mld_numeric[input_mat_name]) for input_mat_name in input_mat_names]))
 
             col_list = ([mat_ops.zeros(B_hstack.shape)] +
@@ -550,13 +550,13 @@ class MpcEvoGenerator(MpcBase):
         N_cons = N_p + 1 if include_term_cons else N_p
         if mld_numeric_tilde:
             mat_hstack_tilde = [
-                mat_ops.vmatrix(mat_ops.pack.hstack(
+                mat_ops.vmatrix(mat_ops.package.hstack(
                     [mat_ops.hmatrix(mld_numeric_tilde[k][cons_mat_name]) for cons_mat_name in mat_names])
                 ) for k in range(N_cons)]
 
             mat_hstack_tilde_diag = mat_ops.block_diag(mat_hstack_tilde)
         else:
-            mat_hstack_tilde = [mat_ops.vmatrix(mat_ops.pack.hstack(
+            mat_hstack_tilde = [mat_ops.vmatrix(mat_ops.package.hstack(
                 [mat_ops.hmatrix(mld_numeric[cons_mat_name]) for cons_mat_name in mat_names]))] * N_cons
 
             mat_hstack_tilde_diag = mat_ops.block_diag(mat_hstack_tilde)

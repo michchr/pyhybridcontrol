@@ -5,29 +5,10 @@ from numpy.lib.stride_tricks import as_strided as _as_strided
 import scipy.linalg as scl
 import scipy.sparse as scs
 
+from collections import namedtuple as NamedTuple
+
 from utils.decorator_utils import cache_hashable_args
 
-
-@cache_hashable_args(maxsize=2)
-def get_mat_ops(sparse=False):
-    mat_ops = StructDict()
-    if sparse:
-        mat_ops['pack'] = scs
-        mat_ops['linalg'] = scs
-        mat_ops['sclinalg'] = scs
-        mat_ops['block_diag'] = scs.block_diag
-        mat_ops['vmatrix'] = scs.csr_matrix
-        mat_ops['hmatrix'] = scs.csc_matrix
-        mat_ops['zeros'] = scs.csr_matrix
-    else:
-        mat_ops['pack'] = np
-        mat_ops['linalg'] = np.linalg
-        mat_ops['sclinalg'] = scl
-        mat_ops['block_diag'] = block_diag_dense
-        mat_ops['vmatrix'] = np.atleast_2d
-        mat_ops['hmatrix'] = np.atleast_2d
-        mat_ops['zeros'] = np.zeros
-    return mat_ops
 
 
 def block_diag_dense(mats, format=None, dtype=None):
@@ -36,6 +17,40 @@ def block_diag_dense(mats, format=None, dtype=None):
         block_diag = block_diag.astype(dtype)
     return block_diag
 
+
+_MatOpsNames = ['package',
+                'linalg',
+                'sclinalg',
+                'block_diag',
+                'vmatrix',
+                'hmatrix',
+                'zeros']
+
+_MatOpsNameTup = NamedTuple('MatOps', _MatOpsNames)
+
+@cache_hashable_args(maxsize=2)
+def get_mat_ops(sparse=False):
+    if sparse:
+        mat_ops = _MatOpsNameTup(
+            package=scs,
+            linalg=scs,
+            sclinalg=scs,
+            block_diag=scs.block_diag,
+            vmatrix=scs.csr_matrix,
+            hmatrix=scs.csc_matrix,
+            zeros= scs.csr_matrix
+        )
+    else:
+        mat_ops = _MatOpsNameTup(
+            package=np,
+            linalg=np.linalg,
+            sclinalg=scl,
+            block_diag=block_diag_dense,
+            vmatrix=np.atleast_2d,
+            hmatrix=np.atleast_2d,
+            zeros=np.zeros
+        )
+    return mat_ops
 
 def create_object_array(tup):
     try:

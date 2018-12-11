@@ -59,7 +59,30 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
     return repr_format(type_name=type_name, key_arg=key_arg, items=items)
 
 
-class StructDictMixin:
+class StructDictMeta(type):
+    def __new__(cls, name, bases, _dict):
+        kls = super().__new__(cls, name, bases, _dict)
+        mro = kls.mro()
+        #find 1 based reversed index of StructDictMixin
+        index, _ = next(filter(
+            lambda index_item: index_item[1].__name__ == 'StructDictMixin',
+            enumerate(reversed(mro))))
+        #this gives the base_dict as follows:
+        _base_dict = mro[-index]
+
+        #extract cached method references
+        _is_dict = issubclass(_base_dict, dict)
+        kls._base_dict_setitem = _base_dict.__setitem__ if _is_dict else None
+        kls._base_dict_getitem = _base_dict.__getitem__ if _is_dict else None
+        kls._base_dict_update = _base_dict.update if _is_dict else None
+        kls._base_dict_delitem = _base_dict.__delitem__ if _is_dict else None
+
+        _internal_name_set = set(kls._internal_names_set) if hasattr(kls, '_internal_names_set') else set()
+        kls._internal_names_set = _internal_name_set.union(dir(kls))
+        return kls
+
+
+class StructDictMixin(metaclass=StructDictMeta):
     __internal_names = []
     _internal_names_set = set(__internal_names)
 
@@ -67,30 +90,22 @@ class StructDictMixin:
         super(StructDictMixin, self).__init__(*args, **kwargs)
         self._check_invalid_keys()
 
-    def _check_invalid_keys(self, key=None):
-        if self._internal_names_set:
-            if key is None:
-                invalid_keys = self._internal_names_set.intersection(self.keys())
-            else:
-                invalid_keys = key if key in self._internal_names_set else None
-
-            if invalid_keys:
-                for key in invalid_keys:
-                    del self[key]
-                raise ValueError(
-                    "Cannot add items to struct dict with keys contained in '_internal_names_set': '{}'".format(
-                        invalid_keys))
-        else:
-            return
+    def _check_invalid_keys(self):
+        invalid_keys = self._internal_names_set.intersection(self.keys())
+        if invalid_keys:
+            for key in invalid_keys:
+                self._base_dict_delitem(key)
+            raise ValueError(
+                "Cannot add items to struct dict with keys contained in '_internal_names_set': '{}'".format(
+                    invalid_keys))
 
     def __setitem__(self, key, value):
-        # noinspection PyUnresolvedReferences
-        super(StructDictMixin, self).__setitem__(key, value)
-        self._check_invalid_keys(key=key)
+        self._base_dict_setitem(key, value)
+        if key in self._internal_names_set:
+            self._check_invalid_keys()
 
     def update(self, *args, **kwargs):
-        # noinspection PyUnresolvedReferences
-        super(StructDictMixin, self).update(*args, **kwargs)
+        self._base_dict_update(*args, **kwargs)
         self._check_invalid_keys()
 
     def __setattr__(self, key, value):
@@ -108,11 +123,11 @@ class StructDictMixin:
         if self._internal_names_set and key in self._internal_names_set:
             object.__setattr__(self, key, value)
         else:
-            self.__setitem__(key, value)
+            self._base_dict_setitem(key, value)
 
     def __getattr__(self, key):
         try:
-            return self.__getitem__(key)
+            return self._base_dict_getitem(key)
         except KeyError:
             raise AttributeError("'{0}' object has no attribute '{1}'".format(self.__class__.__name__, key))
 
@@ -170,7 +185,6 @@ class StructDictMixin:
         except KeyError as ke:
             raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
 
-
     def get_sub_struct(self, keys):
         return self.__class__(self.get_sub_dict(keys))
 
@@ -180,120 +194,6 @@ class StructDictMixin:
 
     def as_dict(self):
         return dict(self)
-
-
-class StructDictAliasedMixin(StructDictMixin):
-    __internal_names = ['_key_aliaser_func', '_striped_key_map']
-    _internal_names_set = StructDictMixin._internal_names_set.union(__internal_names)
-
-    @staticmethod
-    def key_aliaser_func_default(key):
-        try:
-            split_key = key.split('_', 1)
-            no_alpha = [i for i in "".join(split_key[1:]) if i.isnumeric()]
-            return ''.join(split_key[:1] + no_alpha)
-        except AttributeError:
-            return key
-
-    def __init__(self, *args, key_aliaser_func=None, **kwargs):
-        super(StructDictAliasedMixin, self).__init__(*args, **kwargs)
-        self._key_aliaser_func = key_aliaser_func or self.key_aliaser_func_default
-        self._striped_key_map = self._get_striped_key_map()
-
-        try:
-            self._verify_stripped_keys_unique()
-        except ValueError as ve:
-            super(StructDictAliasedMixin, self).clear()
-            raise ve
-
-    def _get_striped_key_map(self):
-        return {self._strip_key(key): key for key in self.keys()}
-
-    def _verify_stripped_keys_unique(self):
-        non_unique_aliased_keys = set(self.keys()).difference(self._striped_key_map.values())
-        if len(non_unique_aliased_keys) > 0:
-            raise ValueError('Cannot add items with duplicate aliases: {}'.format(non_unique_aliased_keys))
-
-    def _strip_key(self, key):
-        return self._key_aliaser_func(key)
-
-    def __setitem__(self, key, value):
-        striped_key = self._strip_key(key)
-        try:
-            key_actual = self._striped_key_map[striped_key]
-            super(StructDictAliasedMixin, self).__setitem__(key_actual, value)
-        except KeyError:
-            super(StructDictAliasedMixin, self).__setitem__(key, value)
-            self._striped_key_map[striped_key] = key
-
-    def __getitem__(self, key):
-        try:
-            return super(StructDictAliasedMixin, self).__getitem__(key)
-        except KeyError:
-            striped_key = self._strip_key(key)
-            try:
-                return super(StructDictAliasedMixin, self).__getitem__(self._striped_key_map[striped_key])
-            except KeyError:
-                raise KeyError("Key with alias: '{}', does not exist".format(key))
-
-    def update(self, *args, **kwargs):
-        """Update struct dict aliased with items from `args` and `kwargs`.
-
-        Overwrites existing items.
-
-        Optional arguments `args` and `kwargs` may be a mapping, an iterable of
-        pairs or keyword arguments.
-
-        :param args: mapping or iterable of pairs
-        :param kwargs: keyword arguments mapping
-
-        Method based on sortedcontainers.SortedDict update method
-        """
-        if not self:
-            super(StructDictAliasedMixin, self).update(*args, **kwargs)
-            self._striped_key_map = self._get_striped_key_map()
-            try:
-                self._verify_stripped_keys_unique()
-            except ValueError as ve:
-                super(StructDictAliasedMixin, self).clear()
-                raise ve
-            return
-
-        if not kwargs and len(args) == 1 and isinstance(args[0], dict):
-            pairs = args[0]
-        else:
-            pairs = dict(*args, **kwargs)
-
-        # noinspection PyTypeChecker
-        # Len inherited from associated dict class
-        if (10 * len(pairs)) > len(self):
-            super(StructDictAliasedMixin, self).update(pairs)
-            self._striped_key_map = self._get_striped_key_map()
-            try:
-                self._verify_stripped_keys_unique()
-            except ValueError as ve:
-                super(StructDictAliasedMixin, self).clear()
-                raise ve
-            return
-        else:
-            for key in pairs:
-                self.__setitem__(key, pairs[key])
-
-    def __contains__(self, key):
-        if super(StructDictAliasedMixin, self).__contains__(key):
-            return True
-        else:
-            striped_key = self._strip_key(key)
-            if striped_key in self._striped_key_map:
-                return True
-            else:
-                return False
-
-    def get(self, key, default=None):
-        try:
-            return self.__getitem__(key)
-        except KeyError:
-            return default
 
 
 class StructDict(StructDictMixin, dict):
@@ -314,24 +214,6 @@ class SortedStructDict(StructDictMixin, SortedDict):
     _internal_names_set = StructDictMixin._internal_names_set.union(__internal_names)
 
 
-class StructDictAliased(StructDictAliasedMixin, dict):
-    @recursive_repr()
-    def __repr__(self):
-        """Return string representation of StructDict
-        """
-        return struct_repr(self, sort=True)
-
-
-class OrderedStructDictAliased(StructDictAliasedMixin, OrderedDict):
-    pass
-
-
-class SortedStructDictAliased(StructDictAliasedMixin, SortedDict):
-    # extract all internal names of SortedDict
-    __internal_names = list(SortedDict(callable).__dict__.keys())
-    _internal_names_set = StructDictAliasedMixin._internal_names_set.union(__internal_names)
-
-
 class FrozenStructDict(StructDict):
     def __setitem__(self, key, value):
         raise TypeError("'{0}' object does not support item assignment".format(self.__class__.__name__))
@@ -342,6 +224,4 @@ class FrozenStructDict(StructDict):
 
 if __name__ == '__main__':
     st = StructDict(a=1, b=2)
-    sta = StructDictAliased(a=1, b=2)
     sst = SortedStructDict(b=1, a=2)
-    ssta = SortedStructDictAliased(b=1, a_1a1=2)
