@@ -4,7 +4,7 @@ from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy, copy as _copy
 from itertools import zip_longest
 
-from operator import itemgetter as _itemgetter
+from operator import itemgetter as _itemgetter, methodcaller as _methodcaller
 from builtins import property as _property
 
 import numpy as np
@@ -19,8 +19,16 @@ from utils.structdict import StructDict, OrderedStructDict, struct_repr, StructD
 class _MldMeta(StructDictMeta):
     def __new__(cls, name, bases, _dict):
         kls = super(_MldMeta, cls).__new__(cls, name, bases, _dict)
+
+        def _itemsetter(name):
+            def caller(self, value):
+                self.__setitem__(name, value)
+            return caller
+
         for name in getattr(kls, '_allowed_data_set'):
-            setattr(kls, name, _property(_itemgetter(name), doc=f"Alias for self['{name}']"))
+            setattr(kls, name, _property(fget=_itemgetter(name),
+                                         fset=_itemsetter(name),
+                                         doc=f"Alias for self['{name}']"))
         return kls
 
 class MldBase(StructDict, metaclass=_MldMeta):
@@ -176,11 +184,8 @@ class MldInfo(MldBase):
                  required_params=None, **kwargs):
         super(MldInfo, self).__init__(**kwargs)
 
-        for dim_name in self._mld_dim_map:
-            self._sdict_setitem(dim_name, self[dim_name] or 0)
-
         self.update(mld_info_data=mld_info_data, dt=dt, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
-                    var_types_struct=var_types_struct, required_params=required_params, **kwargs)
+                    var_types_struct=var_types_struct, required_params=required_params, _from_init=True, **kwargs)
 
     @property
     def var_types_struct(self):
@@ -208,6 +213,8 @@ class MldInfo(MldBase):
     def update(self, mld_info_data=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                required_params=None, **kwargs):
 
+        _from_init = kwargs.pop('_from_init', False)
+
         non_updateable = self._allowed_data_set.intersection(kwargs)
         if non_updateable:
             raise ValueError(
@@ -232,11 +239,17 @@ class MldInfo(MldBase):
             else:
                 raise TypeError("Invalid type for mld_info_data.")
 
+        if _from_init or any(item is not None for item in [dt, param_struct, required_params]):
+            self._set_metadata(dt=dt, param_struct=param_struct, required_params=required_params)
+
         if mld_dims is not None:
             self._set_mld_dims(mld_dims)
+        elif _from_init:
+            mld_dims = {dim_name:(self[dim_name] or 0) for dim_name in self._mld_dim_map}
+            self._set_mld_dims(mld_dims)
 
-        self._set_metadata(dt=dt, param_struct=param_struct, required_params=required_params)
-        self._set_var_info(bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
+        if mld_dims or any(item is not None for item in [bin_dims_struct, var_types_struct]):
+            self._set_var_info(bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
 
     def _set_metadata(self, dt=None, param_struct=None, required_params=None):
         dt_queue = [dt, self.get('dt')]
@@ -275,7 +288,7 @@ class MldInfo(MldBase):
 
             if var_type is not None:
                 var_type = self._validate_var_types_vect(var_type, new_var_info, bin_dim_name)
-                if var_type.size != self[var_name]:
+                if var_type.size != var_dim:
                     raise ValueError(
                         "Dimension of '{0}' must match dimension: '{1}'".format(var_type_name, var_dim_name))
                 else:
@@ -415,7 +428,7 @@ class MldModel(MldBase):
                             system_matrix = np.atleast_2d(system_matrix)
                         new_sys_mats[sys_matrix_id] = system_matrix
                 else:
-                    if kwargs:
+                    if sys_matrix_id in kwargs:
                         raise ValueError("Invalid matrix name in kwargs: {}".format(sys_matrix_id))
                     else:
                         raise ValueError("Invalid matrix name in system_matrices: {}".format(sys_matrix_id))
@@ -428,13 +441,18 @@ class MldModel(MldBase):
             else:
                 new_sys_mats['C'] = np.eye(*(new_sys_mats['A'].shape))
 
-        try:
-            new_sys_mats, mld_dims, shapes_struct = self._validate_sys_matrix_shapes(new_sys_mats)
-            self._set_mld_type(new_sys_mats)
-        except ValueError as ve:
-            raise ve
+        shapes_struct = _get_expr_shapes(new_sys_mats)
+        if shapes_struct != self._shapes_struct:
+            mld_dims = self._mld_info._get_mld_dims(shapes_struct)
+            try:
+                new_sys_mats, shapes_struct = self._validate_sys_matrix_shapes(new_sys_mats, shapes_struct, mld_dims)
+            except ValueError as ve:
+                raise ve
+        else:
+            mld_dims = None
 
         self._shapes_struct = shapes_struct
+        self._set_mld_type(new_sys_mats)
         super(MldModel, self).update(new_sys_mats)
 
         if self.mld_type == self.MldModelTypes.symbolic:
@@ -585,13 +603,7 @@ class MldModel(MldBase):
             else:
                 self._mld_type = self.MldModelTypes.numeric
 
-    def _validate_sys_matrix_shapes(self, mld_data=None):
-        if mld_data is None:
-            mld_data = StructDict(_deepcopy(dict(self)))
-
-        shapes_struct = _get_expr_shapes(mld_data)
-        mld_dims = self._mld_info._get_mld_dims(shapes_struct)
-
+    def _validate_sys_matrix_shapes(self, mld_data, shapes_struct, mld_dims):
         A_shape = shapes_struct['A']
         C_shape = shapes_struct['C']
 
@@ -668,7 +680,7 @@ class MldModel(MldBase):
                     self._offset_vect_names.constraint)
             )
 
-        return mld_data, mld_dims, shapes_struct
+        return mld_data, shapes_struct
 
     def _get_all_syms_str_list(self):
         sym_str_set = {str(sym) for expr in self.values() if isinstance(expr, (sp.Expr, sp.Matrix)) for sym in
