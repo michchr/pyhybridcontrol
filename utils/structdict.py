@@ -3,6 +3,7 @@ from reprlib import recursive_repr
 from sortedcontainers import SortedDict
 from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy
+from abc import ABCMeta
 
 from contextlib import contextmanager
 import sys
@@ -22,7 +23,7 @@ def _temp_mod_numpy_print_ops(np_print_threshold=None):
             np_mod.set_printoptions(threshold=cur_np_threshold)
 
 
-def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_values=False, align_padding_width=0,
+def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_values=True, align_padding_width=0,
                 value_format_str=None, repr_format_str=None):
     if not isinstance(data, dict):
         raise TypeError("Data must be dictionary like")
@@ -59,23 +60,24 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
     return repr_format(type_name=type_name, key_arg=key_arg, items=items)
 
 
-class StructDictMeta(type):
-    def __new__(cls, name, bases, _dict):
-        kls = super().__new__(cls, name, bases, _dict)
-        mro = kls.mro()
-        #find 1 based reversed index of StructDictMixin
-        index, _ = next(filter(
-            lambda index_item: index_item[1].__name__ == 'StructDictMixin',
-            enumerate(reversed(mro))))
-        #this gives the base_dict as follows:
-        _base_dict = mro[-index]
+class StructDictMeta(ABCMeta):
+    _base_dict_methods = ['__setitem__', '__getitem__', '__delitem__', 'update', 'setdefault']
+    _base_dict_method_map = {"".join(['_base_dict_', method.strip('_')]): method for method in _base_dict_methods}
 
-        #extract cached method references
-        _is_dict = issubclass(_base_dict, dict)
-        kls._base_dict_setitem = _base_dict.__setitem__ if _is_dict else None
-        kls._base_dict_getitem = _base_dict.__getitem__ if _is_dict else None
-        kls._base_dict_update = _base_dict.update if _is_dict else None
-        kls._base_dict_delitem = _base_dict.__delitem__ if _is_dict else None
+    def __new__(cls, name, bases, _dict, **kwargs):
+        kls = super().__new__(cls, name, bases, _dict, **kwargs)
+        mro = kls.mro()
+        # find 1 based reversed index of StructDictMixin - i.e. first instance of class with type==StructDictMeta
+        index, _ = next(filter(
+            lambda index_class: type(index_class[1]) == StructDictMeta,
+            enumerate(reversed(mro))))
+        # this gives the base_dict as follows:
+        _base_dict = mro[-index]
+        setattr(kls, '_base_dict', _base_dict)
+        # extract cached method references
+        if issubclass(_base_dict, dict):
+            for method, _based_dict_method in cls._base_dict_method_map.items():
+                setattr(kls, method, getattr(_base_dict, _based_dict_method))
 
         _internal_name_set = set(kls._internal_names_set) if hasattr(kls, '_internal_names_set') else set()
         kls._internal_names_set = _internal_name_set.union(dir(kls))
@@ -104,9 +106,19 @@ class StructDictMixin(metaclass=StructDictMeta):
         if key in self._internal_names_set:
             self._check_invalid_keys()
 
+    @property
+    def base_dict(self):
+        """Return the base_dict of the struct_dict."""
+        return self._base_dict
+
     def update(self, *args, **kwargs):
         self._base_dict_update(*args, **kwargs)
         self._check_invalid_keys()
+
+    def setdefault(self, key, default=None):
+        self._base_dict_setdefault(key, default)
+        if key in self._internal_names_set:
+            self._check_invalid_keys()
 
     def __setattr__(self, key, value):
         try:
@@ -173,9 +185,9 @@ class StructDictMixin(metaclass=StructDictMeta):
 
     __deepcopy__ = deepcopy
 
-    def get_sub_dict(self, keys):
+    def get_sub_base_dict(self, keys):
         try:
-            return {key: self[key] for key in keys}
+            return self._base_dict([(key, self[key]) for key in keys])
         except KeyError as ke:
             raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
 
@@ -186,14 +198,15 @@ class StructDictMixin(metaclass=StructDictMeta):
             raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
 
     def get_sub_struct(self, keys):
-        return self.__class__(self.get_sub_dict(keys))
+        return self.__class__(self.get_sub_base_dict(keys))
 
     @classmethod
     def sub_struct_fromdict(cls, dict_, keys):
-        return cls(cls.get_sub_dict(dict_, keys))
+        return cls(cls.get_sub_base_dict(dict_, keys))
 
-    def as_dict(self):
-        return dict(self)
+    def as_base_dict(self):
+        """Return a new base_dict of the struct_dict which maps item names to their values."""
+        return self._base_dict(self)
 
 
 class StructDict(StructDictMixin, dict):

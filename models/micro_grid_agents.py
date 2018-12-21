@@ -5,7 +5,10 @@ import scipy.linalg as scl
 
 from utils.structdict import StructDict
 from models.mld_model import MldModel
-from models.agents import AgentModelGenerator, Agent
+from models.agents import AgentModel, Agent, PvAgentModel
+from models.parameters import dewh_p, grid_p
+
+from utils.helper_funcs import is_all_None
 
 from copy import copy as _copy, deepcopy as _deepcopy
 
@@ -13,11 +16,16 @@ from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries, IDX
 from tools.mongo_interface import MongoInterface
 
 
-class DewhModelGenerator(AgentModelGenerator):
-    def __init__(self, *args, const_heat=True, **kwargs):
-        super(DewhModelGenerator, self).__init__(*args, const_heat=const_heat, **kwargs)
+class DewhModel(PvAgentModel):
+    def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, const_heat=True):
+        param_struct = param_struct or dewh_p
+        if is_all_None([mld_numeric, mld_callable, mld_symbolic]):
+            mld_symbolic = self.get_dewh_mld_symbolic(const_heat=const_heat)
+        super(DewhModel, self).__init__(mld_numeric=mld_numeric, mld_symbolic=mld_symbolic,
+                                        mld_callable=mld_callable, param_struct=param_struct)
 
-    def get_mld_symbolic(self, const_heat=True):
+    @staticmethod
+    def get_dewh_mld_symbolic(const_heat=True):
         dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
             'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
@@ -58,19 +66,23 @@ class DewhModelGenerator(AgentModelGenerator):
         return MldModel_sym
 
 
-class GridModelGenerator(AgentModelGenerator):
+class GridModel(AgentModel):
 
-    def __init__(self, num_devices=1):
-        self.num_devices = num_devices
-        super(GridModelGenerator, self).__init__()
+    def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, num_devices=1):
+        param_struct = param_struct or grid_p
+        if is_all_None([mld_numeric, mld_callable, mld_symbolic]):
+            mld_symbolic = self.get_grid_mld_symbolic(num_devices=num_devices)
+        super(GridModel, self).__init__(mld_numeric=mld_numeric, mld_symbolic=mld_symbolic,
+                                        mld_callable=mld_callable, param_struct=param_struct)
 
-    def get_mld_symbolic(self):
+    @staticmethod
+    def get_grid_mld_symbolic(num_devices):
         P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
         eps = sp.symbols('eps')
 
         mld_sym_struct = StructDict()
 
-        mld_sym_struct.D4 = np.ones((1, self.num_devices))
+        mld_sym_struct.D4 = np.ones((1, num_devices))
 
         mld_sym_struct.F2 = sp.Matrix([-P_g_min, -(P_g_max + eps), -P_g_max, P_g_min, -P_g_min, P_g_max])
         mld_sym_struct.F3 = sp.Matrix([0, 0, 1, -1, 1, -1])
@@ -83,9 +95,9 @@ class GridModelGenerator(AgentModelGenerator):
 
 
 class Dewh:
-    def __init__(self, device_model_generator: AgentModelGenerator, dev_id=None, param_struct=None):
-        self.device_model_generator = device_model_generator
-        self.mld: MldModel = self.device_model_generator.get_mld_numeric(param_struct=param_struct)
+    def __init__(self, device_model, dev_id=None, param_struct=None):
+        self.device_model = device_model
+        self.mld: MldModel = self.device_model.get_mld_numeric(param_struct=param_struct)
         self.param_struct = param_struct
         self.dev_id = dev_id
         self.device_type = 'dewh'
@@ -99,7 +111,7 @@ class Dewh:
 
     @property
     def symbolic_mld(self):
-        return self.device_model_generator.mld_symbolic
+        return self.device_model.mld_symbolic
 
     def load_historical(self, start_datetime=None, end_datetime=None):
         with MongoInterface(database='site_data', collection='Kikuyu') as mi:
@@ -139,7 +151,7 @@ if __name__ == '__main__':
     start_datetime = DateTime(2018, 8, 26)
     end_datetime = DateTime(2018, 8, 30)
 
-    dewh_g = DewhModelGenerator(const_heat=True)
+    dewh_g = DewhModel(const_heat=True)
     for dev_id in range(3, 4):
         dewh = Dewh(dewh_g, dev_id=dev_id, param_struct=dewh_p)
         df = dewh.load_historical(start_datetime, end_datetime)

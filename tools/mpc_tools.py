@@ -91,7 +91,8 @@ class MpcOptVariables(MpcBase):
                 for var_name in var_names
             }
 
-        to_bin_index = lambda type_mat: list(map(tuple, np.argwhere(type_mat == 'b').tolist()))
+        def to_bin_index (type_mat): return(
+            list(map(tuple, np.argwhere(type_mat == 'b').tolist())))
 
         #generate individual variable tilde mats
         opt_var_tilde_mats = {
@@ -106,7 +107,9 @@ class MpcOptVariables(MpcBase):
             [opt_var_tilde_mats[var_name] for var_name in V_opt_var_names if opt_var_tilde_mats[var_name]])
 
         opt_var_struct = StructDict()
-        app_tilde = lambda var_name, post: "".join([var_name.capitalize(), '_tilde_', post])
+
+        def app_tilde(var_name, postfix): return(
+            "".join([var_name.capitalize(), '_tilde_', postfix]))
 
         #add named tilde_mat_N_cons to output
         opt_var_struct.update({

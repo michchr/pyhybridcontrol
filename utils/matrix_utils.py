@@ -10,6 +10,15 @@ from collections import namedtuple as NamedTuple
 from utils.decorator_utils import cache_hashable_args
 
 
+def atleast_2d_col(arr):
+    arr = np.asanyarray(arr)
+    if arr.ndim == 0:
+        result = arr.reshape(1, 1)
+    elif arr.ndim == 1:
+        result = arr[:,np.newaxis]
+    else:
+        result = arr
+    return result
 
 def block_diag_dense(mats, format=None, dtype=None):
     block_diag = scl.block_diag(*mats)
@@ -17,40 +26,6 @@ def block_diag_dense(mats, format=None, dtype=None):
         block_diag = block_diag.astype(dtype)
     return block_diag
 
-
-_MatOpsNames = ['package',
-                'linalg',
-                'sclinalg',
-                'block_diag',
-                'vmatrix',
-                'hmatrix',
-                'zeros']
-
-_MatOpsNameTup = NamedTuple('MatOps', _MatOpsNames)
-
-@cache_hashable_args(maxsize=2)
-def get_mat_ops(sparse=False):
-    if sparse:
-        mat_ops = _MatOpsNameTup(
-            package=scs,
-            linalg=scs,
-            sclinalg=scs,
-            block_diag=scs.block_diag,
-            vmatrix=scs.csr_matrix,
-            hmatrix=scs.csc_matrix,
-            zeros= scs.csr_matrix
-        )
-    else:
-        mat_ops = _MatOpsNameTup(
-            package=np,
-            linalg=np.linalg,
-            sclinalg=scl,
-            block_diag=block_diag_dense,
-            vmatrix=np.atleast_2d,
-            hmatrix=np.atleast_2d,
-            zeros=np.zeros
-        )
-    return mat_ops
 
 def create_object_array(tup):
     try:
@@ -145,3 +120,39 @@ def block_toeplitz_alt(c_tup, r_tup=None, sparse=False):
             return scs.bmat(np.atleast_2d(h_stacked).T).tocsc()
     else:
         return np_toep
+
+
+_MatOpsNames = ['package',
+                'linalg',
+                'sclinalg',
+                'block_diag',
+                'vmatrix',
+                'hmatrix',
+                'zeros']
+
+_MatOpsNameTup = NamedTuple('MatOps', _MatOpsNames)
+
+
+@cache_hashable_args(maxsize=2)
+def get_mat_ops(sparse=False):
+    if sparse:
+        mat_ops = _MatOpsNameTup(
+            package=scs,
+            linalg=scs,
+            sclinalg=scs,
+            block_diag=scs.block_diag,
+            vmatrix=scs.csr_matrix,
+            hmatrix=scs.csc_matrix,
+            zeros=scs.csr_matrix
+        )
+    else:
+        mat_ops = _MatOpsNameTup(
+            package=np,
+            linalg=np.linalg,
+            sclinalg=scl,
+            block_diag=block_diag_dense,
+            vmatrix=np.atleast_2d,
+            hmatrix=np.atleast_2d,
+            zeros=np.zeros
+        )
+    return mat_ops

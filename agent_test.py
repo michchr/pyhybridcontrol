@@ -1,6 +1,6 @@
-from models.agents import Agent, MpcAgent
+from models.agents import AgentModel, Agent, MpcAgent
 from utils.matrix_utils import block_toeplitz_alt, block_toeplitz, _atleast_3d_toeplitz
-from models.micro_grid_agents import DewhModelGenerator, Dewh, GridModelGenerator
+from models.micro_grid_agents import DewhModel, Dewh, GridModel
 from models.mld_model import MldModel, MldInfo
 from utils.structdict import StructDict, SortedDict, SortedStructDict
 from models.parameters import dewh_p, grid_p
@@ -14,26 +14,28 @@ import numpy as np
 import wrapt
 import functools
 
-dewh_gen = DewhModelGenerator()
+dewh_model = DewhModel(param_struct=dewh_p)
 
 num_devices = 3
-grid_gen = GridModelGenerator(num_devices=num_devices)
+grid_model = GridModel(num_devices=num_devices, param_struct=grid_p)
 
 
 a = dict.fromkeys(MldModel._allowed_data_set, np.random.rand(3, 3))
 a.update(b5=np.ones((3, 1)), d5=np.ones((3, 1)), f5=np.ones((3, 1)))
 a.update(A=np.random.rand(3, 3), B2=None, D2=None, F2=None)
-mld2 = MldModel(a, nu_l=1)
 
-mld = dewh_gen.get_mld_numeric(dewh_p)
+agent_model2 = AgentModel(MldModel(a, nu_l=1))
 
-agent = MpcAgent('dewh', None, dewh_gen, dewh_p)
-agent2= MpcAgent('test', None, None, mld_numeric=mld2)
-agent_g = MpcAgent('grid', None, grid_gen, grid_p)
+mld = dewh_model.get_mld_numeric(dewh_p)
+
+
+agent = MpcAgent('dewh', None, dewh_model)
+agent2= MpcAgent('test', None, agent_model2)
+agent_g = MpcAgent('grid', None, grid_model)
 
 
 mld3 = MldModel(D1=1,D2=3,D3=2,D4=4,d5=6)
-agent3 = MpcAgent(mld_numeric=mld3)
+agent3 = MpcAgent(agent_model=AgentModel(mld3))
 # agent3._mpc_evo_gen.gen_state_input_evolution_matrices(96)
 
 
