@@ -29,7 +29,7 @@ class _MldMeta(StructDictMeta):
 
             return caller
 
-        for name in getattr(kls, '_allowed_data_set'):
+        for name in kls._allowed_data_set:
             setattr(kls, name, _property(fget=_itemgetter(name),
                                          fset=_itemsetter(name),
                                          doc=f"Alias for self['{name}']"))
@@ -52,7 +52,7 @@ class MldBase(StructDict, metaclass=_MldMeta):
         if key in self._allowed_data_set:
             self.update(**{key: value})
         else:
-            raise KeyError("key: '{}' is not in _allowed_data_set.".format(key))
+            raise KeyError("key: '{}' is not in self._allowed_data_set.".format(key))
 
     def _sdict_setitem(self, key, value):
         super(MldBase, self).__setitem__(key, value)
@@ -415,6 +415,18 @@ class MldModel(MldBase):
     def mld_type(self):
         return self._mld_type
 
+    def __repr__(self):
+        base_repr = super(MldModel, self).__repr__()
+        mld_model_str = ("\n"
+                         "x(k+1) = A*x(k) + B1*u(k) + B2*delta(k) + B3*z(k) + B4*omega(k) + b5\n"
+                         "y(k) = C*x(k) + D1*u(k) + D2*delta(k) + D3*z(k) + D4*omega(k) + d5\n"
+                         "E*x(k) + F1*u(k) + F2*delta(k) + F3*z(k) + F4*omega(k) + G*y(k) <= f5 + Psi*mu(k)\n"
+                         f"mld_type : {self.mld_type}\n"
+                         "\n"
+                         "with:\n")
+        mld_model_repr = base_repr.replace('\n', '\n' + mld_model_str, 1)
+        return mld_model_repr
+
     @_process_mld_args_decor
     def update(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                **kwargs):
@@ -445,7 +457,7 @@ class MldModel(MldBase):
                             if isinstance(system_matrix, sp.Expr):
                                 system_matrix = sp.Matrix([system_matrix])
                         elif callable(system_matrix):  # it is callable
-                            system_matrix = self._create_callable_system_matrix(sys_matrix_id, system_matrix)
+                            system_matrix = CallableMatrix(system_matrix, sys_matrix_id)
                         else:  # it must be numeric
                             system_matrix = atleast_2d_col(system_matrix)
                             system_matrix.setflags(write=False)
@@ -461,7 +473,7 @@ class MldModel(MldBase):
             raise TypeError(f"Argument:'system_matrices' must be dictionary like: {ae.args[0]}")
 
         if from_init and creation_matrices.get('C') is None:
-            new_sys_mats['C'] = np.eye(*(_get_expr_shape(new_sys_mats['A'])))
+            new_sys_mats['C'] = np.eye(*(_get_expr_shape(new_sys_mats['A'])), dtype=np.int)
             new_sys_mats['C'].setflags(write=False)
 
         shapes_struct = _get_expr_shapes(new_sys_mats)
@@ -485,27 +497,6 @@ class MldModel(MldBase):
 
         self.mld_info.update(mld_info_data=mld_dims, dt=dt, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
                              var_types_struct=var_types_struct, required_params=required_params, **mld_info_kwargs)
-
-    def _create_callable_system_matrix(self, sys_matrix_id, system_matrix):
-        # used to wrap constant as a function
-        def const_func(constant):
-            def functor():
-                return constant
-
-            return functor
-
-        if isinstance(system_matrix, (sp.Expr, sp.Matrix)):
-            system_matrix = sp.Matrix(system_matrix)
-            param_sym_tup = _get_param_sym_tup(system_matrix)
-            lambda_func = sp.lambdify(param_sym_tup, system_matrix, modules="numpy", dummify=False)
-        elif callable(system_matrix):
-            lambda_func = system_matrix
-        else:
-            lambda_func = const_func(atleast_2d_col(system_matrix))
-
-        callable_sys_mat = CallableMatrix(lambda_func, sys_matrix_id)
-
-        return callable_sys_mat
 
     # TODO not finished - needs to include output constraints, interpolation and datetime handling
     def lsim(self, u=None, delta=None, z=None, omega=None, x0=None, t=None, start_datetime=None, end_datetime=None):
@@ -614,7 +605,7 @@ class MldModel(MldBase):
         if self.mld_type in (self.MldModelTypes.numeric, self.MldModelTypes.symbolic):
             dict_callable = {}
             for sys_matrix_id, system_matrix in self.items():
-                dict_callable[sys_matrix_id] = self._create_callable_system_matrix(sys_matrix_id, system_matrix)
+                dict_callable[sys_matrix_id] = CallableMatrix(system_matrix, sys_matrix_id)
         else:
             dict_callable = _deepcopy(dict(self)) if copy else dict(self)
 
@@ -633,8 +624,7 @@ class MldModel(MldBase):
             if any(is_callable.values()):
                 for sys_mat_id, is_mat_callable in is_callable.items():
                     if not is_mat_callable:
-                        mld_data[sys_mat_id] = self._create_callable_system_matrix(sys_mat_id,
-                                                                                   mld_data[sys_mat_id])
+                        mld_data[sys_mat_id] = CallableMatrix(mld_data[sys_mat_id], sys_mat_id)
                 self._mld_type = self.MldModelTypes.callable
             else:
                 self._mld_type = self.MldModelTypes.numeric
@@ -691,13 +681,13 @@ class MldModel(MldBase):
 
             if var_dim and var_dim > 0:
                 new_shape = (sys_dim, var_dim)
-                zero_empty_mat = np.zeros(new_shape)
+                zero_empty_mat = np.zeros(new_shape, dtype=np.int)
             else:
                 new_shape = (sys_dim, 0)
                 zero_empty_mat = np.empty(shape=new_shape)
 
             if callable(mld_data[mat_id]):
-                zero_empty_mat = self._create_callable_system_matrix(mat_id, zero_empty_mat)
+                zero_empty_mat = CallableMatrix(zero_empty_mat, mat_id)
 
             return zero_empty_mat, new_shape
 
@@ -729,6 +719,8 @@ class MldModel(MldBase):
         for sys_matrix in self.values():
             if isinstance(sys_matrix, (sp.Expr, sp.Matrix)):
                 str_list.extend([str(sym) for sym in sys_matrix.free_symbols])
+            elif isinstance(sys_matrix, CallableMatrix):
+                str_list.extend(sys_matrix.required_params)
             elif callable(sys_matrix):
                 str_list.extend(set(get_cached_func_spec(sys_matrix).all_kw_params).difference(['param_struct']))
         return sorted(set(str_list))
@@ -767,14 +759,30 @@ class MldModel(MldBase):
 
 class CallableMatrix(wrapt.decorators.AdapterWrapper):
 
-    def __init__(self, func, matrix_id):
-        if isinstance(func, type(self)):
-            super(CallableMatrix, self).__init__(wrapped=func.__wrapped__, wrapper=func._self_wrapper, enabled=None,
-                                                 adapter=func._self_adapter)
+    def __init__(self, matrix, matrix_name=None):
+        if isinstance(matrix, type(self)):
+            super(CallableMatrix, self).__init__(wrapped=matrix.__wrapped__, wrapper=matrix._self_wrapper, enabled=None,
+                                                 adapter=matrix._self_adapter)
         else:
-            self._self_matrix_id = matrix_id
+            # used to wrap constant as a function
+            def const_func(constant):
+                def functor():
+                    return constant
+
+                return functor
+
+            if isinstance(matrix, (sp.Expr, sp.Matrix)):
+                system_matrix = sp.Matrix(matrix)
+                param_sym_tup = _get_param_sym_tup(system_matrix)
+                func = sp.lambdify(param_sym_tup, system_matrix, modules="numpy", dummify=False)
+            elif callable(matrix):
+                func = matrix
+            else:
+                func = const_func(atleast_2d_col(matrix))
+
+            self._self_matrix_id = matrix_name
             self._self_orig_wrapped_name = func.__name__
-            func.__name__ = matrix_id
+            func.__name__ = self._self_matrix_id if matrix_name is not None else func.__name__
             func.__qualname__ = "".join(func.__qualname__.rsplit('.', 1)[:-1] + ['.', func.__name__]).lstrip('.')
 
             self._self_wrapped_f_spec = get_cached_func_spec(func, save_to_cache=False, bypass_cache=True)
@@ -788,15 +796,32 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
             self.__delattr__('_self_shape')
         except AttributeError:
             pass
-        self._self_shape = _get_expr_shape(self)
-        self._self_ndim = 2
+
+        #get relevant array attributes by performing a function call with all arguments set to NaN
+        try:
+            nan_call = self._nan_call()
+        except TypeError:
+            msg = f"Cannot determine shape of callable, it is likely not constant.\n"
+            note = (
+                "Note: all callable expressions must return with a constant array shape. Shape is determined by "
+                "calling the function with all arguments set to a float with value NaN.")
+            raise TypeError(msg + note)
+
+        self._self_shape = _get_expr_shape(nan_call)
+        self._self_size = np.prod(nan_call.size)
+        self._self_ndim = nan_call.ndim
+        self._self_dtype = nan_call.dtype
+        self._self_nbytes = nan_call.nbytes
+        self._self_itemsize = nan_call.itemsize
+
+    def _nan_call(self):
+        kwargs = {param_name: np.NaN for param_name in self._self_wrapped_f_spec.all_kw_params}
+        args = [np.NaN] * len(self._self_wrapped_f_spec.pos_only_params)
+        return self(*args, **kwargs)
 
     def _matrix_wrapper(self, wrapped, instance, args, kwargs):
         param_struct = kwargs.pop('param_struct', None)
-        if kwargs.pop('_empty_call', False):
-            kwargs.update({param_name: np.NaN for param_name in self._self_wrapped_f_spec.all_kw_params})
-            args = [np.NaN] * len(self._self_wrapped_f_spec.pos_only_params)
-        elif param_struct and self._self_wrapped_f_spec.all_kw_params:
+        if param_struct and self._self_wrapped_f_spec.all_kw_params:
             try:
                 duplicates = set(kwargs).intersection(param_struct) if kwargs else None
                 kwargs.update(
@@ -817,10 +842,11 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
             msg = te.args[0].replace(self._self_orig_wrapped_name, wrapped.__name__)
             raise TypeError(msg).with_traceback(te.__traceback__) from None
 
-        if getattr(retval, 'ndim', 0) > 1:
-            return retval
-        else:
-            return atleast_2d_col(retval)
+        if getattr(retval, 'ndim', 0) < 2:
+            retval = atleast_2d_col(retval)
+
+        retval.setflags(write=False)
+        return retval
 
     def _gen_adapter(self):
         f_args_spec_struct = OrderedStructDict(self._self_wrapped_f_spec.arg_spec._asdict()).deepcopy()
@@ -849,6 +875,10 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
         self._self_adapter_spec = f_spec
 
     @property
+    def required_params(self):
+        return self._self_wrapped_f_spec.all_kw_params
+
+    @property
     def matrix_id(self):
         return self._self_matrix_id
 
@@ -857,11 +887,28 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
         return self._self_shape
 
     @property
+    def size(self):
+        return self._self_size
+
+    @property
     def ndim(self):
         return self._self_ndim
 
+    @property
+    def dtype(self):
+        return self._self_dtype
+
+    @property
+    def nbytes(self):
+        return self._self_nbytes
+
+    @property
+    def itemsize(self):
+        return self._self_itemsize
+
     def __repr__(self):
-        return f"CallableMatrix{self.__signature__}"
+        empty_str = f", shape={self._self_shape}" if not self._self_size else ""
+        return f"CallableMatrix{self.__signature__}{empty_str}"
 
     def __str__(self):
         return self.__repr__()
@@ -891,12 +938,6 @@ def _get_expr_shape(expr):
     else:
         if len(expr_shape) <= 2:
             return expr_shape
-        # if 0 in expr_shape:
-        #     return (0, 0)
-        # elif len(expr_shape) == 1:
-        #     return (expr_shape[0], 1)
-        # elif len(expr_shape) == 2:
-        #     return expr_shape
         else:
             raise NotImplementedError("Maximum supported dimension is 2, got {}".format(len(expr_shape)))
 
@@ -905,16 +946,8 @@ def _get_expr_shape(expr):
     elif np.isscalar(expr) or isinstance(expr, sp.Expr):
         return (1, 1)
     elif callable(expr):
-        if not isinstance(expr, CallableMatrix):
-            expr = CallableMatrix(expr, 'temp_matrix')
-        try:
-            return _get_expr_shape(expr(_empty_call=True))
-        except TypeError:
-            msg = f"Cannot determine shape of callable expr: {expr}, it is likely not constant.\n"
-            note = (
-                "Note: all callable expr must return with a constant array shape, shape is determined by calling expr "
-                "with all arguments set to np.NaN.")
-            raise TypeError(msg + note)
+        expr = CallableMatrix(expr)
+        return expr.shape
     else:
         raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
 

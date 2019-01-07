@@ -98,8 +98,7 @@ class StructDictMixin(metaclass=StructDictMeta):
             for key in invalid_keys:
                 self._base_dict_delitem(key)
             raise ValueError(
-                "Cannot add items to struct dict with keys contained in '_internal_names_set': '{}'".format(
-                    invalid_keys))
+                f"Cannot add items to struct dict with keys contained in '_internal_names_set': '{invalid_keys}'")
 
     def __setitem__(self, key, value):
         self._base_dict_setitem(key, value)
@@ -128,18 +127,18 @@ class StructDictMixin(metaclass=StructDictMeta):
         else:
             if isinstance(attr, (MethodType, BuiltinMethodType)):
                 raise ValueError(
-                    "Cannot add item:'{}' to struct via __setattr__, identifier is an object method.".format(key))
+                    f"Cannot modify or add item:'{key}' to struct, '{key}' is a {self.__class__} object method.")
             else:
                 return object.__setattr__(self, key, value)
 
-        if self._internal_names_set and key in self._internal_names_set:
-            object.__setattr__(self, key, value)
+        if key in self._internal_names_set:
+            return object.__setattr__(self, key, value)
         else:
-            self._base_dict_setitem(key, value)
+            self.__setitem__(key, value)
 
     def __getattr__(self, key):
         try:
-            return self._base_dict_getitem(key)
+            return self.__getitem__(key)
         except KeyError:
             raise AttributeError("'{0}' object has no attribute '{1}'".format(self.__class__.__name__, key))
 
