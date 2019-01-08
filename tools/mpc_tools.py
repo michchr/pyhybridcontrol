@@ -4,7 +4,7 @@ import weakref
 import cvxpy as cvx
 import numpy as np
 
-from utils.decorator_utils import ParNotReq, process_method_args_decor
+from utils.decorator_utils import ParNotSet, process_method_args_decor
 from utils.matrix_utils import get_mat_ops, block_toeplitz
 from utils.structdict import StructDict
 
@@ -27,8 +27,8 @@ class MpcBase:
             self._mld_numeric_tilde = mld_numeric_tilde
 
     def _process_base_args(self, f_kwargs=None, *,
-                           N_p=ParNotReq, include_term_cons=ParNotReq,
-                           mld_numeric=ParNotReq, mld_numeric_tilde=ParNotReq):
+                           N_p=ParNotSet, include_term_cons=ParNotSet,
+                           mld_numeric=ParNotSet, mld_numeric_tilde=ParNotSet):
 
         if N_p is None:
             f_kwargs['N_p'] = self.N_p
@@ -141,7 +141,7 @@ class MpcEvoGenerator(MpcBase):
                                               mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde)
 
     def _process_mat_op_args(self, f_kwargs=None, *,
-                             sparse=ParNotReq, mat_ops=ParNotReq):
+                             sparse=ParNotSet, mat_ops=ParNotSet):
         if sparse is None:
             f_kwargs['sparse'] = False
 
@@ -151,7 +151,7 @@ class MpcEvoGenerator(MpcBase):
         return f_kwargs
 
     def _process_A_pow_tilde_arg(self, f_kwargs=None, *,
-                                 A_pow_tilde=ParNotReq):
+                                 A_pow_tilde=ParNotSet):
 
         if A_pow_tilde is None:
             f_kwargs['A_pow_tilde'] = (

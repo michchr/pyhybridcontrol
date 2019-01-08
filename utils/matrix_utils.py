@@ -10,8 +10,8 @@ from collections import namedtuple as NamedTuple
 from utils.decorator_utils import cache_hashable_args
 
 
-def atleast_2d_col(arr):
-    arr = np.asanyarray(arr)
+def atleast_2d_col(arr, dtype=None, order=None):
+    arr = np.asanyarray(arr, dtype=dtype, order=order)
     if arr.ndim == 0:
         result = arr.reshape(1, 1)
     elif arr.ndim == 1:

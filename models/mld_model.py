@@ -1,5 +1,6 @@
 import functools
 import inspect
+import collections
 from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy, copy as _copy
 from itertools import zip_longest
@@ -7,7 +8,7 @@ from itertools import zip_longest
 from operator import itemgetter as _itemgetter
 from builtins import property as _property
 
-from utils.func_utils import get_cached_func_spec
+from utils.func_utils import get_cached_func_spec, ParNotSet
 from utils.matrix_utils import atleast_2d_col
 
 import numpy as np
@@ -61,16 +62,16 @@ class MldBase(StructDict, metaclass=_MldMeta):
         self.__init__()
 
     def pop(self, *args, **kwargs):
-        raise PermissionError("Items can not be removed from mld_model.")
+        raise NotImplementedError("Items can not be removed from mld_model.")
 
     def popitem(self, *args, **kwargs):
-        raise PermissionError("Items can not be removed from mld_model.")
+        raise NotImplementedError("Items can not be removed from mld_model.")
 
-    def get_sub_struct(self, keys):
-        return StructDict.sub_struct_fromdict(self, keys)
+    def get_sub_struct(self, keys, default=ParNotSet):
+        return StructDict.sub_struct_fromdict(self, keys, default=default)
 
     def __delitem__(self, key):
-        raise PermissionError("Items can not be removed from mld_model.")
+        raise NotImplementedError("Items can not be removed from mld_model.")
 
     def __repr__(self):
         def value_repr(value): return (
@@ -142,7 +143,7 @@ class MldInfo(MldBase):
     MldInfoDataTypes = _MldInfoDataTypesNamedTup._make(_MLD_INFO_DATA_TYPE_NAMES)
 
     # MldInfo Config
-    _valid_var_types = ['c', 'b']
+    _valid_var_types = {'c', 'b'}
     _meta_data_names = ['dt', 'param_struct', 'required_params']
 
     _sys_dim_names = ['n_states', 'n_outputs', 'n_cons']
@@ -159,10 +160,15 @@ class MldInfo(MldBase):
     _var_const_names = _state_input_names + [None] + _output_names + _slack_names  # const has no name.
 
     _var_to_dim_names_map = OrderedStructDict([(name, "".join(['n', name])) for name in _var_names])
-    _var_to_const_dim_names_map = OrderedStructDict(
-        [(name, "".join(['n', name]) if name else None) for name in _var_const_names])
     _var_to_bin_dim_names_map = OrderedStructDict([(name, "".join(['n', name, '_l'])) for name in _var_names])
     _var_to_type_names_map = OrderedStructDict([(name, "".join(['var_type_', name])) for name in _var_names])
+
+    _var_to_const_dim_names_map = OrderedStructDict(
+        [(name, "".join(['n', name]) if name else None) for name in _var_const_names])
+
+    _var_info_to_var_names_map = OrderedStructDict.combine_structs(_var_to_dim_names_map.to_reversed_map(),
+                                                                   _var_to_bin_dim_names_map.to_reversed_map(),
+                                                                   _var_to_type_names_map.to_reversed_map())
 
     # Mld dimension mapping
     _mld_dim_map = {
@@ -233,6 +239,8 @@ class MldInfo(MldBase):
                required_params=None, **kwargs):
 
         _from_init = kwargs.pop('_from_init', False)
+        bin_dims_struct = bin_dims_struct or {}
+        var_types_struct = var_types_struct or {}
 
         non_updateable = self._allowed_data_set.intersection(kwargs)
         if non_updateable:
@@ -258,88 +266,100 @@ class MldInfo(MldBase):
             else:
                 raise TypeError("Invalid type for mld_info_data.")
 
-        if _from_init or any(item is not None for item in [dt, param_struct, required_params]):
-            self._set_metadata(dt=dt, param_struct=param_struct, required_params=required_params)
+        new_mld_info = self.as_base_dict()
 
-        if mld_dims is not None:
-            self._set_mld_dims(mld_dims)
-        elif _from_init:
-            mld_dims = {dim_name: (self[dim_name] or 0) for dim_name in self._mld_dim_map}
-            self._set_mld_dims(mld_dims)
+        if _from_init:
+            if mld_dims is None:
+                mld_dims = {dim_name: 0 for dim_name in self._mld_dim_map}
+            if dt is None:
+                dt = 0
 
-        if mld_dims or any(item is not None for item in [bin_dims_struct, var_types_struct]):
-            self._set_var_info(bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
+        if mld_dims:
+            new_mld_info.update(mld_dims)
+            modified_var_names = self._var_names
+        else:
+            modified_var_names = set(
+                [self._var_info_to_var_names_map[key] for key in set(bin_dims_struct) | set(var_types_struct)])
 
-    def _set_metadata(self, dt=None, param_struct=None, required_params=None):
-        dt_queue = [dt, self.get('dt')]
-        dt = next((item for item in dt_queue if item is not None), 0)
-        param_struct = param_struct or self['param_struct']
-        required_params = required_params or self['required_params']
-        super(MldInfo, self).update(dt=dt, param_struct=param_struct, required_params=required_params)
+        new_mld_info = self._set_metadata(info_data=new_mld_info, dt=dt, param_struct=param_struct,
+                                          required_params=required_params)
 
-    def _set_var_info(self, bin_dims_struct=None, var_types_struct=None):
-        # either set to new value, old value, or zero in that order - never None
-        bin_dims_struct = bin_dims_struct or {}
-        var_types_struct = var_types_struct or {}
+        new_mld_info = self._set_var_info(info_data=new_mld_info, modified_var_names=modified_var_names,
+                                          bin_dims_struct=bin_dims_struct, var_types_struct=var_types_struct)
 
-        new_var_info = self.as_base_dict()
+        super(MldInfo, self).update(new_mld_info)
 
-        for var_name in self._var_names:
+    def _set_metadata(self, info_data, dt=None, param_struct=None, required_params=None):
+
+        if dt is not None:
+            info_data['dt'] = dt
+
+        if param_struct is not None:
+            if isinstance(param_struct, dict):
+                info_data['param_struct'] = param_struct
+            else:
+                raise TypeError("'param_struct' must be dictionary like or None.")
+
+        if required_params is not None:
+            if isinstance(required_params, collections.Container):
+                info_data['required_params'] = required_params
+            else:
+                raise TypeError("'required_params' must be subtype of collections.Container or None.")
+
+        return info_data
+
+    def _set_var_info(self, info_data, modified_var_names, bin_dims_struct, var_types_struct):
+
+        for var_name in modified_var_names:
             var_dim_name = self._var_to_dim_names_map[var_name]
             bin_dim_name = self._var_to_bin_dim_names_map[var_name]
             var_type_name = self._var_to_type_names_map[var_name]
-            var_dim = self.get(var_dim_name)
+            var_dim = info_data.get(var_dim_name)
             bin_dim = bin_dims_struct.get(bin_dim_name)
             var_type = var_types_struct.get(var_type_name)
 
             if var_name in self._var_names_non_setable:
                 if bin_dim:
                     raise ValueError(
-                        "Cannot manually set ndelta_l, nz_l - these are fixed by the MLD specification and dimension.")
+                        "Cannot manually set ndelta_l, nz_l - these are fixed by the MLD specification and "
+                        "dimension.")
                 elif var_name == 'delta':
-                    new_var_info[bin_dim_name] = bin_dim = self[var_dim_name]
+                    info_data[bin_dim_name] = bin_dim = info_data[var_dim_name]
                 elif var_name == 'z':
-                    new_var_info[bin_dim_name] = bin_dim = 0
+                    info_data[bin_dim_name] = bin_dim = 0
             else:
-                bin_dim_queue = [self._get_num_var_bin(var_type), bin_dim, self.get(bin_dim_name)]
+                bin_dim_queue = [self._get_num_var_bin(var_type), bin_dim, info_data.get(bin_dim_name)]
                 bin_dim = next((item for item in bin_dim_queue if item is not None), 0)
-                new_var_info[bin_dim_name] = bin_dim
+                info_data[bin_dim_name] = bin_dim
 
             if var_type is not None:
-                var_type = self._validate_var_types_vect(var_type, new_var_info, bin_dim_name)
+                var_type = self._validate_var_types_vect(var_type, info_data, bin_dim_name)
                 if var_type.size != var_dim:
                     raise ValueError(
                         "Dimension of '{0}' must match dimension: '{1}'".format(var_type_name, var_dim_name))
                 else:
-                    new_var_info[var_type_name] = var_type
+                    info_data[var_type_name] = var_type
             else:
-                try:
-                    new_var_info[var_type_name] = np.vstack(
-                        [np.repeat([['c']], var_dim - bin_dim, axis=0), np.repeat([['b']], bin_dim, axis=0)])
-                except ValueError:
-                    raise ValueError(
-                        "Value of '{0}':{1} must be non-negative value <= dimension '{2}':{3}".format(
-                            bin_dim_name, bin_dim, var_dim_name, var_dim))
+                if bin_dim > var_dim:
+                    raise ValueError((f"Value of '{bin_dim_name}':{bin_dim} must be non-negative value <= "
+                                      f"dimension '{var_dim_name}':{var_dim}"))
+                info_data[var_type_name] = atleast_2d_col(list('c' * (var_dim - bin_dim) + 'b' * bin_dim))
 
-        super(MldInfo, self).update(new_var_info)
+        return info_data
 
     def _validate_var_types_vect(self, var_types_vect, mld_info_data, bin_dim_name=None):
         if var_types_vect is None:
             return var_types_vect
         else:
-            var_types_vect = np.ravel(var_types_vect)[:, np.newaxis]
+            var_types_vect = atleast_2d_col(var_types_vect, dtype=np.str)
             if not np.setdiff1d(var_types_vect, self._valid_var_types).size == 0:
-                raise ValueError('All elements of var_type_vectors must be in {}'.format(self._valid_var_types))
+                raise ValueError(f"All elements of var_type_vectors must be in {self._valid_var_types}")
             if mld_info_data and bin_dim_name and (
                     mld_info_data.get(bin_dim_name) != self._get_num_var_bin(var_types_vect)):
                 raise ValueError(
                     "Number of binary variables in var_type_vect:'{0}', does not match dimension of '{1}':{2}".format(
                         var_types_vect, bin_dim_name, mld_info_data.get(bin_dim_name)))
             return var_types_vect
-
-    def _set_mld_dims(self, mld_dims):
-        if mld_dims is not None:
-            super(MldInfo, self).update(mld_dims)
 
     def _get_mld_dims(self, mld_mat_shapes_struct):
         mld_dims = StructDict()
@@ -354,8 +374,7 @@ class MldInfo(MldBase):
         if var_types_vect is None:
             return None
         else:
-            var_types_vect_flat = np.ravel(var_types_vect)
-            return (var_types_vect_flat == 'b').sum()
+            return (np.asanyarray(var_types_vect, dtype=np.str) == 'b').sum()
 
 
 class MldModel(MldBase):
@@ -479,10 +498,7 @@ class MldModel(MldBase):
         shapes_struct = _get_expr_shapes(new_sys_mats)
         if shapes_struct != self._shapes_struct:
             mld_dims = self._mld_info._get_mld_dims(shapes_struct)
-            try:
-                new_sys_mats, shapes_struct = self._validate_sys_matrix_shapes(new_sys_mats, shapes_struct, mld_dims)
-            except ValueError as ve:
-                raise ve
+            new_sys_mats, shapes_struct = self._validate_sys_matrix_shapes(new_sys_mats, shapes_struct, mld_dims)
         else:
             mld_dims = None
 
@@ -797,7 +813,7 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
         except AttributeError:
             pass
 
-        #get relevant array attributes by performing a function call with all arguments set to NaN
+        # get relevant array attributes by performing a function call with all arguments set to NaN
         try:
             nan_call = self._nan_call()
         except TypeError:
@@ -973,7 +989,6 @@ def _get_expr_shapes(*args, get_max_dim=False):
             return _get_max_shape(shapes)
         else:
             return shapes
-
 
 def _get_param_sym_tup(expr):
     try:

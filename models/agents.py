@@ -8,7 +8,7 @@ from reprlib import recursive_repr as _recursive_repr
 
 from models.mld_model import MldModel
 from tools.mpc_tools import MpcEvoGenerator, MpcOptVariables
-from utils.decorator_utils import ParNotReq, process_method_args_decor
+from utils.decorator_utils import ParNotSet, process_method_args_decor
 from utils.structdict import StructDict, struct_repr
 
 from utils.helper_funcs import num_not_None
@@ -177,7 +177,7 @@ class AgentModel:
 class PvAgentModel(AgentModel):
 
     def _process_param_struct_args(self, f_kwargs=None,
-                                   param_struct=ParNotReq, param_struct_subset=None):
+                                   param_struct=ParNotSet, param_struct_subset=None):
 
         _param_struct = self._validate_param_struct(
             param_struct=f_kwargs.get('param_struct'), param_struct_subset=param_struct_subset,

@@ -1,23 +1,14 @@
 import functools
 import inspect
-from enum import IntEnum
 
 import wrapt
 
-from utils.func_utils import get_cached_func_spec
+from utils.func_utils import get_cached_func_spec, ParNotSet
 
-
-class _ParamRequired(IntEnum):
-    TRUE = True
-    FALSE = False
-
-
-ParNotReq = _ParamRequired.FALSE
-ParReq = _ParamRequired.TRUE
 
 def process_method_args_decor(*processors):
     def wrapper_up(func):
-        f_spec = get_cached_func_spec(func.__get__(ParNotReq)) #ensure f_spec treats func as a method
+        f_spec = get_cached_func_spec(func.__get__(ParNotSet)) #ensure f_spec treats func as a method
         @wrapt.decorator(adapter=func)
         def wrapper(wrapped, self, args_in, kwargs_in):
             if kwargs_in.pop('_disable_process_args', False):

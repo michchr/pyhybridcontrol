@@ -1,9 +1,12 @@
 from types import MethodType, BuiltinMethodType
 from reprlib import recursive_repr
 from sortedcontainers import SortedDict
-from collections import OrderedDict, namedtuple as NamedTuple
+from collections import OrderedDict
 from copy import deepcopy as _deepcopy
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
+
+import itertools
+from utils.func_utils import ParNotSet
 
 from contextlib import contextmanager
 import sys
@@ -41,12 +44,16 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
                                                                              value_format_str=value_format_str))
 
     item_format = item_format_string.format
-    filler_calc = lambda key_width: ''.join(['\n', ' ' * (key_width + 2 + align_padding_width)])
+
+    def filler_calc(key_width):
+        return ''.join(['\n', ' ' * (key_width + 2 + align_padding_width)])
+
     keys = sorted(data.keys(), key=_key) if sort else list(data.keys())
     key_widths = [len(repr(key)) for key in keys]
-    with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold):  # temporarily modify numpy print threshold
+    # temporarily modify numpy print threshold
+    with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold):
         if align_values:
-            width = max(key_widths)
+            width = max(key_widths) if key_widths else 0
             fill = filler_calc(width)
             items = ',\n'.join(item_format(key=key, value=data[key], width=width).replace('\n', fill) for key in keys)
         else:
@@ -61,7 +68,7 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
 
 
 class StructDictMeta(ABCMeta):
-    _base_dict_methods = ['__setitem__', '__getitem__', '__delitem__', 'update', 'setdefault']
+    _base_dict_methods = ['__init__', '__setitem__', '__getitem__', '__delitem__', 'update', 'setdefault']
     _base_dict_method_map = {"".join(['_base_dict_', method.strip('_')]): method for method in _base_dict_methods}
 
     def __new__(cls, name, bases, _dict, **kwargs):
@@ -85,12 +92,22 @@ class StructDictMeta(ABCMeta):
 
 
 class StructDictMixin(metaclass=StructDictMeta):
+    __slots__ = ()
     __internal_names = []
     _internal_names_set = set(__internal_names)
 
+    @classmethod
+    def _constructor(cls, *args, **kwargs):
+        obj = cls.__new__(cls)
+        obj._base_dict_init(*args, **kwargs)
+        return obj
+
+    @abstractmethod
     def __init__(self, *args, **kwargs):
-        super(StructDictMixin, self).__init__(*args, **kwargs)
-        self._check_invalid_keys()
+        self._base_dict_init(*args, **kwargs)
+        # noinspection PyTypeChecker
+        if len(self):
+            self._check_invalid_keys()
 
     def _check_invalid_keys(self):
         invalid_keys = self._internal_names_set.intersection(self.keys())
@@ -100,6 +117,7 @@ class StructDictMixin(metaclass=StructDictMeta):
             raise ValueError(
                 f"Cannot add items to struct dict with keys contained in '_internal_names_set': '{invalid_keys}'")
 
+    @abstractmethod
     def __setitem__(self, key, value):
         self._base_dict_setitem(key, value)
         if key in self._internal_names_set:
@@ -110,10 +128,16 @@ class StructDictMixin(metaclass=StructDictMeta):
         """Return the base_dict of the struct_dict."""
         return self._base_dict
 
+    @abstractmethod
     def update(self, *args, **kwargs):
+        # noinspection PyTypeChecker
+        old_len = len(self)
         self._base_dict_update(*args, **kwargs)
-        self._check_invalid_keys()
+        # noinspection PyTypeChecker
+        if len(self) - old_len:  # only need to check for invalid keys if items are added
+            self._check_invalid_keys()
 
+    @abstractmethod
     def setdefault(self, key, default=None):
         self._base_dict_setdefault(key, default)
         if key in self._internal_names_set:
@@ -144,9 +168,10 @@ class StructDictMixin(metaclass=StructDictMeta):
 
     def __dir__(self):
         orig_dir = set(dir(type(self)))
-        __dict__keys = set(self.__dict__.keys())
+        _dict_keys = set(self.__dict__.keys()) if hasattr(self, '__dict__') else set()
+        _slots_keys = set(self.__slots__) if hasattr(self, '__slots__') else set()
         additions = {key for key in list(self.keys())[:100] if isinstance(key, str)}
-        rv = orig_dir | __dict__keys | additions
+        rv = orig_dir | _dict_keys | _slots_keys | additions
         return sorted(rv)
 
     @recursive_repr()
@@ -170,45 +195,84 @@ class StructDictMixin(metaclass=StructDictMeta):
 
     def copy(self):
         if hasattr(self, '_key'):
-            return self.__class__(self._key, self)
+            return self._constructor(self._key, self)
         else:
-            return self.__class__(self)
+            return self._constructor(self)
 
     __copy__ = copy
 
     def deepcopy(self, memo=None):
         if hasattr(self, '_key'):
-            return self.__class__(self._key, _deepcopy(dict(self), memo=memo))
+            return self._constructor(self._key, _deepcopy(dict(self), memo=memo))
         else:
-            return self.__class__(_deepcopy(dict(self), memo=memo))
+            return self._constructor(_deepcopy(dict(self), memo=memo))
 
     __deepcopy__ = deepcopy
 
-    def get_sub_base_dict(self, keys):
-        try:
-            return self._base_dict([(key, self[key]) for key in keys])
-        except KeyError as ke:
-            raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
+    def get_sub_base_dict(self, keys, default=ParNotSet):
+        if default is ParNotSet:
+            try:
+                return self._base_dict({key: self[key] for key in keys})
+            except KeyError as ke:
+                raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
+        else:
+            return self._base_dict({key: self.get(key, default) for key in keys})
 
-    def get_sub_list(self, keys):
-        try:
-            return [self[key] for key in keys]
-        except KeyError as ke:
-            raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
+    def get_sub_list(self, keys, default=ParNotSet):
+        if default is ParNotSet:
+            try:
+                return [self[key] for key in keys]
+            except KeyError as ke:
+                raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
+        else:
+            return [self.get(key, default) for key in keys]
 
-    def get_sub_struct(self, keys):
-        return self.__class__(self.get_sub_base_dict(keys))
+    def get_sub_struct(self, keys, default=ParNotSet):
+        return self._constructor(self.get_sub_base_dict(keys, default=default))
 
     @classmethod
-    def sub_struct_fromdict(cls, dict_, keys):
-        return cls(cls.get_sub_base_dict(dict_, keys))
+    def sub_struct_fromdict(cls, dict_, keys, default=ParNotSet):
+        return cls.get_sub_struct(cls(dict_), keys, default=default)
 
     def as_base_dict(self):
         """Return a new base_dict of the struct_dict which maps item names to their values."""
         return self._base_dict(self)
 
+    def to_reversed_map(self):
+        try:
+            reversed_map = self.__class__({value: key for key, value in self.items()})
+        except TypeError:
+            raise TypeError("Can only create reversed map of struct where all struct values are hashable")
+
+        # noinspection PyTypeChecker
+        if len(reversed_map) != len(self):
+            values = list(self.values())
+            duplicates = {key: item for key, item in self.items() if values.count(item) > 1}
+            raise ValueError(
+                f"Can only create reversed map of struct where all struct values are unique. The following keys have "
+                f"duplicate values: '{set(duplicates.keys())}'.")
+
+        return reversed_map
+
+    @classmethod
+    def combine_structs(cls, *structs):
+        total_len = sum((len(struct) for struct in structs))
+
+        combined_struct = cls._constructor(itertools.chain(*[struct.items() for struct in structs]))
+
+        # noinspection PyTypeChecker
+        if len(combined_struct) != total_len:
+            all_keys = [key for struct in structs for key in struct.keys()]
+            duplicates = set([key for key in all_keys if all_keys.count(key) > 1])
+            raise ValueError(
+                f"Can only combine structs with unique keys. The following keys are duplicated: '{duplicates}'")
+
+        return combined_struct
+
 
 class StructDict(StructDictMixin, dict):
+    __slots__ = ()
+
     @recursive_repr()
     def __repr__(self):
         """Return string representation of StructDict
@@ -217,7 +281,7 @@ class StructDict(StructDictMixin, dict):
 
 
 class OrderedStructDict(StructDictMixin, OrderedDict):
-    pass
+    pass #already has a __dict__ from OrderedDict
 
 
 class SortedStructDict(StructDictMixin, SortedDict):

@@ -1,12 +1,23 @@
 import inspect
 from inspect import Parameter
-from collections import namedtuple as NamedTuple
+from collections import namedtuple
 import types
 
-_FSpecNamedTup = NamedTuple('f_spec',
-                            ['signature', 'arg_spec', 'pos_only_params', 'pos_or_kw_params', 'kw_only_params',
-                                  'all_kw_params', 'all_kw_default', 'type'])
 
+class ParNotSetType:
+    __slots__ = ()
+
+    def __bool__(self):
+        return False
+
+    def __repr__(self):
+        return "ParNotSet"
+
+ParNotSet = ParNotSetType()
+
+
+_FSpecNamedTup = namedtuple('f_spec', ['signature', 'arg_spec', 'pos_only_params', 'pos_or_kw_params', 'kw_only_params',
+                                       'all_kw_params', 'all_kw_default', 'type'])
 
 def get_cached_func_spec(func, save_to_cache=True, bypass_cache=False):
     try:
