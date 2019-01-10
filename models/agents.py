@@ -174,6 +174,7 @@ class AgentModel:
         return struct_repr(repr_dict, type_name=self.__class__.__name__)
 
 
+
 class PvAgentModel(AgentModel):
 
     def _process_param_struct_args(self, f_kwargs=None,
@@ -188,7 +189,7 @@ class PvAgentModel(AgentModel):
 
         return f_kwargs
 
-    @process_method_args_decor('_process_param_struct_args')
+    @process_method_args_decor(_process_param_struct_args)
     def _gen_schedule_params_tilde(self, N_tilde, param_struct=None, param_struct_subset=None,
                                    schedule_params_evo=None, **kwargs):
 
@@ -217,7 +218,7 @@ class PvAgentModel(AgentModel):
 
         return schedule_params_tilde
 
-    @process_method_args_decor('_process_param_struct_args')
+    @process_method_args_decor(_process_param_struct_args)
     def get_mld_numeric_tilde(self, N_tilde, param_struct=None, param_struct_subset=None,
                               schedule_params_tilde=None, copy=None, **kwargs):
 
@@ -302,10 +303,10 @@ class Agent:
 
 class MpcAgent(Agent):
 
-    def __init__(self, agent_type=None, agent_id=None, agent_model=None, N_p=None, include_term_cons=True):
+    def __init__(self, agent_type=None, agent_id=None, agent_model=None, N_p=None, N_tilde=None):
         super().__init__(agent_type=agent_type, agent_id=agent_id, agent_model=agent_model)
         self._N_p = N_p if N_p is not None else 0
-        self._include_term_cons = include_term_cons
+        self._N_tilde = N_tilde if N_tilde is not None else self._N_p+1
 
         self._mpc_evo_gen = MpcEvoGenerator(self)
         self._opt_var_gen = MpcOptVariables(self)
@@ -315,8 +316,8 @@ class MpcAgent(Agent):
         return self._N_p
 
     @property
-    def include_term_cons(self):
-        return self._include_term_cons
+    def N_tilde(self):
+        return self._N_tilde
 
     @property
     def mld_numeric_tilde(self):
@@ -336,7 +337,7 @@ class MpcAgent(Agent):
         # gen_kwargs = dict(_disable_process_args=True, N_p=N_p, param_struct=param_struct,
         #                   param_struct_subset=param_struct_subset, param_struct_tilde=param_struct_tilde,
         #                   schedule_params_tilde=schedule_params_tilde,
-        #                   include_term_cons=include_term_cons, mld_numeric=mld_numeric,
+        #                   N_tilde=N_tilde, mld_numeric=mld_numeric,
         #                   mld_numeric_tilde=mld_numeric_tilde,
         #                   A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops, copy=copy,
         #                   **kwargs)
@@ -358,7 +359,7 @@ class MpcAgent(Agent):
         #     obj += np.transpose(q_Delta_N_p) @ opt_vars['Z_tilde_N_p']
         # if q_X_N_p is not None:
         #     obj += np.transpose(q_X_N_p) @ X_tilde_N_p
-        # if q_X_F is not None and include_term_cons:
+        # if q_X_F is not None and N_tilde:
         #     obj += np.transpose(q_X_F) @ X_tilde_N_cons[-(mld_info['nx']):, :]
         #
         # return obj

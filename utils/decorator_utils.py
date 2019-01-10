@@ -3,38 +3,58 @@ import inspect
 
 import wrapt
 
-from utils.func_utils import get_cached_func_spec, ParNotSet
+from utils.func_utils import get_cached_func_spec, make_args_kwargs_getter, ParNotSet
 
 
-def process_method_args_decor(*processors):
+def process_method_args_decor(*processor_funcs):
     def wrapper_up(func):
-        f_spec = get_cached_func_spec(func.__get__(ParNotSet)) #ensure f_spec treats func as a method
-        @wrapt.decorator(adapter=func)
-        def wrapper(wrapped, self, args_in, kwargs_in):
-            if kwargs_in.pop('_disable_process_args', False):
-                return wrapped(*args_in, **kwargs_in)
-            if args_in:
-                kw_update = {param_name: value for value, param_name in
-                             zip(args_in[len(f_spec.pos_only_params):], f_spec.pos_or_kw_params)}
-                args = args_in[:-len(kw_update)]
-                kwargs_in.update(kw_update)
-            else:
-                args = ()
+        f_spec = get_cached_func_spec(func.__get__(ParNotSet))  # ensure f_spec treats func as a method
+        args_kwargs_getter = make_args_kwargs_getter(func, f_spec=f_spec)
+        processor_spec_funcs = [(get_cached_func_spec(p_func), p_func) for p_func in processor_funcs]
 
-            kwargs = dict(f_spec.all_kw_default, **kwargs_in)
-
-            for processor in processors:
-                p_func = getattr(self, processor)
-                p_spec = get_cached_func_spec(p_func)
+        def process_kwargs(self, processor_spec_funcs, kwargs):
+            for p_spec,p_func in processor_spec_funcs:
                 if p_spec.arg_spec.varkw:
-                    p_func(f_kwargs=kwargs, *args, **kwargs)
+                    p_func(self, f_kwargs=kwargs, **kwargs)
                 else:
                     required_kwargs = set(kwargs).intersection(p_spec.all_kw_default)
-                    p_func(f_kwargs=kwargs, *args, **{key: kwargs[key] for key in required_kwargs})
+                    p_func(self, f_kwargs=kwargs, **{key: kwargs[key] for key in required_kwargs})
+            return kwargs
+
+        @wrapt.decorator(adapter=func)
+        def no_posonly_vargs_wrapper(wrapped, self, args_in, kwargs_in):
+            if kwargs_in.pop('_disable_process_args', False):
+                return wrapped(*args_in, **kwargs_in)
+
+            try:
+                _, args, kwargs = args_kwargs_getter(*args_in, **kwargs_in)
+            except TypeError:
+                args, kwargs = args_in, kwargs_in
+                return wrapped(*args, **kwargs)
+
+            kwargs = process_kwargs(self, processor_spec_funcs, kwargs)
+
             return wrapped(*args, **kwargs)
 
-        return wrapper(func)
+        @wrapt.decorator(adapter=func)
+        def with_posonly_vargs_wrapper(wrapped, self, args_in, kwargs_in):
+            if kwargs_in.pop('_disable_process_args', False):
+                return wrapped(*args_in, **kwargs_in)
 
+            try:
+                pos_only_args, var_args, kwargs = args_kwargs_getter(*args_in, **kwargs_in)
+            except TypeError:
+                args, kwargs = args_in, kwargs_in
+                return wrapped(*args, **kwargs)
+
+            kwargs = process_kwargs(self, processor_spec_funcs, kwargs)
+            args = pos_only_args + tuple([kwargs.pop(arg) for arg in f_spec.arg_spec.args]) + var_args
+            return wrapped(*args, **kwargs)
+
+        if f_spec.arg_spec.varargs or f_spec.pos_only_params:
+            return with_posonly_vargs_wrapper(func)
+        else:
+            return no_posonly_vargs_wrapper(func)
     return wrapper_up
 
 
