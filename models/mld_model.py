@@ -8,7 +8,7 @@ from itertools import zip_longest
 from operator import itemgetter as _itemgetter
 from builtins import property as _property
 
-from utils.func_utils import get_cached_func_spec, ParNotSet
+from utils.func_utils import get_cached_func_spec, make_function, ParNotSet
 from utils.matrix_utils import atleast_2d_col
 
 import numpy as np
@@ -391,8 +391,17 @@ class MldModel(MldBase):
 
     ## Mld Model Config
     _state_input_mat_names = ['A', 'B1', 'B2', 'B3', 'B4', 'b5']
+    _state_input_mat_names_private = ['_zeros_G_state_input', '_zeros_Psi_state_input']
+    _state_input_mat_names_all = _state_input_mat_names + _state_input_mat_names_private
+
     _output_mat_names = ['C', 'D1', 'D2', 'D3', 'D4', 'd5']
+    _output_mat_names_private = ['_zeros_G_output', '_zeros_Psi_output']
+    _output_mat_names_all = _output_mat_names + _output_mat_names_private
+
     _constraint_mat_names = ['E', 'F1', 'F2', 'F3', 'F4', 'f5', 'G', 'Psi']
+    _constraint_mat_names_private = []
+    _constraint_mat_names_all = _constraint_mat_names + _constraint_mat_names_private
+
     _offset_vect_names = MldModelMatTypesNamedTup('b5', 'd5', 'f5')
 
     _data_types = MldModelMatTypes
@@ -400,9 +409,12 @@ class MldModel(MldBase):
                                 (MldModelMatTypes.output, _output_mat_names),
                                 (MldModelMatTypes.constraint, _constraint_mat_names)])
 
-    _allowed_data_set = set([data for data_type in _data_layout.values() for data in data_type])
+    _sys_mat_names = set([data for data_type in _data_layout.values() for data in data_type])
+    _sys_mat_names_private = set(_state_input_mat_names_private + _output_mat_names_private)
 
-    _sys_matrix_names_map = MldModelMatTypesNamedTup(_state_input_mat_names, _output_mat_names, _constraint_mat_names)
+    _allowed_data_set = _sys_mat_names | _sys_mat_names_private
+
+    # _sys_matrix_names_map = MldModelMatTypesNamedTup(_state_input_mat_names, _output_mat_names, _constraint_mat_names)
 
     def __init__(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  **kwargs):
@@ -470,7 +482,7 @@ class MldModel(MldBase):
         new_sys_mats = self.as_base_dict()
         try:
             for sys_matrix_id, system_matrix in creation_matrices.items():
-                if sys_matrix_id in self._allowed_data_set:
+                if sys_matrix_id in self._sys_mat_names:
                     if system_matrix is not None:
                         if isinstance(system_matrix, (sp.Expr, sp.Matrix)):  # it is symbolic
                             if isinstance(system_matrix, sp.Expr):
@@ -483,7 +495,7 @@ class MldModel(MldBase):
                             if not np.issubdtype(system_matrix.dtype, np.number):
                                 raise TypeError("System matrices must be numeric, callable, or symbolic.")
                         new_sys_mats[sys_matrix_id] = system_matrix
-                else:
+                elif sys_matrix_id not in self._allowed_data_set:
                     if sys_matrix_id in kwargs:
                         raise ValueError("Invalid matrix name in kwargs: {}".format(sys_matrix_id))
                     else:
@@ -710,7 +722,8 @@ class MldModel(MldBase):
         _var_const_dim_names = self._mld_info._var_to_const_dim_names_map.values()
 
         sys_dim_name_triad = self.MldModelMatTypesNamedTup._make(self._mld_info._sys_dim_names)
-        sys_mat_ids_zip = zip_longest(self._state_input_mat_names, self._output_mat_names, self._constraint_mat_names)
+        sys_mat_ids_zip = zip_longest(self._state_input_mat_names_all, self._output_mat_names_all,
+                                      self._constraint_mat_names_all)
         for var_dim_name, sys_mat_name_triad in zip_longest(_var_const_dim_names, sys_mat_ids_zip):
             for mat_type, mat_id, sys_dim_name in zip(self.MldModelMatTypes, sys_mat_name_triad, sys_dim_name_triad):
                 if mat_id is None:
@@ -801,9 +814,9 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
             func.__name__ = self._self_matrix_id if matrix_name is not None else func.__name__
             func.__qualname__ = "".join(func.__qualname__.rsplit('.', 1)[:-1] + ['.', func.__name__]).lstrip('.')
 
-            self._self_wrapped_f_spec = get_cached_func_spec(func, save_to_cache=False, bypass_cache=True)
+            self._self_wrapped_f_spec = get_cached_func_spec(func, bypass_cache=True)
             adapter = self._gen_adapter()
-            self._self_adapter_spec = get_cached_func_spec(adapter, save_to_cache=False, bypass_cache=True)
+            self._self_adapter_spec = get_cached_func_spec(adapter, bypass_cache=True)
             wrapper = self._matrix_wrapper
 
             super(CallableMatrix, self).__init__(wrapped=func, wrapper=wrapper, enabled=None, adapter=adapter)
@@ -873,10 +886,7 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
             f_args_spec_struct.kwonlydefaults = {'param_struct': None}
 
         f_args_spec = inspect.FullArgSpec(**f_args_spec_struct)
-        adapter = inspect.formatargspec(*f_args_spec)
-        ns = {}
-        exec('def adapter{0}: pass'.format(adapter), ns, ns)
-        adapter = ns['adapter']
+        adapter = make_function(f_args_spec, name='adapter')
         return adapter
 
     def __reduce__(self):
@@ -989,6 +999,7 @@ def _get_expr_shapes(*args, get_max_dim=False):
             return _get_max_shape(shapes)
         else:
             return shapes
+
 
 def _get_param_sym_tup(expr):
     try:
