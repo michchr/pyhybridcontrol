@@ -17,43 +17,44 @@ import scipy.sparse as scs
 import sympy as sp
 import wrapt
 
-from utils.structdict import StructDict, OrderedStructDict, struct_repr, StructDictMeta
+from utils.structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin
 
 
-class _MldMeta(StructDictMeta):
-    def __new__(cls, name, bases, _dict, **kwargs):
-        kls = super(_MldMeta, cls).__new__(cls, name, bases, _dict, **kwargs)
+# class _MldMeta(StructDictMeta):
+#     def __new__(cls, name, bases, _dict, **kwargs):
+#         kls = super(_MldMeta, cls).__new__(cls, name, bases, _dict, **kwargs)
+# 
+#         def _itemsetter(name):
+#             def caller(self, value):
+#                 self.__setitem__(name, value)
+# 
+#             return caller
+# 
+#         for name in kls._field_names_set:
+#             setattr(kls, name, _property(fget=_itemgetter(name),
+#                                          fset=_itemsetter(name),
+#                                          doc=f"Alias for self['{name}']"))
+#         return kls
 
-        def _itemsetter(name):
-            def caller(self, value):
-                self.__setitem__(name, value)
 
-            return caller
-
-        for name in kls._allowed_data_set:
-            setattr(kls, name, _property(fget=_itemgetter(name),
-                                         fset=_itemsetter(name),
-                                         doc=f"Alias for self['{name}']"))
-        return kls
-
-
-class MldBase(StructDict, metaclass=_MldMeta):
+class MldBase(StructPropDictMixin, dict):
     __internal_names = []
-    _internal_names_set = StructDict._internal_names_set.union(__internal_names)
+    _internal_names_set = StructPropDictMixin._internal_names_set.union(__internal_names)
 
     _data_types = ()
     _data_layout = {}
-    _allowed_data_set = set()
+    _field_names = ()
+    _field_names_set = frozenset(_field_names)
 
     def __init__(self, *args, **kwargs):
         super(MldBase, self).__init__()
-        super(MldBase, self).update(dict.fromkeys(self._allowed_data_set))
+        super(MldBase, self).update(dict.fromkeys(self._field_names_set))
 
     def __setitem__(self, key, value):
-        if key in self._allowed_data_set:
+        if key in self._field_names_set:
             self.update(**{key: value})
         else:
-            raise KeyError("key: '{}' is not in self._allowed_data_set.".format(key))
+            raise KeyError("key: '{}' is not in self._field_names_set.".format(key))
 
     def _sdict_setitem(self, key, value):
         super(MldBase, self).__setitem__(key, value)
@@ -62,16 +63,16 @@ class MldBase(StructDict, metaclass=_MldMeta):
         self.__init__()
 
     def pop(self, *args, **kwargs):
-        raise NotImplementedError("Items can not be removed from mld_model.")
+        raise NotImplementedError("Items cannot be removed from mld_model.")
 
     def popitem(self, *args, **kwargs):
-        raise NotImplementedError("Items can not be removed from mld_model.")
+        raise NotImplementedError("Items cannot be removed from mld_model.")
 
     def get_sub_struct(self, keys, default=ParNotSet):
         return StructDict.sub_struct_fromdict(self, keys, default=default)
 
     def __delitem__(self, key):
-        raise NotImplementedError("Items can not be removed from mld_model.")
+        raise NotImplementedError("Items cannot be removed from mld_model.")
 
     def __repr__(self):
         def value_repr(value): return (
@@ -196,7 +197,7 @@ class MldInfo(MldBase):
                      (MldInfoDataTypes.bin_dims, _var_to_bin_dim_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.var_types, _var_to_type_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.meta_data, _meta_data_names)]))
-    _allowed_data_set = set([data for data_type in _data_layout.values() for data in data_type])
+    _field_names_set = frozenset([data for data_type in _data_layout.values() for data in data_type])
 
     def __init__(self, mld_info_data=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  required_params=None, **kwargs):
@@ -242,7 +243,7 @@ class MldInfo(MldBase):
         bin_dims_struct = bin_dims_struct or {}
         var_types_struct = var_types_struct or {}
 
-        non_updateable = self._allowed_data_set.intersection(kwargs)
+        non_updateable = self._field_names_set.intersection(kwargs)
         if non_updateable:
             raise ValueError(
                 "Cannot set values for keys: '{}' directly, these are updated automatically based on the MldModel "
@@ -412,14 +413,14 @@ class MldModel(MldBase):
     _sys_mat_names = set([data for data_type in _data_layout.values() for data in data_type])
     _sys_mat_names_private = set(_state_input_mat_names_private + _output_mat_names_private)
 
-    _allowed_data_set = _sys_mat_names | _sys_mat_names_private
+    _field_names_set = frozenset(_sys_mat_names | _sys_mat_names_private)
 
     # _sys_matrix_names_map = MldModelMatTypesNamedTup(_state_input_mat_names, _output_mat_names, _constraint_mat_names)
 
     def __init__(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  **kwargs):
         super(MldModel, self).__init__(**kwargs)
-        super(MldModel, self).update(dict.fromkeys(self._allowed_data_set, np.empty(shape=(0, 0))))
+        super(MldModel, self).update(dict.fromkeys(self._field_names_set, np.empty(shape=(0, 0))))
         self._mld_info = MldInfo()
         self._mld_type = None
         self._shapes_struct = None
@@ -462,7 +463,7 @@ class MldModel(MldBase):
     def update(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                **kwargs):
         from_init = kwargs.pop('from_init', False)
-        mld_info_kwargs = {key: kwargs.pop(key) for key in list(kwargs) if key in MldInfo._allowed_data_set}
+        mld_info_kwargs = {key: kwargs.pop(key) for key in list(kwargs) if key in MldInfo._field_names_set}
 
         if system_matrices and kwargs:
             raise ValueError("Individual matrix arguments cannot be set if 'system_matrices' argument is set")
@@ -495,7 +496,7 @@ class MldModel(MldBase):
                             if not np.issubdtype(system_matrix.dtype, np.number):
                                 raise TypeError("System matrices must be numeric, callable, or symbolic.")
                         new_sys_mats[sys_matrix_id] = system_matrix
-                elif sys_matrix_id not in self._allowed_data_set:
+                elif sys_matrix_id not in self._field_names_set:
                     if sys_matrix_id in kwargs:
                         raise ValueError("Invalid matrix name in kwargs: {}".format(sys_matrix_id))
                     else:
@@ -757,7 +758,7 @@ class MldModel(MldBase):
     # TODO REWORK
     @staticmethod
     def concat_mld(mld_model_list, sparse=True):
-        concat_sys_mats = StructDict.fromkeys(MldModel._allowed_data_set, [])
+        concat_sys_mats = StructDict.fromkeys(MldModel._field_names_set, [])
         for sys_matrix_id in concat_sys_mats:
             concat_mat_list = []
             for model in mld_model_list:
@@ -1012,7 +1013,7 @@ def _get_param_sym_tup(expr):
 
 
 if __name__ == '__main__':
-    a = dict.fromkeys(MldModel._allowed_data_set, np.ones((2, 2)))
+    a = dict.fromkeys(MldModel._field_names_set, np.ones((2, 2)))
     a.update(b5=np.ones((2, 1)), d5=np.ones((2, 1)), f5=np.ones((2, 1)))
     mld = MldModel(a)
     mld2 = MldModel({'A': 1})

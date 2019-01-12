@@ -60,3 +60,6 @@ class St2(dict):
             return object.__setattr__(self, key, value)
         else:
             self.__setitem__(key, value)
+
+import namedlist
+import ast

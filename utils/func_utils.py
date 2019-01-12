@@ -59,12 +59,12 @@ def get_cached_func_spec(func, bypass_cache=False, clear_cache=False):
     return f_spec
 
 
-def make_function(arg_spec, name='func', body='pass', globals=None, locals=None):
+def make_function(arg_spec, name='func', body='pass', global_ns=None, local_ns=None):
     arg_spec_str = inspect.formatargspec(*arg_spec)
-    globals = globals if globals is not None else {}
-    locals = locals if locals is not None else {}
-    exec(f"def {name}{arg_spec_str}: {body}", globals, locals)
-    func = locals[name]
+    global_ns = global_ns if global_ns is not None else {}
+    local_ns = local_ns if local_ns is not None else {}
+    exec(f"def {name}{arg_spec_str}: {body}", global_ns, local_ns)
+    func = local_ns[name]
     return func
 
 
@@ -95,4 +95,4 @@ def make_args_kwargs_getter(func, f_spec=None):
         return _ArgsKwargs(pos_only_args, var_args, all_kw_args)
     """
     return make_function(f_spec.arg_spec, name=func.__name__ + "_args_kwargs_getter", body=body,
-                         globals={'_ArgsKwargs': _ArgsKwargs})
+                         global_ns={'_ArgsKwargs': _ArgsKwargs})
