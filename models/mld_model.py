@@ -197,7 +197,8 @@ class MldInfo(MldBase):
                      (MldInfoDataTypes.bin_dims, _var_to_bin_dim_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.var_types, _var_to_type_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.meta_data, _meta_data_names)]))
-    _field_names_set = frozenset([data for data_type in _data_layout.values() for data in data_type])
+    _field_names = [data for data_type in _data_layout.values() for data in data_type]
+    _field_names_set = frozenset(_field_names)
 
     def __init__(self, mld_info_data=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  required_params=None, **kwargs):
@@ -413,13 +414,14 @@ class MldModel(MldBase):
     _sys_mat_names = set([data for data_type in _data_layout.values() for data in data_type])
     _sys_mat_names_private = set(_state_input_mat_names_private + _output_mat_names_private)
 
-    _field_names_set = frozenset(_sys_mat_names | _sys_mat_names_private)
+    _field_names = list(_sys_mat_names | _sys_mat_names_private)
+    _field_names_set = frozenset(_field_names)
 
     # _sys_matrix_names_map = MldModelMatTypesNamedTup(_state_input_mat_names, _output_mat_names, _constraint_mat_names)
 
     def __init__(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  **kwargs):
-        super(MldModel, self).__init__(**kwargs)
+        super(MldModel, self).__init__()
         super(MldModel, self).update(dict.fromkeys(self._field_names_set, np.empty(shape=(0, 0))))
         self._mld_info = MldInfo()
         self._mld_type = None

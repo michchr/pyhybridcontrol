@@ -51,7 +51,6 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
     def filler_calc(key_width):
         return ''.join(['\n', ' ' * (key_width + 2 + align_padding_width)])
 
-
     keys = sorted(data.keys(), key=_key or str) if sort else list(data.keys())
 
     key_widths = [len(repr(key)) for key in keys]
@@ -116,40 +115,12 @@ class StructDictMixin(metaclass=StructDictMeta):
     @abstractmethod
     def __init__(self, *args, **kwargs):
         self._base_dict_init(*args, **kwargs)
-        # noinspection PyTypeChecker
-        if len(self):
-            self._check_invalid_keys()
-
-    def _check_invalid_keys(self):
-        invalid_keys = self._internal_names_set.intersection(self.keys())
-        if invalid_keys:
-            for key in invalid_keys:
-                self._base_dict_delitem(key)
-            raise ValueError(
-                f"Cannot add items to struct dict with keys contained in '_internal_names_set': '{invalid_keys}'")
-
-    @abstractmethod
-    def __setitem__(self, key, value):
-        if key in self:
-            self._base_dict_setitem(key, value)
-        else:
-            self._base_dict_setitem(key, value)
-            if key in self._internal_names_set:
-                self._check_invalid_keys()
 
     @property
     def base_dict(self):
         """Return the base_dict of the struct_dict."""
         return self._base_dict
 
-    @abstractmethod
-    def update(self, *args, **kwargs):
-        # noinspection PyTypeChecker
-        old_len = len(self)
-        self._base_dict_update(*args, **kwargs)
-        # noinspection PyTypeChecker
-        if len(self) - old_len:  # only need to check for invalid keys if items are added
-            self._check_invalid_keys()
 
     @abstractmethod
     def setdefault(self, key, default=None):
@@ -163,10 +134,11 @@ class StructDictMixin(metaclass=StructDictMeta):
 
     def __setattr__(self, key, value):
         if key in self:
-            return self.__setitem__(key, value)
+            self[key] = value
+            return
         try:
             attr = object.__getattribute__(self, key)
-        except (AttributeError, KeyError):
+        except AttributeError:
             pass
         else:
             if isinstance(attr, (_MethodType, _BuiltinMethodType)):
@@ -178,13 +150,13 @@ class StructDictMixin(metaclass=StructDictMeta):
         if key in self._internal_names_set:
             return object.__setattr__(self, key, value)
         else:
-            self.__setitem__(key, value)
+            self[key] = value
 
     def __getattr__(self, key):
         try:
-            return self.__getitem__(key)
+            return self[key]
         except KeyError:
-            raise AttributeError("'{0}' object has no attribute '{1}'".format(self.__class__.__name__, key))
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
 
     def __dir__(self):
         orig_dir = set(dir(type(self)))
@@ -267,7 +239,6 @@ class StructDictMixin(metaclass=StructDictMeta):
         except TypeError:
             raise TypeError("Can only create reversed map of struct where all struct values are hashable")
 
-        self._check_invalid_keys()
         # noinspection PyTypeChecker
         if len(reversed_map) < len(self):
             values = list(self.values())
@@ -342,6 +313,7 @@ def _itemdeleter(item):
 
     return caller
 
+
 def add_item_accessor_property(obj, item):
     try:
         setattr(obj, item, _property(fget=_itemgetter(item),
@@ -355,19 +327,25 @@ class StructPropDictMeta(StructDictMeta):
     def __new__(cls, name, bases, _dict, **kwargs):
         kls = super(StructPropDictMeta, cls).__new__(cls, name, bases, _dict, **kwargs)
 
-        if hasattr(kls, '_field_names_set'):
-            invalid_field_names = set(kls._field_names_set).intersection(kls._internal_names_set)
+        if hasattr(kls, '_field_names'):
+            invalid_field_names = set(kls._field_names).intersection(kls._internal_names_set)
             if invalid_field_names:
                 raise ValueError(
                     f"Cannot create StructPropDict with invalid field names, i.e. names contained in "
                     f"'_internal_names_set': '{invalid_field_names}'")
-            for name in kls._field_names_set:
+            for name in kls._field_names:
                 add_item_accessor_property(kls, name)
+            if '_field_names_set' in kls.__dict__:
+                if set(kls._field_names).difference(kls._field_names_set):
+                    raise ValueError("All items in _field_names must be in _field_names_set.")
+            else:
+                kls._field_names_set = frozenset(kls._field_names)
         else:
-            kls._field_names_set = set()
+            kls._field_names = ()
+            kls._field_names_set = frozenset()
 
         try:
-            kls._default_dict = kls._base_dict.fromkeys(kls._field_names,None)
+            kls._default_dict = kls._base_dict.fromkeys(kls._field_names, None)
         except AttributeError:
             pass
 
@@ -390,23 +368,43 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
             self._base_dict_init(self._base_dict.fromkeys(self._field_names, _default))
         if args and kwargs:
             self._base_dict_init(*args, **kwargs)
-            if len(self) != len(self._field_names):
-                self._check_invalid_keys()
-                self._create_required_properties()
 
-    @abstractmethod
-    def __setitem__(self, key, value):
-        if key in self or key in self._field_names_set:
-            self._base_dict_setitem(key, value)
+    def __setattr__(self, key, value):
+        if key in self:
+            self[key] = value
+            return
+        try:
+            attr = object.__getattribute__(self, key)
+        except AttributeError:
+            pass
         else:
-            self._base_dict_setitem(key, value)
-            if key in self._internal_names_set:
-                self._check_invalid_keys()
+            if isinstance(attr, (_MethodType, _BuiltinMethodType)):
+                raise ValueError(
+                    f"Cannot modify or add item: '{key}', it is a {self.__class__.__name__} object method.")
+            else:
+                return object.__setattr__(self, key, value)
+
+        if key in self._internal_names_set:
+            return object.__setattr__(self, key, value)
+        else:
+            self[key] = value
             self._create_property(key)
 
+    def __getattr__(self, key):
+        try:
+            retval = self[key]
+        except KeyError:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
+        self._create_property(key)
+        return retval
+
     def _create_property(self, name):
-        if not hasattr(self, str(name)) and isinstance(name, str):
+        try:
+            object.__getattribute__(self, name)
+        except AttributeError:
             add_item_accessor_property(self.__class__, name)
+        except TypeError:
+            pass
 
     def _delete_property(self, name):
         if name not in self._field_names_set:
@@ -415,7 +413,7 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
             except AttributeError:
                 pass
 
-    def _delete_required_properties(self):
+    def _delete_redundant_properties(self):
         redundant_props = set(self.keys()).difference(self._field_names_set)
         for key in redundant_props:
             self._delete_property(key)
@@ -426,57 +424,15 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
             self._create_property(key)
 
     @abstractmethod
-    def update(self, *args, **kwargs):
-        # noinspection PyTypeChecker
-        old_len = len(self)
-        self._base_dict_update(*args, **kwargs)
-        # noinspection PyTypeChecker
-        if len(self) - old_len:  # only need to check for invalid keys if items are added
-            self._check_invalid_keys()
-            self._create_required_properties()
-
-    @abstractmethod
-    def setdefault(self, key, default=None):
-        if key in self:
-            return self._base_dict_setdefault(key, default)
-        else:
-            ret_val = self._base_dict_setdefault(key, default)
-            if key in self._internal_names_set:
-                self._check_invalid_keys()
-            self._create_property(key)
-            return ret_val
-
-    @abstractmethod
     def clear(self):
         self._base_dict_clear()
-        self._delete_required_properties()
-
-    @abstractmethod
-    def popitem(self):
-        key, value = self._base_dict_popitem()
-        self._delete_property(key)
-        return (key, value)
-
-    @abstractmethod
-    def pop(self, key, default=ParNotSet):
-        self._delete_property(key)
-        try:
-            return self._base_dict_pop(key)
-        except KeyError:
-            if default is not ParNotSet:
-                return default
-            else:
-                raise
-
-    @abstractmethod
-    def __delitem__(self, key):
-        self._delete_property(key)
-        self._base_dict_delitem(key)
+        self._delete_redundant_properties()
 
     def to_reversed_map(self):
         reversed_map = super(StructPropDictMixin, self).to_reversed_map()
         self._create_required_properties()
         return reversed_map
+
 
 _struct_prop_dict_class_template = """\
 from builtins import dict as BaseDict
@@ -494,11 +450,8 @@ class _StructPropDict(StructPropDictMixin, BaseDict):
         __repr__ = StructPropDictMixin._sorted_repr
 
 class {typename}(_StructPropDict):
-
     __slots__ = ()
-
     _field_names = {field_names!r}
-    _field_names_set = frozenset(_field_names)
 """
 
 
