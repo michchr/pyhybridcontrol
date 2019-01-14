@@ -12,13 +12,13 @@ from models.mld_model import MldModel, MldInfo
 
 
 def _process_base_args(self, f_kwargs=None, *,
-                       N_p=ParNotSet, N_tilde=ParNotSet,
+                       N_p=ParNotSet, N_p1=ParNotSet,
                        mld_numeric=ParNotSet, mld_numeric_tilde=ParNotSet, mld_info_k0=ParNotSet):
     if N_p is None:
         f_kwargs['N_p'] = N_p = self.N_p
 
-    if N_tilde is None:
-        f_kwargs['N_tilde'] = N_p + 1
+    if N_p1 is None:
+        f_kwargs['N_p1'] = N_p + 1
 
     if mld_numeric_tilde is None:
         f_kwargs['mld_numeric_tilde'] = mld_numeric_tilde = self.mld_numeric_tilde
@@ -53,11 +53,11 @@ def _process_A_pow_tilde_arg(self, f_kwargs=None, *,
     return f_kwargs
 
 class MpcBase:
-    def __init__(self, agent=None, N_p=None, N_tilde=None, mld_numeric=None, mld_numeric_tilde=None):
+    def __init__(self, agent=None, N_p=None, N_p1=None, mld_numeric=None, mld_numeric_tilde=None):
         if agent is not None:
             self._agent = weakref.proxy(agent)
             self._N_p = None
-            self._N_tilde = None
+            self._N_p1 = None
             self._mld_numeric = None
             self._mld_numeric_tilde = None
         else:
@@ -71,8 +71,8 @@ class MpcBase:
         return (self._agent.N_p if self._agent else self._N_p)
 
     @property
-    def N_tilde(self):
-        return (self._agent.N_tilde if self._agent else self._N_tilde)
+    def N_p1(self):
+        return (self._agent.N_p1 if self._agent else self._N_p1)
 
     @property
     def mld_numeric(self):
@@ -84,12 +84,12 @@ class MpcBase:
 
 
 class MpcOptVariables(MpcBase):
-    def __init__(self, agent=None, N_p=None, N_tilde=None, mld_numeric=None, mld_numeric_tilde=None):
-        super(MpcOptVariables, self).__init__(agent=agent, N_p=N_p, N_tilde=N_tilde,
+    def __init__(self, agent=None, N_p=None, N_p1=None, mld_numeric=None, mld_numeric_tilde=None):
+        super(MpcOptVariables, self).__init__(agent=agent, N_p=N_p, N_p1=N_p1,
                                               mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde)
 
     @process_method_args_decor(_process_base_args)
-    def gen_optimization_vars(self, N_p=None, N_tilde=None, mld_numeric=None, mld_numeric_tilde=None,
+    def gen_optimization_vars(self, N_p=None, N_p1=None, mld_numeric=None, mld_numeric_tilde=None,
                               mld_info_k0=None):
 
         var_names = mld_info_k0._var_names_controllable
@@ -100,7 +100,7 @@ class MpcOptVariables(MpcBase):
             var_types_tilde_mats = {
                 var_name: (
                     np.hstack(
-                        [mld_numeric_tilde[k].mld_info.get_var_type(var_name) for k in range(N_tilde)]
+                        [mld_numeric_tilde[k].mld_info.get_var_type(var_name) for k in range(N_p1)]
                     ) if mld_info_k0.get_var_dim(var_name) else np.empty((0, mld_info_k0.get_var_dim(var_name)),
                                                                          dtype=np.str)
                 ) for var_name in var_names
@@ -108,7 +108,7 @@ class MpcOptVariables(MpcBase):
         else:
             var_types_tilde_mats = {
                 var_name: (
-                    np.repeat(mld_numeric.mld_info.get_var_type(var_name), N_tilde, axis=1))
+                    np.repeat(mld_numeric.mld_info.get_var_type(var_name), N_p1, axis=1))
                 for var_name in var_names
             }
 
@@ -120,7 +120,7 @@ class MpcOptVariables(MpcBase):
         opt_var_tilde_mats = {
             var_name: (
                 cvx.Variable(var_type_mat.shape, boolean=to_bin_index(var_type_mat)) if var_type_mat.size
-                else np.empty((0, N_tilde))
+                else np.empty((0, N_p1))
             ) for var_name, var_type_mat in var_types_tilde_mats.items()
         }
 
@@ -134,15 +134,15 @@ class MpcOptVariables(MpcBase):
             return (
                 "".join([var_name.capitalize(), '_tilde_', postfix]))
 
-        # add named tilde_mat_N_tilde to output
+        # add named tilde_mat_N_p1 to output
         opt_var_struct.update({
-            app_tilde(var_name, 'mat_N_tilde'): (opt_var_tilde_mat)
+            app_tilde(var_name, 'mat_N_p1'): (opt_var_tilde_mat)
             for var_name, opt_var_tilde_mat in opt_var_tilde_mats.items()}
         )
 
-        # add named tilde_N_tilde to output
+        # add named tilde_N_p1 to output
         opt_var_struct.update({
-            app_tilde(var_name, 'N_tilde'): (
+            app_tilde(var_name, 'N_p1'): (
                 cvx.reshape(var_mat_tilde, (var_mat_tilde.size, 1)) if var_mat_tilde.size else np.empty((0, 1))
             ) for var_name, var_mat_tilde in opt_var_tilde_mats.items()
         })
@@ -159,16 +159,16 @@ class MpcOptVariables(MpcBase):
 
 
 class MpcEvoGenerator(MpcBase):
-    def __init__(self, agent=None, N_p=None, N_tilde=None, mld_numeric=None, mld_numeric_tilde=None):
-        super(MpcEvoGenerator, self).__init__(agent=agent, N_p=N_p, N_tilde=N_tilde,
+    def __init__(self, agent=None, N_p=None, N_p1=None, mld_numeric=None, mld_numeric_tilde=None):
+        super(MpcEvoGenerator, self).__init__(agent=agent, N_p=N_p, N_p1=N_p1,
                                               mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde)
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def gen_mpc_evolution_matrices(self, N_p=None, N_tilde=None,
+    def gen_mpc_evolution_matrices(self, N_p=None, N_p1=None,
                                    mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                                    A_pow_tilde=None, sparse=None, mat_ops=None):
 
-        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_tilde=N_tilde,
+        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_p1=N_p1,
                           mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde, mld_info_k0=mld_info_k0,
                           A_pow_tilde=A_pow_tilde,
                           sparse=sparse, mat_ops=mat_ops)
@@ -191,13 +191,13 @@ class MpcEvoGenerator(MpcBase):
 
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def gen_state_input_evolution_matrices(self, N_p=None, N_tilde=None,
+    def gen_state_input_evolution_matrices(self, N_p=None, N_p1=None,
                                            mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                                            A_pow_tilde=None, sparse=None, mat_ops=None):
 
         # X_tilde = Phi_x @ x(0) + Gamma_V @ V + Gamma_W @ W + Gamma_b5
 
-        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_tilde=N_tilde,
+        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_p1=N_p1,
                           mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde, mld_info_k0=mld_info_k0,
                           A_pow_tilde=A_pow_tilde,
                           sparse=sparse, mat_ops=mat_ops)
@@ -210,22 +210,22 @@ class MpcEvoGenerator(MpcBase):
 
         nx, nu, ndelta, nz, nomega = mld_info_k0.get_sub_list(['nx', 'nu', 'ndelta', 'nz', 'nomega'])
 
-        state_input_evolution_struct['Phi_x_N_tilde'] = Phi_x[:N_tilde * nx, :]
-        state_input_evolution_struct['Gamma_V_N_tilde'] = Gamma_V[:N_tilde * nx, :]
-        state_input_evolution_struct['Gamma_W_N_tilde'] = Gamma_W[:N_tilde * nx, :]
-        state_input_evolution_struct['Gamma_b5_N_tilde'] = Gamma_b5[:N_tilde * nx, :]
+        state_input_evolution_struct['Phi_x_N_p1'] = Phi_x[:N_p1 * nx, :]
+        state_input_evolution_struct['Gamma_V_N_p1'] = Gamma_V[:N_p1 * nx, :]
+        state_input_evolution_struct['Gamma_W_N_p1'] = Gamma_W[:N_p1 * nx, :]
+        state_input_evolution_struct['Gamma_b5_N_p1'] = Gamma_b5[:N_p1 * nx, :]
 
         return state_input_evolution_struct
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def gen_output_evolution_matrices(self, N_p=None, N_tilde=None,
+    def gen_output_evolution_matrices(self, N_p=None, N_p1=None,
                                       mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                                       state_input_evolution_struct=None,
                                       A_pow_tilde=None, sparse=None, mat_ops=None):
 
         # Y_tilde = L_x @ x_0 + L_V @ V_tilde + L_W @ W_tilde + L_5
 
-        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_tilde=N_tilde,
+        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_p1=N_p1,
                           mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde, mld_info_k0=mld_info_k0,
                           A_pow_tilde=A_pow_tilde,
                           sparse=sparse, mat_ops=mat_ops)
@@ -233,9 +233,9 @@ class MpcEvoGenerator(MpcBase):
         if state_input_evolution_struct is None:
             state_input_evolution_struct = self.gen_state_input_evolution_matrices(**gen_kwargs)
 
-        Phi_x_N_tilde, Gamma_V_N_tilde, Gamma_W_N_tilde, Gamma_b5_N_tilde = (
+        Phi_x_N_p1, Gamma_V_N_p1, Gamma_W_N_p1, Gamma_b5_N_p1 = (
             state_input_evolution_struct.get_sub_list(
-                ['Phi_x_N_tilde', 'Gamma_V_N_tilde', 'Gamma_W_N_tilde', 'Gamma_b5_N_tilde']
+                ['Phi_x_N_p1', 'Gamma_V_N_p1', 'Gamma_W_N_p1', 'Gamma_b5_N_p1']
             ))
 
         gen_kwargs.pop('A_pow_tilde')  # A_pow_tilde not required for output evo gen matrices
@@ -247,15 +247,15 @@ class MpcEvoGenerator(MpcBase):
         D4_tilde = self._gen_D4_tilde_diag(**gen_kwargs)
         d5_tilde = self._gen_d5_tilde(**gen_kwargs)
 
-        output_evo_struct['L_x_N_tilde'] = C_tilde @ Phi_x_N_tilde
-        output_evo_struct['L_V_N_tilde'] = C_tilde @ Gamma_V_N_tilde + D_V_tilde
-        output_evo_struct['L_W_N_tilde'] = C_tilde @ Gamma_W_N_tilde + D4_tilde
-        output_evo_struct['L_5_N_tilde'] = C_tilde @ Gamma_b5_N_tilde + d5_tilde
+        output_evo_struct['L_x_N_p1'] = C_tilde @ Phi_x_N_p1
+        output_evo_struct['L_V_N_p1'] = C_tilde @ Gamma_V_N_p1 + D_V_tilde
+        output_evo_struct['L_W_N_p1'] = C_tilde @ Gamma_W_N_p1 + D4_tilde
+        output_evo_struct['L_5_N_p1'] = C_tilde @ Gamma_b5_N_p1 + d5_tilde
 
         return output_evo_struct
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def gen_cons_evolution_matrices(self, N_p=None, N_tilde=None,
+    def gen_cons_evolution_matrices(self, N_p=None, N_p1=None,
                                     mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                                     state_input_evolution_struct=None,
                                     output_evolution_struct=None,
@@ -263,7 +263,7 @@ class MpcEvoGenerator(MpcBase):
 
         # H_V @ V_tilde <= H_x @ x_0 + H_W @ W_tilde + H_5
 
-        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_tilde=N_tilde,
+        gen_kwargs = dict(_disable_process_args=True, N_p=N_p, N_p1=N_p1,
                           mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde, mld_info_k0=mld_info_k0,
                           A_pow_tilde=A_pow_tilde,
                           sparse=sparse, mat_ops=mat_ops)
@@ -271,18 +271,18 @@ class MpcEvoGenerator(MpcBase):
         if state_input_evolution_struct is None:
             state_input_evolution_struct = self.gen_state_input_evolution_matrices(**gen_kwargs)
 
-        Phi_x_N_tilde, Gamma_V_N_tilde, Gamma_W_N_tilde, Gamma_b5_N_tilde = (
+        Phi_x_N_p1, Gamma_V_N_p1, Gamma_W_N_p1, Gamma_b5_N_p1 = (
             state_input_evolution_struct.get_sub_list(
-                ['Phi_x_N_tilde', 'Gamma_V_N_tilde', 'Gamma_W_N_tilde', 'Gamma_b5_N_tilde']
+                ['Phi_x_N_p1', 'Gamma_V_N_p1', 'Gamma_W_N_p1', 'Gamma_b5_N_p1']
             ))
 
         if output_evolution_struct is None:
             output_evolution_struct = self.gen_output_evolution_matrices(
                 state_input_evolution_struct=state_input_evolution_struct, **gen_kwargs)
 
-        L_x_N_tilde, L_V_N_tilde, L_W_N_tilde, L_5_N_tilde = (
+        L_x_N_p1, L_V_N_p1, L_W_N_p1, L_5_N_p1 = (
             output_evolution_struct.get_sub_list(
-                ['L_x_N_tilde', 'L_V_N_tilde', 'L_W_N_tilde', 'L_5_N_tilde']
+                ['L_x_N_p1', 'L_V_N_p1', 'L_W_N_p1', 'L_5_N_p1']
             ))
 
         gen_kwargs.pop('A_pow_tilde')  # A_pow_tilde not required for constraint evo gen matrices
@@ -295,10 +295,10 @@ class MpcEvoGenerator(MpcBase):
         f5_tilde = self._gen_f5_tilde(**gen_kwargs)
         G_tilde = self._gen_G_tilde_diag(**gen_kwargs)
 
-        cons_evo_struct['H_x'] = - (E_tilde @ Phi_x_N_tilde + G_tilde @ L_x_N_tilde)
-        cons_evo_struct['H_V'] = E_tilde @ Gamma_V_N_tilde + F_V_tilde + G_tilde @ L_V_N_tilde
-        cons_evo_struct['H_W'] = -(E_tilde @ Gamma_W_N_tilde + F4_tilde + G_tilde @ L_W_N_tilde)
-        cons_evo_struct['H_5'] = f5_tilde - (E_tilde @ Gamma_b5_N_tilde + G_tilde @ L_5_N_tilde)
+        cons_evo_struct['H_x'] = - (E_tilde @ Phi_x_N_p1 + G_tilde @ L_x_N_p1)
+        cons_evo_struct['H_V'] = E_tilde @ Gamma_V_N_p1 + F_V_tilde + G_tilde @ L_V_N_p1
+        cons_evo_struct['H_W'] = -(E_tilde @ Gamma_W_N_p1 + F4_tilde + G_tilde @ L_W_N_p1)
+        cons_evo_struct['H_5'] = f5_tilde - (E_tilde @ Gamma_b5_N_p1 + G_tilde @ L_5_N_p1)
 
         return cons_evo_struct
 
@@ -324,7 +324,7 @@ class MpcEvoGenerator(MpcBase):
         return Phi_x
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def _gen_gamma_V(self, N_p=None, N_tilde=None,
+    def _gen_gamma_V(self, N_p=None, N_p1=None,
                      mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                      A_pow_tilde=None,
                      sparse=None, mat_ops=None):
@@ -333,7 +333,7 @@ class MpcEvoGenerator(MpcBase):
         # Gamma_V = toeplitz(col, row)
 
         input_mat_names = ['B1', 'B2', 'B3', '_zeros_Psi_state_input']
-        Gamma_V = self._gen_input_evolution_mat(N_p=N_p, N_tilde=N_tilde,
+        Gamma_V = self._gen_input_evolution_mat(N_p=N_p, N_p1=N_p1,
                                                 mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                                 input_mat_names=input_mat_names,
                                                 A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
@@ -341,7 +341,7 @@ class MpcEvoGenerator(MpcBase):
         return Gamma_V
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def _gen_gamma_W(self, N_p=None, N_tilde=None,
+    def _gen_gamma_W(self, N_p=None, N_p1=None,
                      mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                      A_pow_tilde=None,
                      sparse=None, mat_ops=None):
@@ -351,14 +351,14 @@ class MpcEvoGenerator(MpcBase):
         # Gamma_W = toeplitz(col, row)
 
         input_mat_names = ['B4']
-        Gamma_W = self._gen_input_evolution_mat(N_p=N_p, N_tilde=N_tilde,
+        Gamma_W = self._gen_input_evolution_mat(N_p=N_p, N_p1=N_p1,
                                                 mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                                 input_mat_names=input_mat_names,
                                                 A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
         return Gamma_W
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args, _process_A_pow_tilde_arg)
-    def _gen_gamma_b5(self, N_p=None, N_tilde=None,
+    def _gen_gamma_b5(self, N_p=None, N_p1=None,
                       mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                       A_pow_tilde=None,
                       sparse=None, mat_ops=None):
@@ -367,7 +367,7 @@ class MpcEvoGenerator(MpcBase):
         # row = [[0s], ... ,[0s]]
         # Gamma_b5 = toeplitz(col, row)
         input_mat_names = ['b5']
-        Gamma_b5_tilde = self._gen_input_evolution_mat(N_p=N_p, N_tilde=N_tilde,
+        Gamma_b5_tilde = self._gen_input_evolution_mat(N_p=N_p, N_p1=N_p1,
                                                        mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                                        input_mat_names=input_mat_names,
                                                        A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops)
@@ -378,13 +378,13 @@ class MpcEvoGenerator(MpcBase):
     ### OUTPUT EVOLUTION MATRIX COMPONENTS ###
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_C_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_C_tilde_diag(self, N_p=None, N_p1=None,
                           mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                           sparse=None, mat_ops=None):
 
         output_mat_names = ['C']
 
-        C_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde,
+        C_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1,
                                            mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                            mat_names=output_mat_names,
                                            sparse=sparse, mat_ops=mat_ops)
@@ -392,13 +392,13 @@ class MpcEvoGenerator(MpcBase):
         return C_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_D_V_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_D_V_tilde_diag(self, N_p=None, N_p1=None,
                             mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                             sparse=None, mat_ops=None):
 
         output_mat_names = ['D1', 'D2', 'D3', '_zeros_Psi_output']
 
-        D_123_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde,
+        D_123_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1,
                                                mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                                mat_names=output_mat_names,
                                                sparse=sparse, mat_ops=mat_ops)
@@ -406,13 +406,13 @@ class MpcEvoGenerator(MpcBase):
         return D_123_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_D4_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_D4_tilde_diag(self, N_p=None, N_p1=None,
                            mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                            sparse=None, mat_ops=None):
 
         output_mat_names = ['D4']
 
-        D4_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde,
+        D4_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1,
                                             mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                             mat_names=output_mat_names,
                                             sparse=sparse, mat_ops=mat_ops)
@@ -420,27 +420,27 @@ class MpcEvoGenerator(MpcBase):
         return D4_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_d5_tilde(self, N_p=None, N_tilde=None,
+    def _gen_d5_tilde(self, N_p=None, N_p1=None,
                       mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                       sparse=None, mat_ops=None):
 
         if mld_numeric_tilde:
-            d5_tilde = np.vstack([mld_numeric_tilde[k]['d5'] for k in range(N_tilde)])
+            d5_tilde = np.vstack([mld_numeric_tilde[k]['d5'] for k in range(N_p1)])
         else:
-            d5_tilde = np.vstack([mld_numeric['d5']] * (N_tilde))
+            d5_tilde = np.vstack([mld_numeric['d5']] * (N_p1))
 
         return d5_tilde
 
     ### CONSTRAINT EVOLUTION MATRIX COMPONENTS ###
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_E_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_E_tilde_diag(self, N_p=None, N_p1=None,
                           mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                           sparse=None, mat_ops=None):
 
         cons_mat_names = ['E']
 
-        E_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde,
+        E_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1,
                                            mld_numeric=mld_numeric, mld_numeric_tilde=mld_numeric_tilde,
                                            mat_names=cons_mat_names,
                                            sparse=sparse, mat_ops=mat_ops)
@@ -448,13 +448,13 @@ class MpcEvoGenerator(MpcBase):
         return E_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_F_V_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_F_V_tilde_diag(self, N_p=None, N_p1=None,
                             mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                             sparse=None, mat_ops=None):
 
         cons_mat_names = ['F1', 'F2', 'F3', 'Psi']
 
-        F_123_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde, mld_numeric=mld_numeric,
+        F_123_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1, mld_numeric=mld_numeric,
                                                mld_numeric_tilde=mld_numeric_tilde,
                                                mat_names=cons_mat_names,
                                                sparse=sparse, mat_ops=mat_ops)
@@ -462,13 +462,13 @@ class MpcEvoGenerator(MpcBase):
         return F_123_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_F4_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_F4_tilde_diag(self, N_p=None, N_p1=None,
                            mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                            sparse=None, mat_ops=None):
 
         cons_mat_names = ['F4']
 
-        F4_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde, mld_numeric=mld_numeric,
+        F4_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1, mld_numeric=mld_numeric,
                                             mld_numeric_tilde=mld_numeric_tilde,
                                             mat_names=cons_mat_names,
                                             sparse=sparse, mat_ops=mat_ops)
@@ -476,25 +476,25 @@ class MpcEvoGenerator(MpcBase):
         return F4_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_f5_tilde(self, N_p=None, N_tilde=None,
+    def _gen_f5_tilde(self, N_p=None, N_p1=None,
                       mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                       sparse=None, mat_ops=None):
 
         if mld_numeric_tilde:
-            f5_tilde = np.vstack([mld_numeric_tilde[k]['f5'] for k in range(N_tilde)])
+            f5_tilde = np.vstack([mld_numeric_tilde[k]['f5'] for k in range(N_p1)])
         else:
-            f5_tilde = np.vstack([mld_numeric['f5']] * (N_tilde))
+            f5_tilde = np.vstack([mld_numeric['f5']] * (N_p1))
 
         return f5_tilde
 
     @process_method_args_decor(_process_base_args, _process_mat_op_args)
-    def _gen_G_tilde_diag(self, N_p=None, N_tilde=None,
+    def _gen_G_tilde_diag(self, N_p=None, N_p1=None,
                           mld_numeric=None, mld_numeric_tilde=None, mld_info_k0=None,
                           sparse=None, mat_ops=None):
 
         cons_mat_names = ['G']
 
-        G_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_tilde=N_tilde, mld_numeric=mld_numeric,
+        G_tilde = self._gen_mat_tilde_diag(N_p=N_p, N_p1=N_p1, mld_numeric=mld_numeric,
                                            mld_numeric_tilde=mld_numeric_tilde,
                                            mat_names=cons_mat_names,
                                            sparse=sparse, mat_ops=mat_ops)
@@ -502,7 +502,7 @@ class MpcEvoGenerator(MpcBase):
         return G_tilde
 
     @staticmethod
-    def _gen_input_evolution_mat(N_p=None, N_tilde=None,
+    def _gen_input_evolution_mat(N_p=None, N_p1=None,
                                  mld_numeric=None, mld_numeric_tilde=None,
                                  input_mat_names=None, A_pow_tilde=None,
                                  sparse=None, mat_ops=None):
@@ -515,19 +515,19 @@ class MpcEvoGenerator(MpcBase):
 
             col_list = ([mat_ops.zeros(B_hstack_tilde[0].shape)] +
                         [mat_ops.vmatrix(A_pow_tilde[k] @ B_hstack_tilde[k]) for k in range(N_p)])
-            row_list = [mat_ops.zeros(B_hstack_tilde[0].shape)] * (N_tilde)
+            row_list = [mat_ops.zeros(B_hstack_tilde[0].shape)] * (N_p1)
         else:
             B_hstack = mat_ops.vmatrix(mat_ops.package.hstack(
                 [mat_ops.hmatrix(mld_numeric[input_mat_name]) for input_mat_name in input_mat_names]))
 
             col_list = ([mat_ops.zeros(B_hstack.shape)] +
                         [mat_ops.vmatrix(A_pow_tilde[k] @ B_hstack) for k in range(N_p)])
-            row_list = [mat_ops.zeros(B_hstack.shape)] * (N_tilde)
+            row_list = [mat_ops.zeros(B_hstack.shape)] * (N_p1)
 
         return block_toeplitz(col_list, row_list, sparse=sparse)
 
     @staticmethod
-    def _gen_mat_tilde_diag(N_p=None, N_tilde=None,
+    def _gen_mat_tilde_diag(N_p=None, N_p1=None,
                             mld_numeric=None, mld_numeric_tilde=None,
                             mat_names=None,
                             sparse=None, mat_ops=None):
@@ -536,12 +536,12 @@ class MpcEvoGenerator(MpcBase):
             mat_hstack_tilde = [
                 mat_ops.vmatrix(mat_ops.package.hstack(
                     [mat_ops.hmatrix(mld_numeric_tilde[k][cons_mat_name]) for cons_mat_name in mat_names])
-                ) for k in range(N_tilde)]
+                ) for k in range(N_p1)]
 
             mat_hstack_tilde_diag = mat_ops.block_diag(mat_hstack_tilde)
         else:
             mat_hstack_tilde = [mat_ops.vmatrix(mat_ops.package.hstack(
-                [mat_ops.hmatrix(mld_numeric[cons_mat_name]) for cons_mat_name in mat_names]))] * N_tilde
+                [mat_ops.hmatrix(mld_numeric[cons_mat_name]) for cons_mat_name in mat_names]))] * N_p1
 
             mat_hstack_tilde_diag = mat_ops.block_diag(mat_hstack_tilde)
 
