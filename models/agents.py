@@ -7,7 +7,7 @@ from reprlib import recursive_repr as _recursive_repr
 # pd.set_option('mode.chained_assignment', 'raise')
 
 from models.mld_model import MldModel
-from tools.mpc_tools import MpcEvoGenerator, MpcOptVariables
+from tools.mpc_tools import MpcEvoGenerator, MpcController
 from utils.decorator_utils import ParNotSet, process_method_args_decor
 from utils.structdict import StructDict, struct_repr
 
@@ -267,7 +267,7 @@ class Agent:
 
     # todo think about cleanup
     def __del__(self):
-        print("deleting")
+        # print("deleting")
         for col in self._agent_type_id_struct[self._agent_type].values():
             try:
                 col.remove(self._agent_id)
@@ -303,13 +303,15 @@ class Agent:
 
 class MpcAgent(Agent):
 
-    def __init__(self, agent_type=None, agent_id=None, agent_model=None, N_p=None, N_tilde=None):
+    def __init__(self, agent_type=None, agent_id=None, agent_model=None, N_p=None):
         super().__init__(agent_type=agent_type, agent_id=agent_id, agent_model=agent_model)
         self._N_p = N_p if N_p is not None else 0
-        self._N_tilde = N_tilde if N_tilde is not None else self._N_p+1
+        self._N_tilde = self._N_p+1
+        self._mpc_controller = MpcController(self)
 
-        self._mpc_evo_gen = MpcEvoGenerator(self)
-        self._opt_var_gen = MpcOptVariables(self)
+    @property
+    def mpc_controller(self):
+        return self._mpc_controller
 
     @property
     def N_p(self):

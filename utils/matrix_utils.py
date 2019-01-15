@@ -15,13 +15,47 @@ def atleast_2d_col(arr, dtype=None, order=None):
     if arr.ndim == 0:
         result = arr.reshape(1, 1)
     elif arr.ndim == 1:
-        result = arr[:,np.newaxis]
+        result = arr[:, np.newaxis]
     else:
         result = arr
     return result
 
+
+def _atleast_3d_col(arr, dtype=None, order=None):
+    # used to ensure block toeplitz is compatible with scipy.linalg.toeplitz
+    arr = np.asanyarray(arr, dtype=dtype, order=order)
+    if arr.ndim == 0:
+        result = arr.reshape(1,1,1)
+    elif arr.ndim == 1:
+        result = arr[:, np.newaxis, np.newaxis]
+    elif arr.ndim == 2:
+        result = arr[:, np.newaxis]
+    else:
+        result = arr
+    return result
+
+def block_diag_dense_same_shape(mats, format=None, dtype=None):
+    arrs = np.array(mats)
+    arrs = _atleast_3d_col(arrs)
+    k, n, m = arrs.shape
+    vals = np.concatenate([arrs, np.zeros(shape=(k, n, (k - 1) * m), dtype=arrs.dtype)], axis=2)
+
+    item_size = arrs.itemsize
+    shape = (k, n, k * m)
+    strides = ((k * n - 1) * m * item_size, k * m * item_size, item_size)
+    block_diag = _as_strided(vals, shape=shape, strides=strides).reshape(n * k, m * k)
+    if dtype is not None:
+        block_diag = block_diag.astype(dtype)
+    return block_diag.copy()
+
+
 def block_diag_dense(mats, format=None, dtype=None):
-    block_diag = scl.block_diag(*mats)
+    a_mats = np.asarray(mats)
+    if a_mats.dtype != np.object:
+        block_diag = block_diag_dense_same_shape(a_mats, format=format, dtype=dtype)
+    else:
+        block_diag = scl.block_diag(*mats)
+
     if dtype is not None:
         block_diag = block_diag.astype(dtype)
     return block_diag
@@ -36,16 +70,6 @@ def create_object_array(tup):
     for ind, item in enumerate(tup):
         obj_arr[ind] = item
     return obj_arr
-
-
-def _atleast_3d_toeplitz(arr):
-    # used to ensure block toeplitz is compatible with scipy.linalg.toeplitz
-    arr = np.array(arr)
-    ndim = arr.ndim
-    if ndim < 3:
-        return np.moveaxis(np.atleast_3d(arr), ndim, 0)
-    else:
-        return np.atleast_3d(arr)
 
 
 def block_toeplitz(c_tup, r_tup=None, sparse=False):
@@ -68,8 +92,8 @@ def block_toeplitz(c_tup, r_tup=None, sparse=False):
         except ValueError:
             r = create_object_array(r_tup)
 
-    c = _atleast_3d_toeplitz(c)
-    r = _atleast_3d_toeplitz(r)
+    c = _atleast_3d_col(c)
+    r = _atleast_3d_col(r)
     # # Form a array containing a reversed c followed by r[1:] that could be strided to give us a toeplitz matrix.
     try:
         vals = np.concatenate((c[::-1], r[1:]))
@@ -156,3 +180,8 @@ def get_mat_ops(sparse=False):
             zeros=np.zeros
         )
     return mat_ops
+
+
+mats = [np.arange(1, 7).reshape(3, 2).astype(float) + 6 * i for i in range(1, 100)]
+
+
