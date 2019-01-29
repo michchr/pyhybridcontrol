@@ -22,10 +22,10 @@ _FSpecNamedTup = namedtuple('f_spec', ['signature', 'arg_spec', 'pos_only_params
                                        'all_kw_params', 'all_kw_default', 'type'])
 
 
-def get_cached_func_spec(func, bypass_cache=False, clear_cache=False):
+def get_cached_func_spec(func, bypass_cache=False, reset_cache=False, clear_cache=False):
     try:
         f_spec = func._f_spec
-        if f_spec is not None and not (bypass_cache or clear_cache):
+        if f_spec is not None and not any((bypass_cache, reset_cache, clear_cache)):
             return func._f_spec  # use cached _f_spec
     except AttributeError:
         pass
@@ -52,7 +52,7 @@ def get_cached_func_spec(func, bypass_cache=False, clear_cache=False):
                             f_all_kw_params, f_all_kw_default, f_type)
 
     cache_f_spec = f_spec if not clear_cache else None
-    if (not bypass_cache) or clear_cache:
+    if (not bypass_cache) or reset_cache or clear_cache:
         if isinstance(func, types.MethodType):
             func.__func__._f_spec = cache_f_spec  # cache f_spec as function attribute
         else:
@@ -110,8 +110,8 @@ def make_args_kwargs_getter(func, f_spec=None):
     global_ns.update(func.__globals__)
 
     for klass in func.__annotations__.values():
-        if klass.__module__ not in ('builtins',func.__module__):
-            package=inspect.getmodule(klass).__package__
+        if klass.__module__ not in ('builtins', func.__module__):
+            package = inspect.getmodule(klass).__package__
             if package:
                 global_ns[package] = importlib.import_module(package)
             else:

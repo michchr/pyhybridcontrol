@@ -229,32 +229,38 @@ def _get_expr_shapes(*exprs, get_max_dim=False):
         return shapes
 
 
+class CallableMatrixMeta(ABCMeta):
+    def __call__(cls, *args, **kwargs):
+        obj = cls.__new__(cls, *args, **kwargs)
+        if kwargs.pop('_create_object', False):
+            obj.__init__(*args, **kwargs)
+        return obj
 
 
-class CallableMatrix(wrapt.decorators.AdapterWrapper):
+class CallableMatrixBase(metaclass=CallableMatrixMeta):
 
-    def __new__(cls, matrix, matrix_name=None):
-        self = super(CallableMatrix, cls).__new__(cls)
-        if issubclass(cls, CallableMatrixConstant):
+    def __new__(cls, matrix, matrix_name=None, _nan_call=None, _create_object=False):
+        if _create_object:
+            self = super(CallableMatrixBase, cls).__new__(cls, matrix, matrix_name, _nan_call=_nan_call)
             return self
-        func = self._process_matrix_func(matrix)
-        nan_call = self._nan_call(override_func=func)
+        matrix_func = cls._process_matrix_func(matrix)
+        nan_call = cls._nan_call(matrix_func)
         if np.all(np.isfinite(nan_call)):
-            del self
-            return CallableMatrixConstant(matrix, matrix_name)
+            return CallableMatrixConstant(matrix, matrix_name, _nan_call=_nan_call, _create_object=True)
         else:
-            return self
+            return CallableMatrix(matrix, matrix_name, _nan_call=_nan_call, _create_object=True)
 
-    def _process_matrix_func(self, matrix):
+    @classmethod
+    def _process_matrix_func(cls, matrix):
         def const_func(constant):
-            def functor():
+            def constant_func():
                 return constant
 
-            return functor
+            return constant_func
 
         if isinstance(matrix, (sp.Expr, sp.Matrix)):
             system_matrix = sp.Matrix(matrix)
-            param_sym_tup = self._get_param_sym_tup(system_matrix)
+            param_sym_tup = cls._get_param_sym_tup(system_matrix)
             func = sp.lambdify(param_sym_tup, system_matrix, modules="numpy", dummify=False)
         elif inspect.isfunction(matrix):
             func = matrix
@@ -265,29 +271,64 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
 
         return func
 
-    def __init__(self, matrix, matrix_name=None):
-        if self is None:
-            return
-        if isinstance(self, type(self)):
+    @staticmethod
+    def _nan_call(matrix_func):
+        f_spec = get_cached_func_spec(matrix_func, reset_cache=True)
+        kwargs = {param_name: np.NaN for param_name in f_spec.all_kw_params}
+        args = [np.NaN] * len(f_spec.pos_only_params)
+
+        try:
+            ret_val = atleast_2d_col(matrix_func(*args, **kwargs))
+            ret_val.setflags(write=False)
+            return ret_val
+        except TypeError:
+            msg = f"_nan_call() failed, it is likely that the matrix function does not have a constant shape.\n"
+            note = (
+                "Note: all callable expressions must return with a constant array shape that does not depend on its "
+                "arguments. Shape is determined by calling the function with all arguments set to a float with value "
+                "NaN.")
+            raise TypeError(msg + note)
+
+    @staticmethod
+    def _get_param_sym_tup(expr):
+        try:
+            sym_dict = {str(sym): sym for sym in expr.free_symbols}
+            param_sym_tup = tuple([sym_dict.get(sym) for sym in sorted(sym_dict.keys())])
+        except AttributeError:
+            param_sym_tup = ()
+
+        return param_sym_tup
+
+
+class CallableMatrix(CallableMatrixBase, wrapt.decorators.AdapterWrapper):
+
+    def __init__(self, matrix, matrix_name=None, **kwargs):
+        if isinstance(matrix, type(self)):
             super(CallableMatrix, self).__init__(wrapped=matrix.__wrapped__, wrapper=matrix._self_wrapper, enabled=None,
                                                  adapter=matrix._self_adapter)
+            nan_call = self._nan_call(matrix.__wrapped__)
         else:
-            func = self._process_matrix_func(matrix)
-            self._self_matrix_name = matrix_name
-            self._self_wrapped_name = func.__name__
+            _nan_call = kwargs.get('_nan_call')
+            if _nan_call:
+                matrix_func = matrix
+                nan_call = _nan_call
+            else:
+                matrix_func = type(self)._process_matrix_func(matrix)
+                nan_call = self._nan_call(matrix_func)
 
-            func.__name__ = self._self_matrix_name if matrix_name is not None else func.__name__
-            func.__qualname__ = "".join(func.__qualname__.rsplit('.', 1)[:-1] + ['.', func.__name__]).lstrip('.')
-            self._self_wrapped_f_spec = get_cached_func_spec(func, bypass_cache=True)
+            self._self_matrix_name = matrix_name if matrix_name is not None else matrix_func.__name__
+            self._self_wrapped_name = matrix_func.__name__
 
-            adapter = self._gen_adapter(self._self_wrapped_f_spec)
+            matrix_func.__name__ = self._self_matrix_name
+            matrix_func.__qualname__ = (
+                "".join(matrix_func.__qualname__.rsplit('.', 1)[:-1] + ['.', matrix_func.__name__]).lstrip('.'))
+            self._self_wrapped_f_spec = get_cached_func_spec(matrix_func)
+
+            adapter = self._gen_callable_matrix_adapter(self._self_wrapped_f_spec)
             self._self_adapter_spec = get_cached_func_spec(adapter, bypass_cache=True)
 
-            wrapper = self._matrix_wrapper_non_constant
-            super(CallableMatrix, self).__init__(wrapped=func, wrapper=wrapper, enabled=None, adapter=adapter)
-
-        # get relevant array attributes by performing a function call with all arguments set to NaN
-        nan_call = self._nan_call()
+            wrapper = self._matrix_wrapper
+            super(CallableMatrix, self).__init__(wrapped=matrix_func, wrapper=wrapper, enabled=None, adapter=adapter)
 
         try:
             self.__delattr__('_self_shape')
@@ -305,27 +346,13 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
         self._self_is_constant = np.all(np.isfinite(nan_call))
 
         if self._self_is_constant:
+            if type(self) == CallableMatrix:
+                raise TypeError(f"Cannot initialize {type(self).__name__} object with constant matrix.")
             self._self_constant = nan_call
         else:
             self._self_constant = None
 
-    @staticmethod
-    def _nan_call(func):
-        f_spec = get_cached_func_spec(func, clear_cache=True)
-        kwargs = {param_name: np.NaN for param_name in f_spec.all_kw_params}
-        args = [np.NaN] * len(f_spec.pos_only_params)
-
-        try:
-            return atleast_2d_col(func(*args, **kwargs))
-        except TypeError:
-            msg = f"_nan_call() failed, it is likely that the matrix function does not have a constant shape.\n"
-            note = (
-                "Note: all callable expressions must return with a constant array shape that does not depend on its "
-                "arguments. Shape is determined by calling the function with all arguments set to a float with value "
-                "NaN.")
-            raise TypeError(msg + note)
-
-    def _matrix_wrapper_non_constant(self, wrapped, instance, args, kwargs):
+    def _matrix_wrapper(self, wrapped, instance, args, kwargs):
         param_struct = kwargs.pop('param_struct', None)
         if param_struct and self._self_wrapped_f_spec.all_kw_params:
             try:
@@ -356,7 +383,7 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
 
         return retval
 
-    def _gen_adapter(self, f_spec):
+    def _gen_callable_matrix_adapter(self, f_spec):
         f_args_spec_struct = OrderedStructDict(f_spec.arg_spec._asdict()).deepcopy()
         f_args_spec_struct.kwonlyargs.append('param_struct')
         if f_args_spec_struct.kwonlydefaults:
@@ -370,7 +397,6 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
 
     def __reduce__(self):
         return (type(self), (self.__wrapped__, self._self_matrix_name))
-
 
     @property
     def __name__(self):
@@ -390,7 +416,7 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
 
     @property
     def __signature__(self):
-        return self._self_wrapped_f_spec.signature
+        return self._self_adapter_spec.signature
 
     @property
     def required_params(self):
@@ -449,16 +475,13 @@ class CallableMatrix(wrapt.decorators.AdapterWrapper):
         rv = wrapped_dir | added_dir
         return sorted(rv)
 
-    @staticmethod
-    def _get_param_sym_tup(expr):
-        try:
-            sym_dict = {str(sym): sym for sym in expr.free_symbols}
-            param_sym_tup = tuple([sym_dict.get(sym) for sym in sorted(sym_dict.keys())])
-        except AttributeError:
-            param_sym_tup = ()
-
-        return param_sym_tup
 
 class CallableMatrixConstant(CallableMatrix):
+
+    def __init__(self, matrix, matrix_name=None, **kwargs):
+        super(CallableMatrixConstant, self).__init__(matrix, matrix_name=matrix_name, **kwargs)
+        if not self.is_constant:
+            raise TypeError(f"Cannot initialize {type(self).__name__} object with non-constant matrix.")
+
     def __call__(self, *, param_struct=None):
         return self._self_constant
