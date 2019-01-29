@@ -4,8 +4,8 @@ import numpy as np
 import scipy.linalg as scl
 
 from utils.structdict import StructDict
-from models.mld_model import MldModel
-from models.agents import AgentModel, Agent, PvAgentModel
+from models.mld_model import MldModel, MldSystemModel, PvMldSystemModel
+from models.agents import Agent
 from models.parameters import dewh_p, grid_p
 
 from utils.helper_funcs import is_all_None
@@ -16,7 +16,7 @@ from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries, IDX
 from tools.mongo_interface import MongoInterface
 
 
-class DewhModel(PvAgentModel):
+class DewhModel(PvMldSystemModel):
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, const_heat=True):
         param_struct = param_struct or dewh_p
         if is_all_None([mld_numeric, mld_callable, mld_symbolic]):
@@ -58,15 +58,16 @@ class DewhModel(PvAgentModel):
         mld_sym_struct.B4 = B4
         mld_sym_struct.b5 = b5
 
-        mld_sym_struct.E = sp.Matrix([1, -1])
-        mld_sym_struct.f5 = sp.Matrix([T_h_max, -T_h_min])
+        mld_sym_struct.E = sp.Matrix([[1, -1, 0, 0]]).T
+        mld_sym_struct.F1 = sp.Matrix([[0, 0, 1, -1]]).T
+        mld_sym_struct.f5 = sp.Matrix([[T_h_max, -T_h_min, 1, 0]]).T
 
         MldModel_sym = MldModel(mld_sym_struct, nu_l=1)
 
         return MldModel_sym
 
 
-class GridModel(AgentModel):
+class GridModel(MldSystemModel):
 
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, num_devices=1):
         param_struct = param_struct or grid_p

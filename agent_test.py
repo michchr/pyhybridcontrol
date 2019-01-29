@@ -1,12 +1,14 @@
-from models.agents import AgentModel, Agent, MpcAgent
-from utils.matrix_utils import block_toeplitz_alt, block_toeplitz, _atleast_3d_toeplitz
+from models.agents import Agent, MpcAgent
+from utils.matrix_utils import block_toeplitz_alt, block_toeplitz
 from models.micro_grid_agents import DewhModel, Dewh, GridModel
-from models.mld_model import MldModel, MldInfo
-from utils.structdict import StructDict, SortedDict, SortedStructDict
+from models.mld_model import MldModel, MldInfo, MldSystemModel
+from utils.structdict import StructDict, SortedStructDict
 from models.parameters import dewh_p, grid_p
 from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries
 from numpy.lib.stride_tricks import as_strided as _as_strided
 import cvxpy as cvx
+
+from tools.mpc_tools import *
 
 import scipy.sparse as scs
 import scipy.linalg as scl
@@ -16,26 +18,26 @@ import functools
 
 dewh_model = DewhModel(param_struct=dewh_p)
 
-num_devices = 3
+num_devices = 100
 grid_model = GridModel(num_devices=num_devices, param_struct=grid_p)
 
 
-a = dict.fromkeys(MldModel._allowed_data_set, np.random.rand(3, 3))
+a = dict.fromkeys(MldModel._field_names, np.random.rand(3, 3))
 a.update(b5=np.ones((3, 1)), d5=np.ones((3, 1)), f5=np.ones((3, 1)))
 a.update(A=np.random.rand(3, 3), B2=None, D2=None, F2=None)
 
-agent_model2 = AgentModel(MldModel(a, nu_l=1))
+agent_model2 = MldSystemModel(MldModel(a, nu_l=1))
 
 mld = dewh_model.get_mld_numeric(dewh_p)
 
 
-agent = MpcAgent('dewh', None, dewh_model)
-agent2= MpcAgent('test', None, agent_model2)
-agent_g = MpcAgent('grid', None, grid_model)
+agent = MpcAgent('dewh', None, dewh_model, N_p=96)
+agent2= MpcAgent('test', None, agent_model2, N_p=96)
+agent_g = MpcAgent('grid', None, grid_model, N_p=96)
 
 
-mld3 = MldModel(D1=1,D2=3,D3=2,D4=4,d5=6)
-agent3 = MpcAgent(agent_model=AgentModel(mld3))
+# mld3 = MldModel(D1=1,D2=3,D3=2,D4=4,d5=6)
+# agent3 = MpcAgent(agent_model=AgentModel(mld3), N_p=5)
 # agent3._mpc_evo_gen.gen_state_input_evolution_matrices(96)
 
 

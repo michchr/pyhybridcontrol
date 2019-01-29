@@ -2,6 +2,8 @@ import inspect
 from inspect import Parameter
 from collections import namedtuple, OrderedDict
 import types
+import functools
+import importlib
 
 
 class ParNotSetType:
@@ -23,7 +25,7 @@ _FSpecNamedTup = namedtuple('f_spec', ['signature', 'arg_spec', 'pos_only_params
 def get_cached_func_spec(func, bypass_cache=False, clear_cache=False):
     try:
         f_spec = func._f_spec
-        if f_spec is not None and not(bypass_cache or clear_cache):
+        if f_spec is not None and not (bypass_cache or clear_cache):
             return func._f_spec  # use cached _f_spec
     except AttributeError:
         pass
@@ -59,8 +61,12 @@ def get_cached_func_spec(func, bypass_cache=False, clear_cache=False):
     return f_spec
 
 
-def make_function(arg_spec, name='func', body='pass', global_ns=None, local_ns=None):
-    arg_spec_str = inspect.formatargspec(*arg_spec)
+def make_function(arg_spec, name='func', body='pass', global_ns=None, local_ns=None, formatannotation=None):
+    if formatannotation:
+        arg_spec_str = inspect.formatargspec(*arg_spec, formatannotation=formatannotation)
+    else:
+        arg_spec_str = inspect.formatargspec(*arg_spec)
+
     global_ns = global_ns if global_ns is not None else {}
     local_ns = local_ns if local_ns is not None else {}
     exec(f"def {name}{arg_spec_str}: {body}", global_ns, local_ns)
@@ -68,7 +74,9 @@ def make_function(arg_spec, name='func', body='pass', global_ns=None, local_ns=N
     return func
 
 
-_ArgsKwargs = namedtuple('ArgsKwargs', ['pos_only_args', 'var_args', 'all_kw_args'])
+_ArgsKwargs = namedtuple('ArgsKwargs', ['pos_only_args', 'var_args', 'all_kw_args', 'var_kwargs'])
+
+
 def make_args_kwargs_getter(func, f_spec=None):
     f_spec = f_spec if f_spec is not None else get_cached_func_spec(func, bypass_cache=True)
 
@@ -83,16 +91,33 @@ def make_args_kwargs_getter(func, f_spec=None):
         var_args = "()"
 
     if f_spec.arg_spec.varkw:
-        process_varkw = f"all_kw_args.update(all_kw_args.pop('{f_spec.arg_spec.varkw}'))"
+        var_kwargs = f"all_kw_args.pop('{f_spec.arg_spec.varkw}')"
+        process_kwargs = f"all_kw_args.update(var_kwargs)"
     else:
-        process_varkw = ""
+        var_kwargs = "{}"
+        process_kwargs = ""
 
     body = f"""
         all_kw_args = locals()
-        pos_only_args = {pos_only_args}
-        var_args = {var_args}
-        {process_varkw}
-        return _ArgsKwargs(pos_only_args, var_args, all_kw_args)
+        #pos_only_args = {pos_only_args}
+        #var_args = {var_args}
+        var_kwargs = {var_kwargs}
+        {process_kwargs}
+        return _ArgsKwargs({pos_only_args}, {var_args}, all_kw_args, var_kwargs)
     """
+
+    global_ns = {'_ArgsKwargs': _ArgsKwargs}
+    global_ns.update(func.__globals__)
+
+    for klass in func.__annotations__.values():
+        if klass.__module__ not in ('builtins',func.__module__):
+            package=inspect.getmodule(klass).__package__
+            if package:
+                global_ns[package] = importlib.import_module(package)
+            else:
+                global_ns[klass.__module__] = importlib.import_module(klass.__module__)
+
+    formatannotation = functools.partial(inspect.formatannotation, base_module=func.__module__)
+
     return make_function(f_spec.arg_spec, name=func.__name__ + "_args_kwargs_getter", body=body,
-                         global_ns={'_ArgsKwargs': _ArgsKwargs})
+                         global_ns=global_ns, formatannotation=formatannotation)

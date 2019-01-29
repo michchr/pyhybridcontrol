@@ -12,13 +12,17 @@ def process_method_args_decor(*processor_funcs):
         args_kwargs_getter = make_args_kwargs_getter(func, f_spec=f_spec)
         processor_spec_funcs = [(get_cached_func_spec(p_func), p_func) for p_func in processor_funcs]
 
-        def process_kwargs(self, processor_spec_funcs, kwargs):
-            for p_spec,p_func in processor_spec_funcs:
+        def process_kwargs(self, processor_spec_funcs, kwargs, var_kwargs):
+            for p_spec, p_func in processor_spec_funcs:
                 if p_spec.arg_spec.varkw:
-                    p_func(self, f_kwargs=kwargs, **kwargs)
+                    p_func(self, f_kwargs=kwargs, _var_kwargs=var_kwargs, **kwargs)
                 else:
-                    required_kwargs = set(kwargs).intersection(p_spec.all_kw_default)
-                    p_func(self, f_kwargs=kwargs, **{key: kwargs[key] for key in required_kwargs})
+                    required_kwargs = set(kwargs).intersection(p_spec.all_kw_params)
+                    if "_var_kwargs" in p_spec.all_kw_params:
+                        p_func(self, f_kwargs=kwargs, _var_kwargs=var_kwargs,
+                               **{key: kwargs[key] for key in required_kwargs})
+                    else:
+                        p_func(self, f_kwargs=kwargs, **{key: kwargs[key] for key in required_kwargs})
             return kwargs
 
         @wrapt.decorator(adapter=func)
@@ -27,12 +31,12 @@ def process_method_args_decor(*processor_funcs):
                 return wrapped(*args_in, **kwargs_in)
 
             try:
-                _, args, kwargs = args_kwargs_getter(*args_in, **kwargs_in)
+                _, args, kwargs, var_kwargs = args_kwargs_getter(*args_in, **kwargs_in)
             except TypeError:
                 args, kwargs = args_in, kwargs_in
                 return wrapped(*args, **kwargs)
 
-            kwargs = process_kwargs(self, processor_spec_funcs, kwargs)
+            kwargs = process_kwargs(self, processor_spec_funcs, kwargs, var_kwargs)
 
             return wrapped(*args, **kwargs)
 
@@ -42,12 +46,12 @@ def process_method_args_decor(*processor_funcs):
                 return wrapped(*args_in, **kwargs_in)
 
             try:
-                pos_only_args, var_args, kwargs = args_kwargs_getter(*args_in, **kwargs_in)
+                pos_only_args, var_args, kwargs, var_kwargs = args_kwargs_getter(*args_in, **kwargs_in)
             except TypeError:
                 args, kwargs = args_in, kwargs_in
                 return wrapped(*args, **kwargs)
 
-            kwargs = process_kwargs(self, processor_spec_funcs, kwargs)
+            kwargs = process_kwargs(self, processor_spec_funcs, kwargs, var_kwargs)
             args = pos_only_args + tuple([kwargs.pop(arg) for arg in f_spec.arg_spec.args]) + var_args
             return wrapped(*args, **kwargs)
 
@@ -55,6 +59,7 @@ def process_method_args_decor(*processor_funcs):
             return with_posonly_vargs_wrapper(func)
         else:
             return no_posonly_vargs_wrapper(func)
+
     return wrapper_up
 
 

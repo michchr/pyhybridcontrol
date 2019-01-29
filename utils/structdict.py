@@ -3,36 +3,33 @@ import sys as _sys
 from abc import ABCMeta, abstractmethod
 from builtins import property as _property
 from collections import OrderedDict as _OrderedDict
-from contextlib import contextmanager
 from copy import deepcopy as _deepcopy
 from keyword import iskeyword as _iskeyword
 from reprlib import recursive_repr as _recursive_repr
 from types import MethodType as _MethodType, BuiltinMethodType as _BuiltinMethodType
-from inspect import isclass as _isclass
+import inspect
+import functools
 
 from sortedcontainers import SortedDict as _SortedDict
-
 from utils.func_utils import ParNotSet
+import warnings as _warnings
+
+# Ensure numpy deprecation warning is caught for array comparison
+_warnings.filterwarnings('error', category=DeprecationWarning,
+                         message="The truth value of an empty array is ambiguous.")
+
+_default_structdict_np_printoptions = dict(threshold=36,
+                                           precision=6,
+                                           linewidth=120)
 
 
-@contextmanager
-def _temp_mod_numpy_print_ops(np_print_threshold=None):
-    np_mod = _sys.modules.get('numpy')
-    cur_np_threshold = None
-    if np_mod:
-        cur_np_threshold = np_mod.get_printoptions()['threshold']
-        np_mod.set_printoptions(threshold=np_print_threshold)
-    try:
-        yield np_mod
-    finally:
-        if np_mod:
-            np_mod.set_printoptions(threshold=cur_np_threshold)
-
-
-def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_values=True, align_padding_width=0,
+def struct_repr(data, type_name=None, sort=False, np_printoptions=None, align_values=True, align_padding_width=0,
                 value_format_str=None, repr_format_str=None):
     if not isinstance(data, dict):
         raise TypeError("Data must be dictionary like")
+
+    if np_printoptions is None:
+        np_printoptions = _default_structdict_np_printoptions
 
     _key = data._key if hasattr(data, '_key') else None
     key_arg = '' if _key is None else '_key = {0!r},\n'.format(_key)
@@ -54,8 +51,8 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
     keys = sorted(data.keys(), key=_key or str) if sort else list(data.keys())
 
     key_widths = [len(repr(key)) for key in keys]
-    # temporarily modify numpy print threshold
-    with _temp_mod_numpy_print_ops(np_print_threshold=np_print_threshold):
+
+    def format_items():
         if align_values:
             width = max(key_widths) if key_widths else 0
             fill = filler_calc(width)
@@ -65,6 +62,16 @@ def struct_repr(data, type_name=None, sort=False, np_print_threshold=20, align_v
             items = ',\n'.join(
                 item_format(key=key, value=data[key], width=width).replace('\n', filler_calc(key_width)) for
                 key, key_width in zip(keys, key_widths))
+
+        return items
+
+    np_mod = _sys.modules.get('numpy')
+    # temporarily modify default numpy print options if numpy module exists
+    if np_mod:
+        with np_mod.printoptions(**np_printoptions):
+            items = format_items()
+    else:
+        items = format_items()
 
     type_name = type_name if type_name is not None else type(data).__name__
     repr_format = repr_format_str.format
@@ -82,9 +89,9 @@ class StructDictMeta(ABCMeta):
         # find 1 based reversed index of StructDictMixin - i.e. first instance of class with type==StructDictMeta
         index, _ = next(filter(
             lambda index_class: type(index_class[1]) == StructDictMeta,
-            enumerate(reversed(mro))))
+            enumerate(reversed(mro))), None)
         # this gives the base_dict as follows:
-        _base_dict = mro[-index]
+        _base_dict = mro[-index] if index is not None else None
 
         # extract cached method references
         if issubclass(_base_dict, dict):
@@ -94,10 +101,14 @@ class StructDictMeta(ABCMeta):
                     setattr(kls, method, getattr(_base_dict, _based_dict_method))
 
         _internal_name_set = set(kls._internal_names_set) if hasattr(kls, '_internal_names_set') else set()
-        _dir_kls_set = set(dir(kls))
+        _internal_names = getattr(kls, "".join(["_", kls.__name__, "__internal_names"]), None)
+        if _internal_names:
+            _internal_name_set.update(_internal_names)
 
-        if _dir_kls_set.difference(_internal_name_set):
-            kls._internal_names_set = _internal_name_set.union(_dir_kls_set)
+        _other_internal_names = (
+            set(kls.__bases__[0]._internal_names_set) if hasattr(kls.__bases__[0], '_internal_names_set') else set())
+        if _other_internal_names.difference(_internal_name_set):
+            kls._internal_names_set = _internal_name_set.union(_other_internal_names)
         return kls
 
 
@@ -112,30 +123,19 @@ class StructDictMixin(metaclass=StructDictMeta):
         obj._base_dict_init(*args, **kwargs)
         return obj
 
-    @abstractmethod
-    def __init__(self, *args, **kwargs):
-        self._base_dict_init(*args, **kwargs)
-
     @property
     def base_dict(self):
         """Return the base_dict of the struct_dict."""
         return self._base_dict
 
-
     @abstractmethod
-    def setdefault(self, key, default=None):
-        if key in self:
-            return self._base_dict_setdefault(key, default)
-        else:
-            ret_val = self._base_dict_setdefault(key, default)
-            if key in self._internal_names_set:
-                self._check_invalid_keys()
-            return ret_val
-
     def __setattr__(self, key, value):
         if key in self:
             self[key] = value
             return
+        elif key in self._internal_names_set:
+            return object.__setattr__(self, key, value)
+
         try:
             attr = object.__getattribute__(self, key)
         except AttributeError:
@@ -143,14 +143,12 @@ class StructDictMixin(metaclass=StructDictMeta):
         else:
             if isinstance(attr, (_MethodType, _BuiltinMethodType)):
                 raise ValueError(
-                    f"Cannot modify or add item:'{key}', it is a {self.__class__.__name__} object method.")
+                    f"Cannot modify or add item: '{key}', it is a '{self.__class__.__name__}' object method.")
             else:
                 return object.__setattr__(self, key, value)
 
-        if key in self._internal_names_set:
-            return object.__setattr__(self, key, value)
-        else:
-            self[key] = value
+        self[key] = value
+        return True
 
     def __getattr__(self, key):
         try:
@@ -174,6 +172,22 @@ class StructDictMixin(metaclass=StructDictMeta):
 
     def _sorted_repr(self):
         return struct_repr(self, sort=True)
+
+    def __eq__(self, other):
+        try:
+            return self._base_dict.__eq__(self, other)
+        except (ValueError, DeprecationWarning) as er:
+            np_mod = _sys.modules.get('numpy')
+            if np_mod:
+                for key, value in other.items():
+                    if not isinstance(value, np_mod.ndarray):
+                        if self[key] != value:
+                            return False
+                    elif not np_mod.array_equal(self[key], value):
+                        return False
+                return True
+            else:
+                raise er
 
     def __reduce__(self):
         """Support for pickle.
@@ -314,27 +328,32 @@ def _itemdeleter(item):
     return caller
 
 
-def add_item_accessor_property(obj, item):
-    try:
-        setattr(obj, item, _property(fget=_itemgetter(item),
-                                     fset=_itemsetter(item),
-                                     doc=f"Alias for self['{item}']"))
-    except TypeError:
-        pass
+def add_item_accessor_property(obj, name):
+    if getattr(obj, name, None) is not None:
+        is_class = inspect.isclass(obj)
+        raise ValueError(
+            f"Cannot add item accessor property to {'class' if is_class else 'object'} "
+            f"'{obj.__name__ if is_class else obj}'. It already has an attribute with name: '{name}'")
+    setattr(obj, name, _property(fget=_itemgetter(name),
+                                 fset=_itemsetter(name),
+                                 doc=f"Alias for self['{name}']"))
 
 
 class StructPropDictMeta(StructDictMeta):
     def __new__(cls, name, bases, _dict, **kwargs):
+
         kls = super(StructPropDictMeta, cls).__new__(cls, name, bases, _dict, **kwargs)
 
         if hasattr(kls, '_field_names'):
-            invalid_field_names = set(kls._field_names).intersection(kls._internal_names_set)
+            dir_base_kls = set(dir(kls.__bases__[0]))
+            invalid_field_names = set(kls._field_names).intersection(kls._internal_names_set | dir_base_kls)
             if invalid_field_names:
                 raise ValueError(
                     f"Cannot create StructPropDict with invalid field names, i.e. names contained in "
-                    f"'_internal_names_set': '{invalid_field_names}'")
+                    f"'_internal_names_set or base_class __dict__'s : '{invalid_field_names}'")
             for name in kls._field_names:
-                add_item_accessor_property(kls, name)
+                if not getattr(kls, name, None):
+                    add_item_accessor_property(kls, name)
             if '_field_names_set' in kls.__dict__:
                 if set(kls._field_names).difference(kls._field_names_set):
                     raise ValueError("All items in _field_names must be in _field_names_set.")
@@ -344,11 +363,6 @@ class StructPropDictMeta(StructDictMeta):
             kls._field_names = ()
             kls._field_names_set = frozenset()
 
-        try:
-            kls._default_dict = kls._base_dict.fromkeys(kls._field_names, None)
-        except AttributeError:
-            pass
-
         return kls
 
 
@@ -357,112 +371,150 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
 
     _field_names = ()
     _field_names_set = frozenset(_field_names)
-
-    _default_dict = {}
+    _additional_created_properties = set()
 
     @abstractmethod
-    def __init__(self, *args, _default=None, **kwargs):
-        if _default is None:
-            self._base_dict_init(self._default_dict)
-        else:
-            self._base_dict_init(self._base_dict.fromkeys(self._field_names, _default))
-        if args and kwargs:
-            self._base_dict_init(*args, **kwargs)
-
     def __setattr__(self, key, value):
-        if key in self:
-            self[key] = value
-            return
-        try:
-            attr = object.__getattribute__(self, key)
-        except AttributeError:
-            pass
-        else:
-            if isinstance(attr, (_MethodType, _BuiltinMethodType)):
-                raise ValueError(
-                    f"Cannot modify or add item: '{key}', it is a {self.__class__.__name__} object method.")
-            else:
-                return object.__setattr__(self, key, value)
-
-        if key in self._internal_names_set:
-            return object.__setattr__(self, key, value)
-        else:
-            self[key] = value
-            self._create_property(key)
+        if super(StructPropDictMixin, self).__setattr__(key, value) == True:
+            self._create_additional_property(key)
 
     def __getattr__(self, key):
         try:
             retval = self[key]
         except KeyError:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
-        self._create_property(key)
+        self._create_additional_property(key)
         return retval
 
-    def _create_property(self, name):
+    def _create_additional_property(self, name):
         try:
-            object.__getattribute__(self, name)
-        except AttributeError:
-            add_item_accessor_property(self.__class__, name)
+            if getattr(self.__class__, name, None) is not None:
+                add_item_accessor_property(self.__class__, name)
+                self._additional_created_properties.add(name)
         except TypeError:
             pass
 
-    def _delete_property(self, name):
-        if name not in self._field_names_set:
+    def _delete_additional_property(self, name):
+        if name in self._additional_created_properties:
             try:
                 delattr(self.__class__, name)
             except AttributeError:
                 pass
+            else:
+                self._additional_created_properties.remove(name)
 
-    def _delete_redundant_properties(self):
-        redundant_props = set(self.keys()).difference(self._field_names_set)
-        for key in redundant_props:
-            self._delete_property(key)
-
-    def _create_required_properties(self):
+    def _create_additional_properties(self):
         missing_props = set(self.keys()).difference(self._field_names_set)
         for key in missing_props:
-            self._create_property(key)
+            self._create_additional_property(key)
+
+    def _delete_additional_properties(self):
+        for key in list(self._additional_created_properties):
+            self._delete_additional_property(key)
+
 
     @abstractmethod
     def clear(self):
         self._base_dict_clear()
-        self._delete_redundant_properties()
+        self._delete_additional_properties()
 
     def to_reversed_map(self):
         reversed_map = super(StructPropDictMixin, self).to_reversed_map()
-        self._create_required_properties()
+        reversed_map.__class__._field_names = list(reversed_map.keys())
+        reversed_map.__class__._field_names_set = frozenset(reversed_map.__class__._field_names)
+        for name in reversed_map._field_names:
+            if not getattr(reversed_map.__class__, name, None):
+                add_item_accessor_property(reversed_map.__class__, name)
         return reversed_map
+
+
+class StructPropFixedDictMixin(StructPropDictMixin):
+    __slots__ = ()
+    _field_names = ()
+    _field_names_set = frozenset(_field_names)
+
+    @abstractmethod
+    def pop(self, key):
+        if key in self._field_names_set:
+            try:
+                ret_val = self[key]
+            except KeyError:
+                raise KeyError(key) from None
+            else:
+                self[key] = None
+                return ret_val
+        else:
+            return self._base_dict_pop(key)
+
+    @abstractmethod
+    def popitem(self):
+        try:
+            key, value = self._base_dict_popitem()
+        except KeyError:
+            raise KeyError(f"popitem(): {self.__class__} object is empty")
+        else:
+            self[key] = None
+        return (key, value)
+
+
+    def _reset(self):
+        self.__init__()
+
+    @abstractmethod
+    def clear(self):
+        super(StructPropFixedDictMixin, self).clear()
+        self._reset()
+
+    @abstractmethod
+    def __delitem__(self, key):
+        if key in self._field_names_set:
+            try:
+                self[key] = None
+            except KeyError:
+                raise KeyError(key) from None
+        else:
+            return self._base_dict_delitem(key)
 
 
 _struct_prop_dict_class_template = """\
 from builtins import dict as BaseDict
-from {structdict_module} import StructPropDictMixin
+from {structdict_module} import {mixin_type} as StructMixin
 
 if '{base_dict}'!='dict':
     from {structdict_module} import _{base_dict} as BaseDict
 
-class _StructPropDict(StructPropDictMixin, BaseDict):
+class _StructPropDict(StructMixin, BaseDict):
     if BaseDict.__name__ == 'SortedDict':
         __internal_names = list(BaseDict(callable).__dict__.keys())
         _internal_names_set = StructPropDictMixin._internal_names_set.union(__internal_names)
-    
-    if {sorted_repr}:
-        __repr__ = StructPropDictMixin._sorted_repr
-
+   
 class {typename}(_StructPropDict):
     __slots__ = ()
     _field_names = {field_names!r}
+    
+    def __init__(self, *args, {kwargs_map} **kwargs):
+        self._base_dict_init({kwargs_eq_map})
+        self._base_dict_update(*args, **kwargs)
+
+    if {sorted_repr}:
+        __repr__ = StructMixin._sorted_repr
+        
 """
 
 
-def struct_prop_dict(typename, field_names=None, *, structdict_module='utils.structdict', base_dict=None, verbose=False,
-                     rename=False, module=None):
+def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, structdict_module='utils.structdict',
+                     base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None):
     """Returns a new subclass of StructDict with all fields as properties."""
 
     # Validate the field names.  At the user's option, either generate an error
     # message or automatically replace the field name with a valid name.
 
-    if _isclass(base_dict):
+    if fixed:
+        mixin_type = StructPropFixedDictMixin.__name__
+    else:
+        mixin_type = StructPropDictMixin.__name__
+
+    if inspect.isclass(base_dict):
         base_dict = base_dict.__name__
 
     if base_dict is None:
@@ -470,7 +522,8 @@ def struct_prop_dict(typename, field_names=None, *, structdict_module='utils.str
     elif base_dict not in ('dict', 'OrderedDict', 'SortedDict'):
         raise NotImplementedError(f"base_dict: {base_dict} is not supported.")
 
-    sorted_repr = True if base_dict in ('dict',) else False
+    if sorted_repr is None:
+        sorted_repr = True if base_dict in ('dict',) else False
 
     if isinstance(field_names, str):
         field_names = field_names.replace(',', ' ').split()
@@ -503,18 +556,26 @@ def struct_prop_dict(typename, field_names=None, *, structdict_module='utils.str
             raise ValueError('Encountered duplicate field name: %r' % name)
         seen.add(name)
 
+    default_val = "None" if default is None else 'default_val'
+
     # Fill-in the class template
     class_definition = _struct_prop_dict_class_template.format(
         structdict_module=structdict_module,
+        mixin_type=mixin_type,
         base_dict=base_dict,
         typename=typename,
         field_names=tuple(field_names),
+        kwargs_map=(", ".join([f"{field_name}={default_val}" for field_name in field_names]).replace("'", "")) + (
+            "," if field_names else ""),
+        kwargs_eq_map=(", ".join([f"{field_name}={field_name}" for field_name in field_names]).replace("'", "")) + (
+            "," if field_names else ""),
         sorted_repr=sorted_repr
     )
 
     # Execute the template string in a temporary namespace and support
     # tracing utilities by setting a value for frame.f_globals['__name__']
     namespace = dict(__name__='struct_prop_dict_%s' % typename)
+    namespace.update(default_val=default)
     exec(class_definition, namespace)
     result = namespace[typename]
     result._source = class_definition
@@ -537,10 +598,22 @@ def struct_prop_dict(typename, field_names=None, *, structdict_module='utils.str
     return result
 
 
-def struct_prop_ordereddict(typename, field_names=None, *, structdict_module='utils.structdict', verbose=False,
-                            rename=False, module=None):
-    return struct_prop_dict(typename, field_names=field_names, structdict_module=structdict_module, verbose=verbose,
-                            rename=rename, module=module, base_dict=_OrderedDict)
+def struct_prop_fixed_dict(typename, field_names=None, default=None, fixed=True, *,
+                           structdict_module='utils.structdict', base_dict=None, sorted_repr=False,
+                           verbose=False, rename=False, module=None):
+    return struct_prop_dict(typename, field_names=field_names, default=default, fixed=fixed,
+                            structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
+                            verbose=verbose,
+                            rename=rename, module=module)
+
+
+def struct_prop_ordereddict(typename, field_names=None, default=None, fixed=False, *,
+                            structdict_module='utils.structdict', base_dict=_OrderedDict, sorted_repr=False,
+                            verbose=False, rename=False, module=None):
+    return struct_prop_dict(typename, field_names=field_names, default=default, fixed=fixed,
+                            structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
+                            verbose=verbose,
+                            rename=rename, module=module)
 
 
 if __name__ == '__main__':

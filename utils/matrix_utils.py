@@ -1,4 +1,10 @@
-from utils.structdict import StructDict
+import inspect
+
+import sympy as sp
+import wrapt
+
+from utils.func_utils import get_cached_func_spec, make_function
+from utils.structdict import StructDict, OrderedStructDict
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided as _as_strided
@@ -8,6 +14,8 @@ import scipy.sparse as scs
 from collections import namedtuple as NamedTuple
 
 from utils.decorator_utils import cache_hashable_args
+from abc import ABCMeta
+from types import FunctionType, MethodType
 
 
 def atleast_2d_col(arr, dtype=None, order=None):
@@ -25,7 +33,7 @@ def _atleast_3d_col(arr, dtype=None, order=None):
     # used to ensure block toeplitz is compatible with scipy.linalg.toeplitz
     arr = np.asanyarray(arr, dtype=dtype, order=order)
     if arr.ndim == 0:
-        result = arr.reshape(1,1,1)
+        result = arr.reshape(1, 1, 1)
     elif arr.ndim == 1:
         result = arr[:, np.newaxis, np.newaxis]
     elif arr.ndim == 2:
@@ -33,6 +41,7 @@ def _atleast_3d_col(arr, dtype=None, order=None):
     else:
         result = arr
     return result
+
 
 def block_diag_dense_same_shape(mats, format=None, dtype=None):
     arrs = np.array(mats)
@@ -182,6 +191,274 @@ def get_mat_ops(sparse=False):
     return mat_ops
 
 
-mats = [np.arange(1, 7).reshape(3, 2).astype(float) + 6 * i for i in range(1, 100)]
+def _get_expr_shape(expr):
+    try:
+        expr_shape = expr.shape
+    except AttributeError:
+        pass
+    else:
+        if len(expr_shape) <= 2:
+            return expr_shape
+        else:
+            raise NotImplementedError("Maximum supported dimension is 2, got {}".format(len(expr_shape)))
+
+    if expr is None:
+        return (0, 0)
+    elif np.isscalar(expr) or isinstance(expr, sp.Expr):
+        return (1, 1)
+    elif callable(expr):
+        expr = CallableMatrix(expr)
+        return expr.shape
+    else:
+        raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
 
 
+def _get_expr_shapes(*exprs, get_max_dim=False):
+    if not exprs:
+        return None
+
+    if isinstance(exprs[0], dict):
+        shapes = StructDict({expr_id: _get_expr_shape(expr) for expr_id, expr in exprs[0].items()})
+    else:
+        shapes = [_get_expr_shape(expr) for expr in exprs]
+
+    if get_max_dim:
+        shapes = list(shapes.values()) if isinstance(shapes, dict) else shapes
+        return tuple(np.maximum.reduce(shapes))
+    else:
+        return shapes
+
+
+
+
+class CallableMatrix(wrapt.decorators.AdapterWrapper):
+
+    def __new__(cls, matrix, matrix_name=None):
+        self = super(CallableMatrix, cls).__new__(cls)
+        if issubclass(cls, CallableMatrixConstant):
+            return self
+        func = self._process_matrix_func(matrix)
+        nan_call = self._nan_call(override_func=func)
+        if np.all(np.isfinite(nan_call)):
+            del self
+            return CallableMatrixConstant(matrix, matrix_name)
+        else:
+            return self
+
+    def _process_matrix_func(self, matrix):
+        def const_func(constant):
+            def functor():
+                return constant
+
+            return functor
+
+        if isinstance(matrix, (sp.Expr, sp.Matrix)):
+            system_matrix = sp.Matrix(matrix)
+            param_sym_tup = self._get_param_sym_tup(system_matrix)
+            func = sp.lambdify(param_sym_tup, system_matrix, modules="numpy", dummify=False)
+        elif inspect.isfunction(matrix):
+            func = matrix
+        elif inspect.ismethod(matrix):
+            func = matrix.__func__
+        else:
+            func = const_func(atleast_2d_col(matrix))
+
+        return func
+
+    def __init__(self, matrix, matrix_name=None):
+        if self is None:
+            return
+        if isinstance(self, type(self)):
+            super(CallableMatrix, self).__init__(wrapped=matrix.__wrapped__, wrapper=matrix._self_wrapper, enabled=None,
+                                                 adapter=matrix._self_adapter)
+        else:
+            func = self._process_matrix_func(matrix)
+            self._self_matrix_name = matrix_name
+            self._self_wrapped_name = func.__name__
+
+            func.__name__ = self._self_matrix_name if matrix_name is not None else func.__name__
+            func.__qualname__ = "".join(func.__qualname__.rsplit('.', 1)[:-1] + ['.', func.__name__]).lstrip('.')
+            self._self_wrapped_f_spec = get_cached_func_spec(func, bypass_cache=True)
+
+            adapter = self._gen_adapter(self._self_wrapped_f_spec)
+            self._self_adapter_spec = get_cached_func_spec(adapter, bypass_cache=True)
+
+            wrapper = self._matrix_wrapper_non_constant
+            super(CallableMatrix, self).__init__(wrapped=func, wrapper=wrapper, enabled=None, adapter=adapter)
+
+        # get relevant array attributes by performing a function call with all arguments set to NaN
+        nan_call = self._nan_call()
+
+        try:
+            self.__delattr__('_self_shape')
+        except AttributeError:
+            pass
+
+        self._self_shape = _get_expr_shape(nan_call)
+        self._self_size = np.prod(nan_call.size)
+        self._self_ndim = nan_call.ndim
+        self._self_dtype = nan_call.dtype
+        self._self_nbytes = nan_call.nbytes
+        self._self_itemsize = nan_call.itemsize
+        self._self_is_empty = False if self._self_size else True
+        self._self_is_all_zero = np.all(nan_call == 0)
+        self._self_is_constant = np.all(np.isfinite(nan_call))
+
+        if self._self_is_constant:
+            self._self_constant = nan_call
+        else:
+            self._self_constant = None
+
+    @staticmethod
+    def _nan_call(func):
+        f_spec = get_cached_func_spec(func, clear_cache=True)
+        kwargs = {param_name: np.NaN for param_name in f_spec.all_kw_params}
+        args = [np.NaN] * len(f_spec.pos_only_params)
+
+        try:
+            return atleast_2d_col(func(*args, **kwargs))
+        except TypeError:
+            msg = f"_nan_call() failed, it is likely that the matrix function does not have a constant shape.\n"
+            note = (
+                "Note: all callable expressions must return with a constant array shape that does not depend on its "
+                "arguments. Shape is determined by calling the function with all arguments set to a float with value "
+                "NaN.")
+            raise TypeError(msg + note)
+
+    def _matrix_wrapper_non_constant(self, wrapped, instance, args, kwargs):
+        param_struct = kwargs.pop('param_struct', None)
+        if param_struct and self._self_wrapped_f_spec.all_kw_params:
+            try:
+                duplicates = set(kwargs).intersection(param_struct) if kwargs else None
+                kwargs.update(
+                    {name: param_struct[name] for name in
+                     set(self._self_wrapped_f_spec.all_kw_params).intersection(param_struct)})
+            except TypeError as te:
+                msg = f"'param_struct' must be dictionary like or None: {te.args[0]}"
+                raise TypeError(msg).with_traceback(te.__traceback__) from None
+            else:
+                if duplicates:
+                    raise TypeError(
+                        f"{wrapped.__name__}() got multiple values for argument '{duplicates.pop()}' - values in "
+                        f"kwargs are duplicated in param_struct.")
+
+        try:
+            retval = wrapped(*args, **kwargs)
+        except TypeError as te:
+            msg = te.args[0].replace(self._self_wrapped_name, wrapped.__name__)
+            raise TypeError(msg).with_traceback(te.__traceback__) from None
+
+        if getattr(retval, 'ndim', 0) < 2:
+            retval = atleast_2d_col(retval)
+
+        if isinstance(retval, np.ndarray):
+            retval.setflags(write=False)
+
+        return retval
+
+    def _gen_adapter(self, f_spec):
+        f_args_spec_struct = OrderedStructDict(f_spec.arg_spec._asdict()).deepcopy()
+        f_args_spec_struct.kwonlyargs.append('param_struct')
+        if f_args_spec_struct.kwonlydefaults:
+            f_args_spec_struct.kwonlydefaults.update({'param_struct': None})
+        else:
+            f_args_spec_struct.kwonlydefaults = {'param_struct': None}
+
+        f_args_spec = inspect.FullArgSpec(**f_args_spec_struct)
+        adapter = make_function(f_args_spec, name='adapter')
+        return adapter
+
+    def __reduce__(self):
+        return (type(self), (self.__wrapped__, self._self_matrix_name))
+
+
+    @property
+    def __name__(self):
+        return self._self_matrix_name
+
+    @property
+    def __class__(self):
+        return type(self)
+
+    @property
+    def _f_spec(self):
+        return self._self_adapter_spec
+
+    @_f_spec.setter
+    def _f_spec(self, f_spec):
+        self._self_adapter_spec = f_spec
+
+    @property
+    def __signature__(self):
+        return self._self_wrapped_f_spec.signature
+
+    @property
+    def required_params(self):
+        return self._self_wrapped_f_spec.all_kw_params
+
+    @property
+    def matrix_name(self):
+        return self._self_matrix_name
+
+    @property
+    def shape(self):
+        return self._self_shape
+
+    @property
+    def size(self):
+        return self._self_size
+
+    @property
+    def ndim(self):
+        return self._self_ndim
+
+    @property
+    def dtype(self):
+        return self._self_dtype
+
+    @property
+    def nbytes(self):
+        return self._self_nbytes
+
+    @property
+    def itemsize(self):
+        return self._self_itemsize
+
+    @property
+    def is_empty(self):
+        return self._self_is_empty
+
+    @property
+    def is_all_zero(self):
+        return self._self_is_all_zero
+
+    @property
+    def is_constant(self):
+        return self._self_is_constant
+
+    def __repr__(self):
+        empty_str = f", shape={self._self_shape}" if not self._self_size else ""
+        return f"<{self.__class__.__name__} {self.__name__}{self.__signature__}{empty_str}>"
+
+    def __str__(self):
+        return self.__repr__()
+
+    def __dir__(self):
+        wrapped_dir = set(dir(self.__wrapped__))
+        added_dir = set(type(self).__dict__)
+        rv = wrapped_dir | added_dir
+        return sorted(rv)
+
+    @staticmethod
+    def _get_param_sym_tup(expr):
+        try:
+            sym_dict = {str(sym): sym for sym in expr.free_symbols}
+            param_sym_tup = tuple([sym_dict.get(sym) for sym in sorted(sym_dict.keys())])
+        except AttributeError:
+            param_sym_tup = ()
+
+        return param_sym_tup
+
+class CallableMatrixConstant(CallableMatrix):
+    def __call__(self, *, param_struct=None):
+        return self._self_constant
