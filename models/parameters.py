@@ -1,4 +1,4 @@
-from utils.structdict import StructDict
+from structdict import StructDict
 from datetime import timedelta as TimeDelta
 import numpy as np
 
@@ -15,7 +15,7 @@ dewh_p.m_h = 150.0      #kg
 dewh_p.T_w = 15.0       #K
 dewh_p.T_inf = 25.0    #K
 dewh_p.P_h_Nom = 3000.0 #W  (Joules/s)
-dewh_p.T_h_min = 40.0   #K
+dewh_p.T_h_min = 45.0   #K
 dewh_p.T_h_max = 65.0   #K
 dewh_p.D_h = 0.0        #kg/s
 dewh_p.control_dt = control_dt

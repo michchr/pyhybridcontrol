@@ -60,3 +60,12 @@ class St2(dict):
             return object.__setattr__(self, key, value)
         else:
             self.__setitem__(key, value)
+
+
+
+class A:
+    __slots__ = ('a','b','c')
+
+
+class B(A):
+    __slots__ = ('d','e','f')

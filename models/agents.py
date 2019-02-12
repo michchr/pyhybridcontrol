@@ -5,8 +5,8 @@ from reprlib import recursive_repr as _recursive_repr
 # import pandas as pd
 # pd.set_option('mode.chained_assignment', 'raise')
 
-from tools.mpc_tools import MpcController
-from utils.structdict import StructDict, struct_repr
+from controllers.mpc_controller.mpc_controller import MpcController
+from structdict import StructDict, struct_repr
 from models.mld_model import MldSystemModel
 
 
@@ -82,7 +82,7 @@ class MpcAgent(Agent):
         self._mpc_controller = MpcController(self)
 
     @property
-    def mpc_controller(self):
+    def mpc_controller(self)->MpcController:
         return self._mpc_controller
 
     @property
@@ -96,41 +96,3 @@ class MpcAgent(Agent):
     @property
     def mld_numeric_tilde(self):
         return None
-
-    def get_cur_objective(self, q_U_N_p=None, q_Delta_N_p=None, q_Z_N_p=None, q_X_N_p=None,
-                          q_X_F=None):
-        pass
-        # if mld_numeric_tilde:
-        #     mld_info = mld_numeric_tilde[0].mld_info
-        # else:
-        #     mld_info = mld_numeric.mld_info
-        #
-        # gen_kwargs = dict(_disable_process_args=True, N_p=N_p, param_struct=param_struct,
-        #                   param_struct_subset=param_struct_subset, param_struct_tilde=param_struct_tilde,
-        #                   schedule_params_tilde=schedule_params_tilde,
-        #                   N_tilde=N_tilde, mld_numeric=mld_numeric,
-        #                   mld_numeric_tilde=mld_numeric_tilde,
-        #                   A_pow_tilde=A_pow_tilde, sparse=sparse, mat_ops=mat_ops, copy=copy,
-        #                   **kwargs)
-        #
-        # opt_vars = self._gen_optimization_vars(**gen_kwargs)
-        # state_input_mat_evo = self.gen_state_input_evolution_matrices(**gen_kwargs)
-        #
-        # X_tilde_N_cons = (state_input_mat_evo['Phi_x'] @ np.array([[0]]) + state_input_mat_evo['Gamma_V'] @
-        #                   opt_vars['V_tilde_N_cons'] + state_input_mat_evo['Gamma_W'][:, :1] * 0 +
-        #                   state_input_mat_evo['Gamma_b5'])
-        # X_tilde_N_p = X_tilde_N_cons[:(N_p * mld_info['nx']), :]
-        #
-        # obj = cvx.Constant(0)
-        # if q_U_N_p is not None:
-        #     obj += np.transpose(q_U_N_p) @ opt_vars['U_tilde_N_p']
-        # if q_Delta_N_p is not None:
-        #     obj += np.transpose(q_Delta_N_p) @ opt_vars['Delta_tilde_N_p']
-        # if q_Z_N_p is not None:
-        #     obj += np.transpose(q_Delta_N_p) @ opt_vars['Z_tilde_N_p']
-        # if q_X_N_p is not None:
-        #     obj += np.transpose(q_X_N_p) @ X_tilde_N_p
-        # if q_X_F is not None and N_tilde:
-        #     obj += np.transpose(q_X_F) @ X_tilde_N_cons[-(mld_info['nx']):, :]
-        #
-        # return obj

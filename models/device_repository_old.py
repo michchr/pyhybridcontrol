@@ -1,4 +1,4 @@
-from utils.structdict import StructDict, StructDictAliased
+from structdict.structdict import StructDict, StructDictAliased
 
 from copy import deepcopy
 from sortedcontainers import SortedDict

@@ -1,8 +1,7 @@
 from sortedcontainers import SortedDict
-from copy import deepcopy
 import collections
 
-from utils.structdict import StructDict
+from structdict import StructDict
 
 V_h_s_ind = collections.namedtuple('V_ind', ['u_s', 'delta_s', 'z_s'])
 W_h_s_ind = collections.namedtuple('W_ind', ['omega_s'])

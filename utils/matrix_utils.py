@@ -4,19 +4,23 @@ import sympy as sp
 import wrapt
 
 from utils.func_utils import get_cached_func_spec, make_function
-from utils.structdict import StructDict, OrderedStructDict
+from structdict import StructDict, OrderedStructDict
 
 import numpy as np
 from numpy.lib.stride_tricks import as_strided as _as_strided
 import scipy.linalg as scl
 import scipy.sparse as scs
-
 from collections import namedtuple as NamedTuple
 
 from utils.decorator_utils import cache_hashable_args
-from abc import ABCMeta
-from types import FunctionType, MethodType
+import functools
 
+
+def matmul(self, other):
+    try:
+        return self @ other
+    except ValueError:
+        return self * other
 
 def atleast_2d_col(arr, dtype=None, order=None):
     arr = np.asanyarray(arr, dtype=dtype, order=order)
@@ -30,49 +34,72 @@ def atleast_2d_col(arr, dtype=None, order=None):
 
 
 def _atleast_3d_col(arr, dtype=None, order=None):
-    # used to ensure block toeplitz is compatible with scipy.linalg.toeplitz
     arr = np.asanyarray(arr, dtype=dtype, order=order)
     if arr.ndim == 0:
         result = arr.reshape(1, 1, 1)
     elif arr.ndim == 1:
         result = arr[:, np.newaxis, np.newaxis]
     elif arr.ndim == 2:
-        result = arr[:, np.newaxis]
+        result = arr[np.newaxis, :]
     else:
         result = arr
     return result
 
 
 def block_diag_dense_same_shape(mats, format=None, dtype=None):
-    arrs = np.array(mats)
-    arrs = _atleast_3d_col(arrs)
+    arrs = _atleast_3d_col(mats, dtype=dtype)
     k, n, m = arrs.shape
-    vals = np.concatenate([arrs, np.zeros(shape=(k, n, (k - 1) * m), dtype=arrs.dtype)], axis=2)
+    arrs = arrs.reshape(k * n, m)
+    vals = np.zeros(shape=(k * n, k * m), dtype=arrs.dtype)
+    vals[:, :m] = arrs
 
     item_size = arrs.itemsize
     shape = (k, n, k * m)
     strides = ((k * n - 1) * m * item_size, k * m * item_size, item_size)
-    block_diag = _as_strided(vals, shape=shape, strides=strides).reshape(n * k, m * k)
-    if dtype is not None:
-        block_diag = block_diag.astype(dtype)
-    return block_diag.copy()
+    strided = np.ascontiguousarray(_as_strided(vals, shape=shape, strides=strides))
+
+    block_diag = strided.reshape(n * k, m * k)
+    return block_diag
 
 
 def block_diag_dense(mats, format=None, dtype=None):
-    a_mats = np.asarray(mats)
-    if a_mats.dtype != np.object:
+    # scl.blockdiag is faster for large matrices or a large number of matrices.
+    a_mats = _atleast_3d_col(mats)
+    if a_mats.dtype != np.object_ and np.prod(a_mats.shape) < 720:
         block_diag = block_diag_dense_same_shape(a_mats, format=format, dtype=dtype)
     else:
-        block_diag = scl.block_diag(*mats)
+        block_diag = scl.block_diag(*a_mats)
 
     if dtype is not None:
         block_diag = block_diag.astype(dtype)
     return block_diag
 
 
+import timeit
+
+
+def block_diag_test(a, number=1000):
+    def t1():
+        return block_diag_dense(a)
+
+    def t2():
+        return scl.block_diag(*a)
+
+    tt1 = timeit.timeit("t1()", globals=locals(), number=number)
+    print("block_diag_dense", tt1)
+    tt2 = timeit.timeit("t2()", globals=locals(), number=number)
+    print("scl.block_diag", tt2)
+
+    t1 = t1()
+    t2 = t2()
+    print("t1", t1.dtype)
+    print("t2", t2.dtype)
+    return np.array_equal(t1, t2)
+
+
 def create_object_array(tup):
     try:
-        obj_arr = np.empty(len(tup), dtype='object')
+        obj_arr = np.empty(len(tup), dtype=np.object_)
     except TypeError:
         raise TypeError("tup must be array like.")
 
@@ -111,20 +138,21 @@ def block_toeplitz(c_tup, r_tup=None, sparse=False):
     stride_shp = (c.shape[0], c.shape[1], r.shape[0], r.shape[2])
     out_shp = (c.shape[0] * c.shape[1], r.shape[0] * r.shape[2])
     n, m, k = vals.strides
+    strided = np.ascontiguousarray(_as_strided(vals[c.shape[0] - 1:], shape=stride_shp, strides=(-n, m, n, k)))
 
-    np_toep_strided = _as_strided(vals[c.shape[0] - 1:], shape=stride_shp, strides=(-n, m, n, k)).reshape(out_shp)
+    np_toeplitz = strided.reshape(out_shp)
 
     if sparse:
-        if np_toep_strided.dtype != np.object_:
-            return scs.csr_matrix(np_toep_strided)
-        elif all(isinstance(block, scs.csr_matrix) for block in np_toep_strided.flat):
-            v_stacked = [scs.bmat(np.atleast_2d(col).T).tocsc() for col in np_toep_strided.T]
+        if np_toeplitz.dtype != np.object_:
+            return scs.csr_matrix(np_toeplitz)
+        elif all(isinstance(block, scs.csr_matrix) for block in np_toeplitz.flat):
+            v_stacked = [scs.bmat(np.atleast_2d(col).T).tocsc() for col in np_toeplitz.T]
             return scs.bmat(np.atleast_2d(v_stacked)).tocsr()
         else:
-            h_stacked = [scs.bmat(np.atleast_2d(row)).tocsr() for row in np_toep_strided]
+            h_stacked = [scs.bmat(np.atleast_2d(row)).tocsr() for row in np_toeplitz]
             return scs.bmat(np.atleast_2d(h_stacked).T).tocsc()
     else:
-        return np_toep_strided.copy()
+        return np_toeplitz
 
 
 def block_toeplitz_alt(c_tup, r_tup=None, sparse=False):
@@ -161,9 +189,16 @@ _MatOpsNames = ['package',
                 'block_diag',
                 'vmatrix',
                 'hmatrix',
-                'zeros']
+                'zeros',
+                'vstack',
+                'hstack',
+                'matmul']
 
 _MatOpsNameTup = NamedTuple('MatOps', _MatOpsNames)
+
+
+def pass_through(a):
+    return a
 
 
 @cache_hashable_args(maxsize=2)
@@ -176,7 +211,10 @@ def get_mat_ops(sparse=False):
             block_diag=scs.block_diag,
             vmatrix=scs.csr_matrix,
             hmatrix=scs.csc_matrix,
-            zeros=scs.csr_matrix
+            zeros=scs.csr_matrix,
+            vstack=scs.vstack,
+            hstack=scs.hstack,
+            matmul=functools.partial(matmul, sparse=True)
         )
     else:
         mat_ops = _MatOpsNameTup(
@@ -186,12 +224,15 @@ def get_mat_ops(sparse=False):
             block_diag=block_diag_dense,
             vmatrix=np.atleast_2d,
             hmatrix=np.atleast_2d,
-            zeros=np.zeros
+            zeros=np.zeros,
+            vstack=np.vstack,
+            hstack=np.hstack,
+            matmul=matmul
         )
     return mat_ops
 
 
-def _get_expr_shape(expr):
+def get_expr_shape(expr):
     try:
         expr_shape = expr.shape
     except AttributeError:
@@ -213,14 +254,14 @@ def _get_expr_shape(expr):
         raise TypeError("Invalid expression type: '{0}', for expr: '{1!s}'".format(type(expr), expr))
 
 
-def _get_expr_shapes(*exprs, get_max_dim=False):
+def get_expr_shapes(*exprs, get_max_dim=False):
     if not exprs:
         return None
 
     if isinstance(exprs[0], dict):
-        shapes = StructDict({expr_id: _get_expr_shape(expr) for expr_id, expr in exprs[0].items()})
+        shapes = StructDict({expr_id: get_expr_shape(expr) for expr_id, expr in exprs[0].items()})
     else:
-        shapes = [_get_expr_shape(expr) for expr in exprs]
+        shapes = [get_expr_shape(expr) for expr in exprs]
 
     if get_max_dim:
         shapes = list(shapes.values()) if isinstance(shapes, dict) else shapes
@@ -229,7 +270,7 @@ def _get_expr_shapes(*exprs, get_max_dim=False):
         return shapes
 
 
-class CallableMatrixMeta(ABCMeta):
+class CallableMatrixMeta(type):
     def __call__(cls, *args, **kwargs):
         obj = cls.__new__(cls, *args, **kwargs)
         if kwargs.pop('_create_object', False):
@@ -335,7 +376,7 @@ class CallableMatrix(CallableMatrixBase, wrapt.decorators.AdapterWrapper):
         except AttributeError:
             pass
 
-        self._self_shape = _get_expr_shape(nan_call)
+        self._self_shape = get_expr_shape(nan_call)
         self._self_size = np.prod(nan_call.size)
         self._self_ndim = nan_call.ndim
         self._self_dtype = nan_call.dtype

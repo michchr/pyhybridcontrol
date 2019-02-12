@@ -1,7 +1,7 @@
 import functools
 import sympy as sp
 import numpy as np
-from utils.structdict import StructDict, StructDictAliased
+from structdict.structdict import StructDict, StructDictAliased
 
 
 # class AgentModelGenerator():

@@ -1,13 +1,12 @@
 import collections
 from collections import OrderedDict, namedtuple as NamedTuple
 from copy import deepcopy as _deepcopy, copy as _copy
-from itertools import zip_longest
 from reprlib import recursive_repr as _recursive_repr
 
 from utils.decorator_utils import process_method_args_decor
 from utils.func_utils import get_cached_func_spec, ParNotSet
 from utils.helper_funcs import num_not_None
-from utils.matrix_utils import atleast_2d_col, CallableMatrix, _get_expr_shape, _get_expr_shapes
+from utils.matrix_utils import atleast_2d_col, CallableMatrix, get_expr_shape, get_expr_shapes
 
 import numpy as np
 import scipy.linalg as scl
@@ -15,7 +14,7 @@ import scipy.sparse as scs
 import sympy as sp
 import wrapt
 
-from utils.structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict
+from structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict
 
 
 class MldBase(StructPropDictMixin, dict):
@@ -68,36 +67,10 @@ class MldBase(StructPropDictMixin, dict):
         return struct_repr(repr_dict, type_name=self.__class__.__name__, align_values=True, align_padding_width=1,
                            value_format_str='\b{value}')
 
-    @classmethod
-    def _constructor(cls, items, state, attribute_override=None, copy_items=False, copy_state=False, memo=None):
-        obj = cls.__new__(cls)
-        if copy_items:
-            items = _deepcopy(items, memo=memo)
-        if copy_state:
-            state = _deepcopy(state, memo=memo)
-
-        super(MldBase, obj).update(items)
-        obj.__dict__.update(state)
-        if attribute_override is not None:
-            obj.__dict__.update(attribute_override)
-
-        return obj
-
     def copy(self):
-        state = {name: _copy(item) for name, item in self.__dict__.items()}
-        return self.__class__._constructor(items=self.as_base_dict(), state=state)
+        return self._constructor_from_self(copy_instance_attr=True)
 
     __copy__ = copy
-
-    def deepcopy(self, memo=None):
-        return self.__class__._constructor(items=self.as_base_dict(), state=self.__dict__, copy_items=True,
-                                           copy_state=True,
-                                           memo=memo)
-
-    __deepcopy__ = deepcopy
-
-    def __reduce__(self):
-        return (self.__class__._constructor, (self.as_base_dict(), self.__dict__))
 
 
 def _process_mld_args_decor(func):
@@ -187,7 +160,7 @@ class MldInfo(MldBase):
     _data_types = MldInfoDataTypes
     _data_layout = (
         OrderedDict([(MldInfoDataTypes.sys_dims, _sys_dim_names),
-                     (MldInfoDataTypes.var_dims, _var_names),
+                     (MldInfoDataTypes.var_dims, _var_to_dim_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.bin_dims, _var_to_bin_dim_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.var_types, _var_to_type_names_map.get_sub_list(_var_names)),
                      (MldInfoDataTypes.meta_data, _meta_data_names)]))
@@ -202,9 +175,9 @@ class MldInfo(MldBase):
                     var_types_struct=var_types_struct, required_params=required_params, _from_init=True, **kwargs)
 
     def copy(self):
-        items = self.as_base_dict()
-        items['param_struct'] = _copy(items['param_struct'])
-        return self.__class__._constructor(items, self.__dict__)
+        copy = super(MldInfo, self).copy()
+        copy._base_dict_update(param_struct=_copy(self['param_struct']))
+        return copy
 
     __copy__ = copy
 
@@ -531,11 +504,11 @@ class MldModel(MldBase):
             raise TypeError(f"Argument:'system_matrices' must be dictionary like: {ae.args[0]}")
 
         if from_init and creation_matrices.get('C') is None:
-            new_sys_mats['C'] = np.eye(*(_get_expr_shape(new_sys_mats['A'])), dtype=np.int)
+            new_sys_mats['C'] = np.eye(*(get_expr_shape(new_sys_mats['A'])), dtype=np.int)
             new_sys_mats['C'].setflags(write=False)
             creation_matrices['C'] = new_sys_mats['C']
 
-        shapes_struct = _get_expr_shapes(new_sys_mats)
+        shapes_struct = get_expr_shapes(new_sys_mats)
         if shapes_struct != self._shapes_struct:
             mld_dims = self._mld_info._get_mld_dims(shapes_struct)
             new_sys_mats, shapes_struct = self._validate_sys_matrix_shapes(new_sys_mats, shapes_struct, mld_dims)
@@ -563,7 +536,7 @@ class MldModel(MldBase):
         inputs_struct = StructDict(
             {input_name: _as2darray(f_locals.get(input_name)) for input_name in self.mld_info._input_var_names})
 
-        max_input_samples = _get_expr_shapes(inputs_struct, get_max_dim=True)[0]
+        max_input_samples = get_expr_shapes(inputs_struct, get_max_dim=True)[0]
         if t is None:
             out_samples = max_input_samples
             stoptime = (out_samples - 1) * self.mld_info.dt
@@ -637,39 +610,42 @@ class MldModel(MldBase):
 
         return OrderedStructDict(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out)
 
-    def to_numeric(self, param_struct=None, copy=True):
+    def to_numeric(self, param_struct=None, copy=False):
         if param_struct is None:
-            param_struct = self.mld_info['param_struct'] or {}
+            param_struct = self.mld_info['param_struct']
 
         if self.mld_type == self.MldModelTypes.callable:
-            dict_numeric = {mat_id: mat_callable(param_struct=param_struct) for mat_id, mat_callable in self.items()}
+            dict_numeric = {mat_id: mat_callable(param_struct=param_struct) for mat_id, mat_callable in
+                            self.items()}
         elif self.mld_type == self.MldModelTypes.symbolic:
             print("Performance warning, mld_type is not callable had to convert to callable")
             callable_mld = self.to_callable()
             return callable_mld.to_numeric(param_struct=param_struct)
         else:
-            dict_numeric = _deepcopy(dict(self)) if copy else dict(self)
+            dict_numeric = _deepcopy(self.as_base_dict()) if copy else self.as_base_dict()
 
         # make all system matrices read_only
         for mat in dict_numeric.values():
             mat.setflags(write=False)
 
-        new_state = _deepcopy(self.__dict__) if copy else {name: _copy(item) for name, item in self.__dict__.items()}
-        new_state['_mld_info']._base_dict_setitem('param_struct', _copy(param_struct))
-        return self.__class__._constructor(dict_numeric, new_state,
-                                           attribute_override={'_mld_type': self.MldModelTypes.numeric})
+        mld_type = self.MldModelTypes.numeric
+        instance_dict = self.__dict__.copy()
+        instance_dict['_mld_info']._base_dict_update(param_struct=param_struct)
+        return self._constructor_from_self(items=dict_numeric, instance_dict=instance_dict,
+                                          copy_instance_attr=True, deepcopy_instance_attr=copy,
+                                          inst_dict_attr_override={'_mld_type': mld_type})
 
-    def to_callable(self, copy=True):
+    def to_callable(self, copy=False):
         if self.mld_type in (self.MldModelTypes.numeric, self.MldModelTypes.symbolic):
             dict_callable = {}
             for sys_matrix_id, system_matrix in self.items():
                 dict_callable[sys_matrix_id] = CallableMatrix(system_matrix, sys_matrix_id)
         else:
-            dict_callable = _deepcopy(dict(self)) if copy else dict(self)
+            dict_callable = _deepcopy(self.as_base_dict()) if copy else self.as_base_dict()
 
-        new_state = _deepcopy(self.__dict__) if copy else {name: _copy(item) for name, item in self.__dict__.items()}
-        return self.__class__._constructor(dict_callable, new_state,
-                                           attribute_override={'_mld_type': self.MldModelTypes.callable})
+        mld_type = self.MldModelTypes.callable
+        return self._constructor_from_self(items=dict_callable, deepcopy_instance_attr=copy, copy_instance_attr=True,
+                                           inst_dict_attr_override={'_mld_type': mld_type})
 
     def _set_mld_type(self, mld_data):
         is_symbolic = (isinstance(sys_mat, (sp.Expr, sp.Matrix)) for sys_mat_id, sys_mat in
@@ -696,7 +672,7 @@ class MldModel(MldBase):
                 is_all_zero = mat.is_zero
             else:
                 is_empty = False if mat.size else True
-                is_all_zero = np.all(mat==0)
+                is_all_zero = np.all(mat == 0)
 
             self._all_empty_mats.add(mat_id) if is_empty else self._all_empty_mats.discard(mat_id)
             self._all_zero_mats.add(mat_id) if is_all_zero else self._all_zero_mats.discard(mat_id)
@@ -755,7 +731,7 @@ class MldModel(MldBase):
                 zero_empty_mat = np.zeros(new_shape, dtype=np.int)
             else:
                 new_shape = (sys_dim, 0)
-                zero_empty_mat = np.empty(shape=new_shape)
+                zero_empty_mat = np.empty(shape=new_shape, dtype=np.int)
 
             if callable(mld_data[mat_id]):
                 zero_empty_mat = CallableMatrix(zero_empty_mat, mat_id)
@@ -854,7 +830,7 @@ class MldSystemModel:
                    param_struct_subset=None, copy=True, missing_param_check=True, invalid_param_check=False, **kwargs):
 
         mlds = MldModel.MldModelTypesNamedTup(numeric=mld_numeric, callable=mld_callable, symbolic=mld_symbolic)
-        if num_not_None(mlds) > 1:
+        if num_not_None(*mlds) > 1:
             raise ValueError(
                 f"Only one of {{'mld_numeric', 'mld_callable', 'mld_symbolic'}} can be used to construct/update an "
                 f"{self.__class__.__name__}")

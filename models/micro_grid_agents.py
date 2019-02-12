@@ -3,23 +3,20 @@ import pandas as pd
 import numpy as np
 import scipy.linalg as scl
 
-from utils.structdict import StructDict
+from structdict.structdict import StructDict
 from models.mld_model import MldModel, MldSystemModel, PvMldSystemModel
-from models.agents import Agent
-from models.parameters import dewh_p, grid_p
+from models.parameters import grid_p
 
 from utils.helper_funcs import is_all_None
 
-from copy import copy as _copy, deepcopy as _deepcopy
-
-from tools.grid_dataframe import MicroGridDataFrame, MicroGridSeries, IDX
+from tools.grid_dataframe import MicroGridDataFrame, IDX
 from tools.mongo_interface import MongoInterface
 
 
 class DewhModel(PvMldSystemModel):
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, const_heat=True):
         param_struct = param_struct or dewh_p
-        if is_all_None([mld_numeric, mld_callable, mld_symbolic]):
+        if is_all_None(mld_numeric, mld_callable, mld_symbolic):
             mld_symbolic = self.get_dewh_mld_symbolic(const_heat=const_heat)
         super(DewhModel, self).__init__(mld_numeric=mld_numeric, mld_symbolic=mld_symbolic,
                                         mld_callable=mld_callable, param_struct=param_struct)
@@ -58,8 +55,8 @@ class DewhModel(PvMldSystemModel):
         mld_sym_struct.B4 = B4
         mld_sym_struct.b5 = b5
 
-        mld_sym_struct.E = sp.Matrix([[1, -1, 0, 0]]).T
-        mld_sym_struct.F1 = sp.Matrix([[0, 0, 1, -1]]).T
+        mld_sym_struct.E = np.array([[1, -1, 0, 0]]).T
+        mld_sym_struct.F1 = np.array([[0, 0, 1, -1]]).T
         mld_sym_struct.f5 = sp.Matrix([[T_h_max, -T_h_min, 1, 0]]).T
 
         MldModel_sym = MldModel(mld_sym_struct, nu_l=1)
@@ -71,7 +68,7 @@ class GridModel(MldSystemModel):
 
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, num_devices=1):
         param_struct = param_struct or grid_p
-        if is_all_None([mld_numeric, mld_callable, mld_symbolic]):
+        if is_all_None(mld_numeric, mld_callable, mld_symbolic):
             mld_symbolic = self.get_grid_mld_symbolic(num_devices=num_devices)
         super(GridModel, self).__init__(mld_numeric=mld_numeric, mld_symbolic=mld_symbolic,
                                         mld_callable=mld_callable, param_struct=param_struct)
