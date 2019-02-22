@@ -84,7 +84,7 @@ _mpc_evo_mat_types_names = ['state_input', 'output', 'constraint']
 MpcEvoMatricesStruct = struct_prop_fixed_dict('MpcEvoMatricesStruct', _mpc_evo_mat_types_names)
 
 
-class MpcSysEvoMatrices(MpcComponentsBase):
+class MpcEvoMatrices(MpcComponentsBase):
     _MldModelMatTypesNamedTup = namedtuple('matrix_types', _mpc_evo_mat_types_names)
     matrix_types = _MldModelMatTypesNamedTup._make(_mpc_evo_mat_types_names)
 
@@ -109,7 +109,7 @@ class MpcSysEvoMatrices(MpcComponentsBase):
     _field_names_set = frozenset(_field_names)
 
     def _reset(self):
-        super(MpcSysEvoMatrices, self)._reset()
+        super(MpcEvoMatrices, self)._reset()
         self._base_dict_init({
             self.matrix_types.state_input: self.StateInputEvoMatStruct(),
             self.matrix_types.output     : self.OutputEvoMatStruct(),
@@ -118,21 +118,9 @@ class MpcSysEvoMatrices(MpcComponentsBase):
 
     def __init__(self, mpc_controller=None, N_p=ParNotSet, N_tilde=ParNotSet,
                  mld_numeric_k=ParNotSet, mld_numeric_tilde=ParNotSet):
-        super(MpcSysEvoMatrices, self).__init__(mpc_controller, N_p=N_p, N_tilde=N_tilde,
-                                                mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde)
+        super(MpcEvoMatrices, self).__init__(mpc_controller, N_p=N_p, N_tilde=N_tilde,
+                                             mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde)
         self.update()
-
-    @property
-    def state_input(self):
-        return self[self.matrix_types.state_input]
-
-    @property
-    def output(self):
-        return self[self.matrix_types.output]
-
-    @property
-    def constraint(self):
-        return self[self.matrix_types.constraint]
 
     @process_method_args_decor(process_base_args, process_mat_op_args, process_A_pow_tilde_arg)
     def update(self, N_p=None, N_tilde=None,
@@ -550,16 +538,11 @@ class MpcSysEvoMatrices(MpcComponentsBase):
                             mat_names=None,
                             sparse=None, mat_ops=None):
 
-        if mld_numeric_tilde:
-            mld_numeric_k0 = mld_numeric_tilde[0]
-        else:
-            mld_numeric_k0 = mld_numeric_k
+        non_empty_mats = [mat_name for mat_name in mat_names if mat_name not in mld_numeric_k._all_empty_mats]
+        non_zero_mats = [mat_name for mat_name in mat_names if mat_name not in mld_numeric_k._all_zero_mats]
 
-        non_empty_mats = [mat_name for mat_name in mat_names if mat_name not in mld_numeric_k0._all_empty_mats]
-        non_zero_mats = [mat_name for mat_name in mat_names if mat_name not in mld_numeric_k0._all_zero_mats]
-
-        mat_hstack_k0 = mat_ops.vmatrix(mat_ops.package.hstack(
-            [mat_ops.hmatrix(mld_numeric_k0[mat_name]) for mat_name in mat_names]))
+        mat_hstack_k = mat_ops.vmatrix(mat_ops.package.hstack(
+            [mat_ops.hmatrix(mld_numeric_k[mat_name]) for mat_name in mat_names]))
 
         if non_zero_mats:  # constant non-zero matrices exist
             if mld_numeric_tilde:
@@ -569,11 +552,11 @@ class MpcSysEvoMatrices(MpcComponentsBase):
                     ) for k in range(N_tilde)]
 
             else:
-                mat_hstack_tilde = [mat_hstack_k0] * N_tilde
+                mat_hstack_tilde = [mat_hstack_k] * N_tilde
 
             return mat_ops.block_diag(mat_hstack_tilde)
         else:
-            return mat_ops.zeros(tuple(np.array(mat_hstack_k0.shape) * N_tilde))
+            return mat_ops.zeros(tuple(np.array(mat_hstack_k.shape) * N_tilde))
 
 
 MpcOptVarStruct = struct_prop_fixed_dict('MpcOptVarStruct', ['var_name', 'var_mat_N_tilde', 'var_N_tilde', 'var_N_p'],
@@ -998,7 +981,7 @@ class MpcObjectiveWeights(MpcComponentsBase):
         return cost
 
     def _apply_quadratic_weight_to_var(self, opt_var, value):
-        cost = cvx.QuadForm(opt_var['var_N_p'][:value.shape[1]], value)
+        cost = cvx.QuadForm(opt_var['var_N_tilde'][:value.shape[1]], value)
         return cost
 
     _weight_apply_switcher = {

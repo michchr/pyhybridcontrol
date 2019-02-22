@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import scipy.linalg as scl
 
-from structdict.structdict import StructDict
+from structdict import StructDict
 from models.mld_model import MldModel, MldSystemModel, PvMldSystemModel
 from models.parameters import grid_p
 
@@ -26,21 +26,27 @@ class DewhModel(PvMldSystemModel):
         dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
             'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
+        T_h_nom = sp.symbols('T_h_nom')
 
         p1 = U_h * A_h
         p2 = m_h * C_w
 
-        # Define continuous system matrices
-        if const_heat:  # assume heat demand constant over sampling period
-            A_c = sp.Matrix([-p1 / p2])
-            B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
-            B4_c = sp.Matrix([-1]) * (p2 ** -1)
-            b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
-        else:  # assume water demand flow rate constant over sampling period
-            A_c = sp.Matrix([-(D_h * C_w + p1) / p2])
-            B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
-            B4_c = sp.Matrix([C_w * T_w]) * (p2 ** -1)
-            b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
+        # # Define continuous system matrices
+        # if const_heat:  # assume heat demand constant over sampling period
+        #     A_c = sp.Matrix([-p1 / p2])
+        #     B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
+        #     B4_c = sp.Matrix([-1]) * (p2 ** -1)
+        #     b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
+        # else:  # assume water demand flow rate constant over sampling period
+        #     A_c = sp.Matrix([-(D_h * C_w + p1) / p2])
+        #     B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
+        #     B4_c = sp.Matrix([C_w * T_w]) * (p2 ** -1)
+        #     b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
+
+        A_c = sp.Matrix([-p1]) * (p2 ** -1)
+        B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
+        B4_c = sp.Matrix([C_w * (T_w-T_h_nom)]) * (p2 ** -1)
+        b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
 
         # Compute discretized system matrices
         A = sp.Matrix.exp(A_c * dt)
@@ -55,9 +61,15 @@ class DewhModel(PvMldSystemModel):
         mld_sym_struct.B4 = B4
         mld_sym_struct.b5 = b5
 
-        mld_sym_struct.E = np.array([[1, -1, 0, 0]]).T
-        mld_sym_struct.F1 = np.array([[0, 0, 1, -1]]).T
-        mld_sym_struct.f5 = sp.Matrix([[T_h_max, -T_h_min, 1, 0]]).T
+        mld_sym_struct.Psi = np.array([[-1,0],
+                                       [0,-1],
+                                       [0,0],
+                                       [0,0],
+                                       [1,1]])
+
+        mld_sym_struct.E = np.array([[1, -1, 0, 0, 0]]).T
+        mld_sym_struct.F1 = np.array([[0, 0, 1, -1, 0]]).T
+        mld_sym_struct.f5 = sp.Matrix([[T_h_max, -T_h_min, 1, 0, 10e5]]).T
 
         MldModel_sym = MldModel(mld_sym_struct, nu_l=1)
 

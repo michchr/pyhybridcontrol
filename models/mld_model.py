@@ -5,7 +5,7 @@ from reprlib import recursive_repr as _recursive_repr
 
 from utils.decorator_utils import process_method_args_decor
 from utils.func_utils import get_cached_func_spec, ParNotSet
-from utils.helper_funcs import num_not_None
+from utils.helper_funcs import num_not_None, is_all_None
 from utils.matrix_utils import atleast_2d_col, CallableMatrix, get_expr_shape, get_expr_shapes
 
 import numpy as np
@@ -181,21 +181,21 @@ class MldInfo(MldBase):
 
     __copy__ = copy
 
-    VarTypesStruct = struct_prop_dict('VarTypesStruct', _var_to_type_names_map.values())
-    VarDimStruct = struct_prop_dict('VarBinDimStruct', _var_to_dim_names_map.values())
-    VarBinDimStruct = struct_prop_dict('VarBinDimStruct', _var_to_bin_dim_names_map.values())
+    VarTypesStruct = struct_prop_dict('VarTypesStruct', _var_names, sorted_repr=False)
+    VarDimStruct = struct_prop_dict('VarDimStruct', _var_names, sorted_repr=False)
+    VarBinDimStruct = struct_prop_dict('VarBinDimStruct', _var_names, sorted_repr=False)
 
     @property
     def var_types_struct(self):
-        return self.VarTypesStruct(self.get_sub_base_dict(self.VarTypesStruct._field_names))
+        return self.VarTypesStruct({var_name: self.get_var_type(var_name) for var_name in self._var_names})
 
     @property
     def var_dims_struct(self):
-        return self.VarDimStruct(self.get_sub_base_dict(self.VarDimStruct._field_names))
+        return self.VarDimStruct({var_name: self.get_var_dim(var_name) for var_name in self._var_names})
 
     @property
     def var_bin_dims_struct(self):
-        return self.VarBinDimStruct(self.get_sub_base_dict(self.VarBinDimStruct._field_names))
+        return self.VarBinDimStruct({var_name: self.get_var_bin_dim(var_name) for var_name in self._var_names})
 
     def get_var_type(self, var_name):
         return self[self._var_to_type_names_map[var_name]]
@@ -451,7 +451,7 @@ class MldModel(MldBase):
         mld_model_str = ("\n"
                          "x(k+1) = A*x(k) + B1*u(k) + B2*delta(k) + B3*z(k) + B4*omega(k) + b5\n"
                          "y(k) = C*x(k) + D1*u(k) + D2*delta(k) + D3*z(k) + D4*omega(k) + d5\n"
-                         "E*x(k) + F1*u(k) + F2*delta(k) + F3*z(k) + F4*omega(k) + G*y(k) <= f5 + Psi*mu(k)\n"
+                         "E*x(k) + F1*u(k) + F2*delta(k) + F3*z(k) + F4*omega(k) + G*y(k) + Psi*mu(k) <= f5\n"
                          f"mld_type : {self.mld_type}\n"
                          "\n"
                          "with:\n")
@@ -530,89 +530,148 @@ class MldModel(MldBase):
                              var_types_struct=var_types_struct, required_params=required_params, **mld_info_kwargs)
 
     # TODO not finished - needs to include output constraints, interpolation and datetime handling
-    def lsim(self, u=None, delta=None, z=None, omega=None, x0=None, t=None, start_datetime=None, end_datetime=None):
-        f_locals = locals()
-        # create struct_dict of all input sequences
-        inputs_struct = StructDict(
-            {input_name: _as2darray(f_locals.get(input_name)) for input_name in self.mld_info._input_var_names})
+    LSimStruct = struct_prop_dict('LSimStruct', ['t_out', 'y_out', 'x_out', 'con_out', 'x_out_k1'], sorted_repr=False)
+
+    def lsim(self, x_k=None, u=None, delta=None, z=None, mu=None, v=None, omega=None, t=None, dt=None):
+        dt = dt if dt is not None else self.mld_info.dt
+        m_dims = self.mld_info.var_dims_struct
+        inputs_struct = StructDict()
+
+        if v is not None:
+            if not is_all_None(u, delta, z, mu):
+                raise ValueError(
+                    "Either supply concatenated input in 'v' or supply individual inputs "
+                    "'u', 'delta', 'z' and 'mu', but not both.")
+            else:
+                inputs_struct.v = v
+
+        else:
+            inputs_struct.update(
+                u=atleast_2d_col(u) if u is not None else atleast_2d_col([]),
+                delta=atleast_2d_col(delta) if delta is not None else atleast_2d_col([]),
+                z=atleast_2d_col(z) if z is not None else atleast_2d_col([]),
+                mu=atleast_2d_col(mu) if mu is not None else atleast_2d_col([]),
+            )
+
+        inputs_struct.omega = atleast_2d_col(omega) if omega is not None else atleast_2d_col([])
 
         max_input_samples = get_expr_shapes(inputs_struct, get_max_dim=True)[0]
         if t is None:
             out_samples = max_input_samples
-            stoptime = (out_samples - 1) * self.mld_info.dt
+            stoptime = (out_samples - 1) * dt
         else:
             stoptime = t[-1]
-            out_samples = int(np.floor(stoptime / self.mld_info.dt)) + 1
+            out_samples = int(np.floor(stoptime / dt)) + 1
 
         for input_name, input in inputs_struct.items():
-            req_input_dim_name = ''.join(['n', input_name])
-            req_input_dim = self.mld_info.get(req_input_dim_name)
-            if req_input_dim == 0:
-                if input.shape[1] != 0:
-                    raise ValueError(
-                        "Invalid shape for input sequence'{0}':{1}, column dimension must be equal to 0 as required "
-                        "input is null, i.e. '(*,{2})')".format(input_name, input.shape, 0)
-                    )
-                elif input.shape[0] != out_samples:  # ensure null inputs have correct dimension
+            input_dim = m_dims[input_name]
+            if input.shape[1] == input_dim:
+                if input_dim == 0 and input.shape[0] != out_samples:  # ensure null inputs have correct dimension
                     inputs_struct[input_name] = inputs_struct[input_name].reshape(out_samples, 0)
-            elif input.shape[1] == req_input_dim:
-                if t is None and input.shape[0] != max_input_samples:
+                elif t is None and input.shape[0] != max_input_samples:
                     raise ValueError(
-                        "Invalid shape for input sequence'{0}':{1}, row dimension must be equal to maximum row "
-                        "dimension of all input sequences, i.e. '({2},*)')".format(
-                            input_name, input.shape, max_input_samples)
+                        f"Invalid shape for input sequence'{input_name}':{input.shape}, row dimension must be equal "
+                        f"to maximum row dimension of all input sequences, i.e. '({max_input_samples},*)')"
                     )
                 elif t is not None and input.shape[0] != t.size:
                     raise ValueError(
-                        "Invalid shape for input sequence'{0}':{1}, row dimension must be equal to size of t, "
-                        "i.e. '({2},*)')".format(input_name, input.shape, t.size)
+                        f"Invalid shape for input sequence'{input_name}':{input.shape}, row dimension must be equal "
+                        f"to size of t, i.e. '({t.size},*)')"
                     )
             else:
                 raise ValueError(
-                    "Invalid shape for input sequence '{0}':{1}, column dimension must be equal to mld model dim "
-                    "'{2}', i.e. '(*,{3})')".format(input_name, input.shape, req_input_dim_name, req_input_dim)
+                    f"Invalid shape for input sequence '{input_name}':{input.shape}, column dimension must be equal "
+                    f"to mld model dim '{self.mld_info._var_to_dim_names_map[input_name]}', i.e. '(*,{input_dim})')"
                 )
 
-        u = inputs_struct.u
-        delta = inputs_struct.delta
-        z = inputs_struct.z
+        v = inputs_struct.get('v')
+        if v is not None:
+            u, delta, z, mu = np.split(v, [m_dims.u,
+                                           m_dims.u + m_dims.delta,
+                                           m_dims.u + m_dims.delta + m_dims.z], axis=1)
+        else:
+            u = inputs_struct.u
+            delta = inputs_struct.delta
+            z = inputs_struct.z
+            mu = inputs_struct.mu
+
         omega = inputs_struct.omega
 
         # Pre-build output arrays
-        x_out = np.zeros((out_samples + 1, self.mld_info.n_states))
-        y_out = np.zeros((out_samples, self.mld_info.n_outputs))
+        x_out_k1 = np.zeros((out_samples + 1, m_dims.x))
+        y_out = np.zeros((out_samples, m_dims.y))
         con_out = np.zeros((out_samples, self.mld_info.n_constraints), dtype=np.bool)
-        t_out = _as2darray(np.linspace(0.0, stoptime, num=out_samples))
+        t_out = atleast_2d_col(np.linspace(0.0, stoptime, num=out_samples))
 
         # Check initial condition
-        if x0 is None:
-            x_out[0, :] = np.zeros((self.mld_info.n_states,))
+        if x_k is None:
+            x_out_k1[0, :] = np.zeros((m_dims.x,))
         else:
-            x_out[0, :] = np.asarray(x0).reshape(1, self.mld_info.n_states)
+            x_out_k1[0, :] = np.asanyarray(x_k).reshape(1, m_dims.x)
 
         # Pre-interpolate inputs into the desired time steps
         # todo interpolate inputs
 
-        # return x_out, u_dt, delta, z, omega
+        # return x_out_k1, u_dt, delta, z, omega
         # Simulate the system
         for k in range(0, out_samples):
-            x_out[k + 1, :] = (
-                    self.A @ x_out[k, :] + self.B1 @ u[k, :] + self.B2 @ delta[k, :]
+            x_out_k1[k + 1, :] = (
+                    self.A @ x_out_k1[k, :] + self.B1 @ u[k, :] + self.B2 @ delta[k, :]
                     + self.B3 @ z[k, :] + self.B4 @ omega[k, :] + self.b5.T)
             y_out[k, :] = (
-                    self.C @ x_out[k, :] + self.D1 @ u[k, :] + self.D2 @ delta[k, :]
+                    self.C @ x_out_k1[k, :] + self.D1 @ u[k, :] + self.D2 @ delta[k, :]
                     + self.D3 @ z[k, :] + self.D4 @ omega[k, :] + self.d5.T)
             con_out[k, :] = (
-                    (self.E @ x_out[k, :] + self.F1 @ u[k, :] + self.F2 @ delta[k, :]
-                     + self.F3 @ z[k, :] + self.F4 @ omega[k, :]) <= self.f5.T)
+                    (self.E @ x_out_k1[k, :] + self.F1 @ u[k, :] + self.F2 @ delta[k, :]
+                     + self.F3 @ z[k, :] + self.F4 @ omega[k, :] + self.G @ y_out[k, :] +
+                     self.Psi @ mu[k, :]) <= self.f5.T)
 
-        x_out = x_out[:-1, :]  # remove last point for equal length output arrays.
+        x_out = x_out_k1[:-1, :]  # remove last point for equal length output arrays.
 
-        return OrderedStructDict(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out)
+        return self.LSimStruct(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out, x_out_k1=x_out_k1)
 
-    def to_numeric(self, param_struct=None, copy=False):
+    LSimKStruct = struct_prop_dict('LSimKStruct', ['x_k', 'y_k', 'con_k', 'x_k1'], sorted_repr=False)
+
+    def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None) -> LSimKStruct:
+        m_dims = self.mld_info.var_dims_struct
+        if v_k is not None:
+            if not is_all_None(u_k, delta_k, z_k, mu_k):
+                raise ValueError(
+                    "Either supply concatenated input in 'v_k' or supply individual inputs "
+                    "'u_k', 'delta_k', 'z_k' and 'mu_k', but not both.")
+            else:
+                v_k = atleast_2d_col(v_k)
+                u_k = v_k[:m_dims.u]
+                delta_k = v_k[m_dims.u:m_dims.u + m_dims.delta]
+                z_k = v_k[m_dims.u + m_dims.delta:m_dims.u + m_dims.delta + m_dims.z]
+                mu_k = v_k[m_dims.u + m_dims.delta + m_dims.z:]
+        else:
+            u_k = atleast_2d_col(u_k) if u_k is not None else np.empty((0, 1))
+            delta_k = atleast_2d_col(delta_k) if delta_k is not None else np.empty((0, 1))
+            z_k = atleast_2d_col(z_k) if z_k is not None else np.empty((0, 1))
+            mu_k = atleast_2d_col(mu_k) if mu_k is not None else np.empty((0, 1))
+
+        if x_k is None:
+            x_k = np.zeros((m_dims.x, 1))
+        else:
+            x_k = np.asanyarray(x_k).reshape(m_dims.x, 1)
+
+        omega_k = atleast_2d_col(omega_k) if omega_k is not None else atleast_2d_col([])
+
+        x_k1 = (self.A @ x_k + self.B1 @ u_k + self.B2 @ delta_k + self.B3 @ z_k + self.B4 @ omega_k + self.b5)
+        y_k = (self.C @ x_k + self.D1 @ u_k + self.D2 @ delta_k + self.D3 @ z_k + self.D4 @ omega_k + self.d5)
+        con_k = (self.E @ x_k + self.F1 @ u_k + self.F2 @ delta_k
+                 + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
+                 self.Psi @ mu_k <= self.f5)
+
+        return self.LSimKStruct(x_k=x_k, y_k=y_k, con_k=con_k, x_k1=x_k1)
+
+    def to_numeric(self, param_struct=None, copy=False, dt=None):
         if param_struct is None:
-            param_struct = self.mld_info['param_struct']
+            param_struct = self.mld_info.param_struct
+
+        if dt is None:
+            dt = param_struct.get('dt', self.mld_info.dt)
 
         if self.mld_type == self.MldModelTypes.callable:
             dict_numeric = {mat_id: mat_callable(param_struct=param_struct) for mat_id, mat_callable in
@@ -630,10 +689,11 @@ class MldModel(MldBase):
 
         mld_type = self.MldModelTypes.numeric
         instance_dict = self.__dict__.copy()
-        instance_dict['_mld_info']._base_dict_update(param_struct=param_struct)
+        instance_dict['_mld_info']._base_dict_update(param_struct=param_struct,
+                                                     dt=dt)
         return self._constructor_from_self(items=dict_numeric, instance_dict=instance_dict,
-                                          copy_instance_attr=True, deepcopy_instance_attr=copy,
-                                          inst_dict_attr_override={'_mld_type': mld_type})
+                                           copy_instance_attr=True, deepcopy_instance_attr=copy,
+                                           inst_dict_attr_override={'_mld_type': mld_type})
 
     def to_callable(self, copy=False):
         if self.mld_type in (self.MldModelTypes.numeric, self.MldModelTypes.symbolic):
@@ -803,16 +863,6 @@ class MldModel(MldBase):
         concat_mld = MldModel(concat_sys_mats, var_types_struct=concat_var_type_info)
 
         return concat_mld
-
-
-def _as2darray(array):
-    if array is None:
-        out_array = np.empty(shape=(0, 0))
-    else:
-        out_array = np.array(array)
-        if out_array.ndim == 1:  # return column array if 1 dim
-            out_array = out_array[:, np.newaxis]
-    return out_array
 
 
 class MldSystemModel:

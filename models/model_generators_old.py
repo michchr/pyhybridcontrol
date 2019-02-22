@@ -1,7 +1,7 @@
 import functools
 import sympy as sp
 import numpy as np
-from structdict.structdict import StructDict, StructDictAliased
+from structdict import StructDict
 
 
 # class AgentModelGenerator():
@@ -18,7 +18,7 @@ class DewhModelGenerator():
         mld_sym_struct, var_dim_struct = self.gen_dewh_symbolic_mld_sys_matrices(const_heat=const_heat)
         required_model_params = _get_all_syms_as_str_list(mld_sym_struct)
 
-        mld_eval_struct = StructDictAliased()
+        mld_eval_struct = StructDict()
         for key, expr in mld_sym_struct.items():
             syms_tup, syms_str_tup = _get_syms_tup(expr)
             lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
@@ -46,7 +46,7 @@ class DewhModelGenerator():
         A_h = sp.exp(A_h_c * ts)
         B_h_3 = A_h_c ** (-1) * (sp.exp(A_h_c * ts) - 1) * B_h_c
 
-        mld_sym_struct = StructDictAliased()
+        mld_sym_struct = StructDict()
         mld_sym_struct.A_h = A_h
         mld_sym_struct.B_h1 = B_h_3[0]
         mld_sym_struct.B_h4 = B_h_3[1]
@@ -82,7 +82,7 @@ class GridModelGenerator():
         mld_sym_struct, var_dim_struct = self.gen_grid_symbolic_mld_cons_matrices()
         required_model_params = _get_all_syms_as_str_list(mld_sym_struct)
 
-        mld_eval_struct = StructDictAliased()
+        mld_eval_struct = StructDict()
         for key, expr in mld_sym_struct.items():
             syms_tup, syms_str_tup = _get_syms_tup(expr)
             lam = sp.lambdify(syms_tup, expr, "numpy", dummify=False)
@@ -94,7 +94,7 @@ class GridModelGenerator():
         P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
         eps = sp.symbols('eps')
 
-        mld_sym_struct = StructDictAliased()
+        mld_sym_struct = StructDict()
 
         mld_sym_struct.E_p2 = sp.Matrix([-1, 1, 0, 0, -1, 1])
         mld_sym_struct.E_p3 = sp.Matrix([-P_g_min, -(P_g_max + eps), -P_g_max, P_g_min, -P_g_min, P_g_max])

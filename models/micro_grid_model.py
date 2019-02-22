@@ -4,7 +4,7 @@ from datetime import datetime as DateTime
 import pprint
 
 from models.device_repository_old import DeviceRepository, DewhRepository
-from structdict.structdict import StructDict, StructDictAliased
+from structdict import StructDict
 from models.model_generators_old import DewhModelGenerator, GridModelGenerator
 
 
@@ -57,7 +57,7 @@ class MicroGridModel():
         self.device_repositories.append(device_repository)
 
     def gen_concat_device_system_mld(self, sparse=True):
-        mld_mat_list = StructDictAliased(A_s=[], B_s1=[], B_s2=[], B_s3=[], B_s4=[], b_s5=[], E_s1=[], E_s2=[],
+        mld_mat_list = StructDict(A_s=[], B_s1=[], B_s2=[], B_s3=[], B_s4=[], b_s5=[], E_s1=[], E_s2=[],
                                          E_s3=[], E_s4=[], E_s5=[], d_s=[])
 
         # First extract matrices form repository as list
@@ -82,7 +82,7 @@ class MicroGridModel():
         if grid_param_struct == None:
             grid_param_struct = self.grid_param_struct
 
-        grid_mld_mat_struct = StructDictAliased(A_p=[], B_p1=[], B_p2=[], B_p3=[], B_p4=[], b_p5=[], E_p1=[],
+        grid_mld_mat_struct = StructDict(A_p=[], B_p1=[], B_p2=[], B_p3=[], B_p4=[], b_p5=[], E_p1=[],
                                                      E_p2=[], E_p3=[], E_p4=[], E_p5=[], d_p=[])
         grid_model_generator = GridModelGenerator()
 

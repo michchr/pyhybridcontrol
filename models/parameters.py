@@ -17,6 +17,7 @@ dewh_p.T_inf = 25.0    #K
 dewh_p.P_h_Nom = 3000.0 #W  (Joules/s)
 dewh_p.T_h_min = 45.0   #K
 dewh_p.T_h_max = 65.0   #K
+dewh_p.T_h_nom = 55.0   #K
 dewh_p.D_h = 0.0        #kg/s
 dewh_p.control_dt = control_dt
 dewh_p.dt = control_dt.seconds

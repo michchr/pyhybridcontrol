@@ -3,12 +3,12 @@ import numpy as np
 
 import cvxpy.expressions.expression as cvx_e
 
-from controllers.mpc_controller.mpc_components import MpcSysEvoMatrices, MpcOptimizationVars, MpcObjectiveWeights
+from controllers.mpc_controller.mpc_components import MpcEvoMatrices, MpcOptimizationVars, MpcObjectiveWeights
 from controllers.mpc_controller.mpc_utils import process_base_args
 from models.mld_model import MldModel, MldInfo, MldSystemModel
 from utils.decorator_utils import process_method_args_decor
 from utils.matrix_utils import atleast_2d_col, matmul
-from structdict.structdict import struct_prop_fixed_dict, struct_repr
+from structdict import struct_prop_fixed_dict, struct_repr
 from utils.helper_funcs import is_all_val
 
 from utils.func_utils import ParNotSet
@@ -67,7 +67,7 @@ class MpcController(MpcBase):
         self.set_x_k(x_k=x_k)
         self.set_omega_tilde_k(omega_tilde_k=omega_tilde_k)
 
-        self._sys_evo_matrices = MpcSysEvoMatrices(self)
+        self._sys_evo_matrices = MpcEvoMatrices(self)
         self._opt_vars = MpcOptimizationVars(self)
 
         self._std_obj_weights = MpcObjectiveWeights(self)
@@ -216,8 +216,8 @@ class MpcController(MpcBase):
             N_tilde = N_tilde if N_tilde != self.N_tilde else ParNotSet
 
             if not is_all_val(mld_numeric_k, mld_numeric_tilde, N_p, N_tilde, val=ParNotSet):
-                sys_evo_matrices = MpcSysEvoMatrices(self, N_p=N_p, N_tilde=N_tilde,
-                                                     mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde)
+                sys_evo_matrices = MpcEvoMatrices(self, N_p=N_p, N_tilde=N_tilde,
+                                                  mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde)
             else:
                 sys_evo_matrices = self._sys_evo_matrices
 
@@ -285,8 +285,11 @@ class MpcController(MpcBase):
                  ):
         if x_k is not None:
             self.x_k = x_k
-        if omega_tilde_k is None:
+        if omega_tilde_k is not None:
             self.omega_tilde_k = omega_tilde_k
+
+        if self._build_required:
+            self.build()
 
         self.solve(solver=solver,
                    ignore_dcp=ignore_dcp, warm_start=warm_start, verbose=verbose,

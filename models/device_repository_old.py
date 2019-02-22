@@ -1,4 +1,4 @@
-from structdict.structdict import StructDict, StructDictAliased
+from structdict import StructDict
 
 from copy import deepcopy
 from sortedcontainers import SortedDict
@@ -77,7 +77,7 @@ class DewhSys(object):
     def __init__(self, model_generator, dewh_param_struct, dewh_id):
         self.dewh_param_struct = deepcopy(dewh_param_struct)
         self.dewh_id = dewh_id
-        self.mld_mat_struct = StructDictAliased(A_h=[], B_h1=[], B_h2=[], B_h3=[], B_h4=[], b_h5=[], E_h1=[], E_h2=[],
+        self.mld_mat_struct = StructDict(A_h=[], B_h1=[], B_h2=[], B_h3=[], B_h4=[], b_h5=[], E_h1=[], E_h2=[],
                                                 E_h3=[], E_h4=[], E_h5=[], d_h=[])
         self.var_dim_struct = model_generator.var_dim_struct
         self.V_offs = None
