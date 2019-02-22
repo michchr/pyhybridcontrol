@@ -1,21 +1,14 @@
-import itertools
 import sys as _sys
 from abc import ABCMeta, abstractmethod
-from builtins import property as _property
 from collections import OrderedDict as _OrderedDict
 from copy import deepcopy as _deepcopy, copy as _copy
 from keyword import iskeyword as _iskeyword
 from reprlib import recursive_repr as _recursive_repr
-from types import MethodType as _MethodType, BuiltinMethodType as _BuiltinMethodType
 import inspect
 import itertools
 
-from builtins import property as _property
-
-from operator import attrgetter
-import functools
-
 from sortedcontainers import SortedDict as _SortedDict
+from structdict.accessors import AttributeAccessor, ItemAccessorMixin
 from utils.func_utils import ParNotSet
 import warnings as _warnings
 
@@ -83,54 +76,6 @@ def struct_repr(data, type_name=None, sort=False, np_printoptions=None, align_va
     return repr_format(type_name=type_name, key_arg=key_arg, items=items)
 
 
-class AttrAccessorProperty(_property):
-    __slots__ = ('name')
-
-    def _fget(self, instance):
-        try:
-            return instance.__dict__[self.name]
-        except (AttributeError, KeyError):
-            raise AttributeError(f"{instance.__class__.__name__!r} object has no attribute {self.name!r}")
-
-    def _fset(self, instance, value):
-        try:
-            instance.__dict__[self.name] = value
-        except (AttributeError, KeyError):
-            raise AttributeError(f"{instance.__class__.__name__!r} object has no attribute {self.name!r}")
-
-    def _fdel(self, instance):
-        try:
-            del instance.__dict__[self.name]
-        except (AttributeError, KeyError):
-            raise AttributeError(f"{instance.__class__.__name__!r} object has no attribute {self.name!r}")
-
-    def __init__(self, fget=None, fset=None, fdel=None, doc=None, name=None):
-        self.name = name
-        if name is not None:
-            doc = f"Attribute accessor for name:{name!r}" if doc is None else doc
-            fget = self._fget if fget is None else fget
-            fset = self._fset if fset is None else fset
-            fdel = self._fdel if fdel is None else fdel
-        super(AttrAccessorProperty, self).__init__(fget=fget, fset=fset, fdel=fdel, doc=doc)
-
-
-class ItemAccesorMixin:
-    __slots__ = ()
-
-    def __setattr__(self, key, value):
-        if getattr(self.__class__, key, None):
-            return object.__setattr__(self, key, value)
-        else:
-            self[key] = value
-            return True
-
-    def __getattr__(self, key):
-        try:
-            return self[key]
-        except KeyError:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute {key!r}")
-
-
 class StructDictMeta(ABCMeta):
     _base_dict_methods = ['__init__', '__setattr__', '__setitem__', '__getitem__', '__delitem__', 'update', 'pop',
                           'popitem', 'setdefault', 'clear', 'fromkeys']
@@ -154,10 +99,9 @@ class StructDictMeta(ABCMeta):
 
         # extract cached method references
         if _base_dict:
-            if not hasattr(kls, '_base_dict'):
-                setattr(kls, '_base_dict', _base_dict)
-                for method, _based_dict_method in cls._base_dict_method_map.items():
-                    setattr(kls, method, getattr(_base_dict, _based_dict_method))
+            setattr(kls, '_base_dict', _base_dict)
+            for method, _based_dict_method in cls._base_dict_method_map.items():
+                setattr(kls, method, getattr(_base_dict, _based_dict_method))
 
         all_slots = set(itertools.chain.from_iterable(klass.__dict__.get("__slots__", ()) for klass in mro))
         all_slots.discard('__dict__')
@@ -169,7 +113,7 @@ class StructDictMeta(ABCMeta):
         if _internal_names:
             for name in _internal_names:
                 if getattr(kls, name, None) is None:
-                    p = AttrAccessorProperty(name=name)
+                    p = AttributeAccessor(name=name)
                     setattr(kls, name, p)
             _internal_name_set.update(_internal_names)
 
@@ -181,13 +125,16 @@ class StructDictMeta(ABCMeta):
         return kls
 
 
-class StructDictMixin(ItemAccesorMixin, metaclass=StructDictMeta):
+class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
     __slots__ = ()
     _all_slots = ()  # _all_slots is set by metaclass
 
     __internal_names = []
     # _internal_names_set is updated with all subclass internal names by metaclass
     _internal_names_set = set(__internal_names)
+
+    def __new__(cls, *args, **kwargs):
+        return cls._base_dict.__new__(cls, *args, **kwargs)
 
     def _get_slot_dict(self):
         # _all_slots is set by metaclass
@@ -233,7 +180,7 @@ class StructDictMixin(ItemAccesorMixin, metaclass=StructDictMeta):
                 if cls._base_dict is dict:
                     items = {name: _copy(item) for name, item in items.items()}
                 else:
-                    items = [(name, _copy(item))for name, item in items.items()]
+                    items = [(name, _copy(item)) for name, item in items.items()]
             obj._base_dict_update(items)
 
         if inst_dict_attr_override is not None:
@@ -273,8 +220,16 @@ class StructDictMixin(ItemAccesorMixin, metaclass=StructDictMeta):
 
     def __dir__(self):
         orig_dir = set(super(StructDictMixin, self).__dir__())
-        _dict_keys = set(self.__dict__.keys()).union(['__dict__']) if hasattr(self, '__dict__') else set()
-        _slots_keys = set(self._all_slots).union(['__slots__']) if hasattr(self, '_all_slots') else set()
+        try:
+            _dict_keys = set(self.__dict__).union(['__dict__'])
+        except (AttributeError, TypeError):
+            _dict_keys = set()
+
+        try:
+            _slots_keys = set(self._all_slots).union(['__slots__'])
+        except (AttributeError, TypeError):
+            _slots_keys = set()
+
         additions = {key for key in list(self.keys())[:100] if isinstance(key, str)}
         rv = orig_dir | _dict_keys | _slots_keys | additions | self._internal_names_set
         return sorted(rv)
@@ -432,41 +387,6 @@ class SortedStructDict(StructDictMixin, _SortedDict):
 # ################################################################################
 
 
-def _itemsetter(item):
-    def caller(self, value):
-        self[item] = value
-
-    return caller
-
-
-def _itemgetter(item):
-    def caller(self):
-        try:
-            return self[item]
-        except KeyError:
-            raise AttributeError
-
-    return caller
-
-
-def _itemdeleter(item):
-    def caller(self):
-        del self[item]
-
-    return caller
-
-
-def add_item_accessor_property(obj, name):
-    if getattr(obj, name, None) is not None:
-        is_class = inspect.isclass(obj)
-        raise ValueError(
-            f"Cannot add item accessor property to {'class' if is_class else 'object'} "
-            f"'{obj.__name__ if is_class else obj}'. It already has an attribute with name: '{name}'")
-    setattr(obj, name, _property(fget=_itemgetter(name),
-                                 fset=_itemsetter(name),
-                                 doc=f"Alias for self['{name}']"))
-
-
 class StructPropDictMeta(StructDictMeta):
     def __new__(cls, name, bases, _dict, **kwargs):
 
@@ -484,10 +404,7 @@ class StructPropDictMeta(StructDictMeta):
             if invalid_field_names:
                 raise ValueError(
                     f"Cannot create StructPropDict with invalid field names, i.e. names contained in "
-                    f"'_internal_names_set or base_class __dict__'s : '{invalid_field_names}'")
-            for name in kls._field_names:
-                if not getattr(kls, name, None):
-                    add_item_accessor_property(kls, name)
+                    f"'_internal_names_set or base class __dict__'s : '{invalid_field_names}'")
 
             if '_field_names_set' in kls.__dict__:
                 if set(kls._field_names).difference(kls._field_names_set):
@@ -510,58 +427,8 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
     _additional_created_properties = set()
 
     @abstractmethod
-    def __setattr__(self, key, value):
-        if super(StructPropDictMixin, self).__setattr__(key, value) == True:
-            self._create_additional_property(key)
-
-    def __getattr__(self, key):
-        try:
-            retval = self[key]
-        except KeyError:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{key}'")
-        self._create_additional_property(key)
-        return retval
-
-    def _create_additional_property(self, name):
-        try:
-            if getattr(self.__class__, name, None) is not None:
-                add_item_accessor_property(self.__class__, name)
-                self._additional_created_properties.add(name)
-        except TypeError:
-            pass
-
-    def _delete_additional_property(self, name):
-        if name in self._additional_created_properties:
-            try:
-                delattr(self.__class__, name)
-            except AttributeError:
-                pass
-            else:
-                self._additional_created_properties.remove(name)
-
-    def _create_additional_properties(self):
-        missing_props = set(self.keys()).difference(self._field_names_set)
-        for key in missing_props:
-            self._create_additional_property(key)
-
-    def _delete_additional_properties(self):
-        for key in list(self._additional_created_properties):
-            self._delete_additional_property(key)
-
-    @abstractmethod
-    def clear(self):
-        self._base_dict_clear()
-        self._delete_additional_properties()
-
-    def to_reversed_map(self):
-        reversed_map = super(StructPropDictMixin, self).to_reversed_map()
-        reversed_map.__class__._field_names = list(reversed_map.keys())
-        reversed_map.__class__._field_names_set = frozenset(reversed_map.__class__._field_names)
-        for name in reversed_map._field_names:
-            if not getattr(reversed_map.__class__, name, None):
-                add_item_accessor_property(reversed_map.__class__, name)
-        return reversed_map
-
+    def __init__(self, *args, **kwargs):
+        self._base_dict_init(*args, **kwargs)
 
 class StructPropFixedDictMixin(StructPropDictMixin):
     __slots__ = ()
@@ -624,10 +491,12 @@ class _StructPropDict(StructMixin, BaseDict):
         _internal_names_set = StructPropDictMixin._internal_names_set.union(__internal_names)
    
 class {typename}(_StructPropDict):
+    '{typename}(*args, {kwargs_map} **kwargs)'
     __slots__ = ()
     _field_names = {field_names!r}
     
     def __init__(self, *args, {kwargs_map} **kwargs):
+        'Initialize new instance of {typename}(*args, {kwargs_map} **kwargs)'
         self._base_dict_init({kwargs_eq_map})
         self._base_dict_update(*args, **kwargs)
 
@@ -647,7 +516,7 @@ def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, s
     if fixed:
         mixin_type = StructPropFixedDictMixin.__name__
     else:
-        mixin_type = StructPropDictMixin.__name__
+        mixin_type = StructDictMixin.__name__
 
     if inspect.isclass(base_dict):
         base_dict = base_dict.__name__
@@ -752,3 +621,5 @@ if __name__ == '__main__':
     st = StructDict(a=1, b=2)
     ost = OrderedStructDict(b=1, a=2)
     sst = SortedStructDict(b=1, a=2)
+
+from collections import namedtuple

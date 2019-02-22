@@ -1,4 +1,4 @@
-from .structdict import (
+from .core import (
     # MetaClasses
     StructDictMeta,
     StructPropDictMeta,
@@ -12,8 +12,10 @@ from .structdict import (
     SortedStructDict,
 
     # Functions
+    struct_repr,
     struct_prop_dict,
     struct_prop_fixed_dict,
     struct_prop_ordereddict,
-    struct_repr,
 )
+
+from .accessors import AttributeAccessor, ItemAccessorMixin
