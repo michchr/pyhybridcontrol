@@ -98,7 +98,7 @@ class StructDictMeta(ABCMeta):
         _base_dict = _get_base_dict(mro)
 
         # extract cached method references
-        if _base_dict:
+        if _base_dict and not hasattr(kls, '_base_dict'):
             setattr(kls, '_base_dict', _base_dict)
             for method, _based_dict_method in cls._base_dict_method_map.items():
                 setattr(kls, method, getattr(_base_dict, _based_dict_method))
@@ -133,8 +133,6 @@ class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
     # _internal_names_set is updated with all subclass internal names by metaclass
     _internal_names_set = set(__internal_names)
 
-    def __new__(cls, *args, **kwargs):
-        return cls._base_dict.__new__(cls, *args, **kwargs)
 
     def _get_slot_dict(self):
         # _all_slots is set by metaclass
@@ -154,18 +152,19 @@ class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
 
         obj = cls.__new__(cls)
 
-        if instance_dict is not None or instance_slots is not None:
-            instance_dict = instance_dict if instance_dict is not None else {}
-            instance_slots = instance_slots if instance_slots is not None else {}
-
+        if instance_dict is not None:
             if deepcopy_instance_attr:
                 instance_dict = _deepcopy(instance_dict, memo=memo)
-                instance_slots = _deepcopy(instance_slots, memo=memo)
             elif copy_instance_attr:
                 instance_dict = {name: _copy(item) for name, item in instance_dict.items()}
-                instance_slots = {name: _copy(item) for name, item in instance_slots.items()}
 
             obj.__dict__.update(instance_dict)
+
+        if instance_slots is not None:
+            if deepcopy_instance_attr:
+                instance_slots = _deepcopy(instance_slots, memo=memo)
+            elif copy_instance_attr:
+                instance_slots = {name: _copy(item) for name, item in instance_slots.items()}
 
             for name, value in instance_slots.items():
                 if value is not ParNotSet:

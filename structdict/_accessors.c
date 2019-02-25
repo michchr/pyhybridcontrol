@@ -291,9 +291,9 @@ PyTypeObject ItemAccessorMixin_Type;
 static PyObject *
 item_accessor_get_attro(PyObject *obj, PyObject *name) {
     PyTypeObject *tp = Py_TYPE(obj);
+    PyMappingMethods *m;
     PyObject *descr = NULL;
     PyObject *res = NULL;
-    PyMappingMethods *m = NULL;
     descrgetfunc f;
     Py_ssize_t dictoffset;
     PyObject *dict = NULL;
@@ -311,7 +311,7 @@ item_accessor_get_attro(PyObject *obj, PyObject *name) {
         if (PyType_Ready(tp) < 0)
             goto done;
     }
-
+    m = tp->tp_as_mapping;
     descr = _PyType_Lookup(tp, name);
 
     f = NULL;
@@ -322,7 +322,7 @@ item_accessor_get_attro(PyObject *obj, PyObject *name) {
             res = f(descr, obj, (PyObject *) obj->ob_type);
             goto done;
         }
-    } else if ((m = tp->tp_as_mapping) && m->mp_subscript) { /*if mapping and no class attribute override lookup*/
+    } else if (m && m->mp_subscript) { /*if mapping and no class attribute override lookup*/
         res = m->mp_subscript(obj, name);
         if (res != NULL || !PyErr_ExceptionMatches(PyExc_KeyError)) {
             goto done;
@@ -399,7 +399,7 @@ item_accessor_get_attro(PyObject *obj, PyObject *name) {
 static int
 item_accessor_set_attro(PyObject *obj, PyObject *name, PyObject *value) {
     PyTypeObject *tp = Py_TYPE(obj);
-    PyMappingMethods *m = NULL;
+    PyMappingMethods *m;
     PyObject *descr;
     descrsetfunc f;
     PyObject *dict = NULL;
@@ -418,6 +418,7 @@ item_accessor_set_attro(PyObject *obj, PyObject *name, PyObject *value) {
     Py_INCREF(name);
     Py_INCREF(obj);
 
+    m = tp->tp_as_mapping;
     descr = _PyType_Lookup(tp, name);
 
     if (descr != NULL) {
@@ -427,7 +428,7 @@ item_accessor_set_attro(PyObject *obj, PyObject *name, PyObject *value) {
             res = f(descr, obj, value);
             goto done;
         }
-    } else if ((m = tp->tp_as_mapping) && m->mp_ass_subscript) {
+    } else if (m && m->mp_ass_subscript) {
         if ((res = m->mp_ass_subscript(obj, name, value)) == 0) {
             goto done;
         } else if (res < 0 && PyErr_ExceptionMatches(PyExc_KeyError)) {
@@ -443,10 +444,12 @@ item_accessor_set_attro(PyObject *obj, PyObject *name, PyObject *value) {
 
     if (m == NULL) {
         dict = PyObject_GenericGetDict(obj, NULL);
+        if (dict == NULL  && !PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            goto done;
+        }
     }
 
     if (dict == NULL) {
-        PyErr_Clear();
         if (descr == NULL) {
             PyErr_Format(PyExc_AttributeError,
                          "'%.100s' object has no attribute '%U'",
@@ -518,57 +521,267 @@ PyTypeObject ItemAccessorMixin_Type = {
         0,                                              /* tp_dictoffset */
         0,                                              /* tp_init */
         (allocfunc) PyType_GenericAlloc,                /* tp_alloc */
-        (newfunc) PyType_GenericNew,                    /* tp_new */
+        0,     /*inherited from base object*/           /* tp_new */
         (freefunc) PyObject_Del,                        /* tp_free */
 };
 
-//static void
-//item_accessor_dealloc(PyObject *self) {
-//}
-//
-//static void
-//item_accessor_finalize(PyObject *self){
-//}
-//
-//static int
-//item_accessor_clear(PyObject *self)
-//{
-//    return 0;
-//}
-//
-//static int
-//item_accessor_traverse(PyObject *self, visitproc visit, void *arg)
-//{
-//    return 0;
-//}
-//
-//
-//static PyType_Slot ItemAccessorMixin_Type_slots[] = {
-//        {Py_tp_new,      PyType_GenericNew},
-//        {Py_tp_alloc,    PyType_GenericAlloc},
-//        {Py_tp_finalize, item_accessor_finalize},
-//        {Py_tp_dealloc,  item_accessor_dealloc},
-//        {Py_tp_doc,      item_accessor_doc},
-//        {Py_tp_new,      PyType_GenericNew},
-//        {Py_tp_free,     PyObject_GC_Del},
-//        {Py_tp_traverse, item_accessor_traverse},
-//        {Py_tp_clear,    item_accessor_clear},
-//        {Py_tp_getattro, item_accessor_get_attro},
-//        {Py_tp_setattr,  item_accessor_set_attro},
-//        {0,              0},
-//};
-
-//static PyType_Spec ItemAccessorMixin_Type_spec = {
-//        "accessors.ItemAccessorMixin",
-//        sizeof(ItemAccessorMixinObject),
-//        0,
-//        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC | Py_TPFLAGS_BASETYPE,
-//        ItemAccessorMixin_Type_slots
-//};
 
 /*
  *END ItemAccessorMixin type definition
  */
+
+
+/*
+ *START StructDictMixinBase type definition
+ */
+typedef struct {
+    PyDictObject _dict;
+} StructDictBaseMixinObject;
+
+
+PyTypeObject StructDictBaseMixin_Type;
+
+static PyObject *
+structdict_base_get_attro(PyObject *obj, PyObject *name) {
+    PyTypeObject *tp = Py_TYPE(obj);
+    PyMappingMethods *m;
+    PyObject *descr = NULL;
+    PyObject *res = NULL;
+    descrgetfunc f;
+    Py_ssize_t dictoffset;
+    PyObject *dict = NULL;
+    PyObject **dictptr;
+
+    if (!PyUnicode_Check(name)) {
+        PyErr_Format(PyExc_TypeError,
+                     "attribute name must be string, not '%.200s'",
+                     name->ob_type->tp_name);
+        return NULL;
+    }
+    Py_INCREF(name);
+
+    if (tp->tp_dict == NULL) {
+        if (PyType_Ready(tp) < 0)
+            goto done;
+    }
+    m = tp->tp_as_mapping;
+    descr = _PyType_Lookup(tp, name);
+
+    f = NULL;
+    if (descr != NULL) {  /*Check for class attribute*/
+        Py_INCREF(descr);
+        f = descr->ob_type->tp_descr_get;
+        if (f != NULL && PyDescr_IsData(descr)) {
+            res = f(descr, obj, (PyObject *) obj->ob_type);
+            goto done;
+        }
+    } else if (m && m->mp_subscript) { /*if mapping and no class attribute override lookup*/
+        res = m->mp_subscript(obj, name);
+        if (res != NULL || !PyErr_ExceptionMatches(PyExc_KeyError)) {
+            goto done;
+        } else {
+            PyErr_Clear();
+            if (strcmp(PyUnicode_AsUTF8(name), "__dict__") != 0) {
+                PyErr_Format(PyExc_AttributeError,
+                             "'%.100s' object has no item with key '%U'.\n"
+                             "Note: Item may still be present in instance '__dict__' if it exists.",
+                             tp->tp_name, name);
+                goto done;
+            }
+            goto attr_err;
+        }
+    }
+
+    /* Continue standard attribute lookup if not a mapping*/
+    if (m == NULL) {
+        /* Inline _PyObject_GetDictPtr */
+        dictoffset = tp->tp_dictoffset;
+        if (dictoffset != 0) {
+            if (dictoffset < 0) {
+                Py_ssize_t tsize;
+                size_t size;
+
+                tsize = ((PyVarObject *) obj)->ob_size;
+                if (tsize < 0)
+                    tsize = -tsize;
+                size = _PyObject_VAR_SIZE(tp, tsize);
+                assert(size <= PY_SSIZE_T_MAX);
+
+                dictoffset += (Py_ssize_t) size;
+                assert(dictoffset > 0);
+                assert(dictoffset % SIZEOF_VOID_P == 0);
+            }
+            dictptr = (PyObject **) ((char *) obj + dictoffset);
+            dict = *dictptr;
+        }
+    }
+
+    if (dict != NULL) {
+        Py_INCREF(dict);
+        res = PyDict_GetItem(dict, name);
+        if (res != NULL) {
+            Py_INCREF(res);
+            Py_DECREF(dict);
+            goto done;
+        }
+        Py_DECREF(dict);
+    }
+
+    if (f != NULL) {
+        res = f(descr, obj, (PyObject *) Py_TYPE(obj));
+        goto done;
+    }
+
+    if (descr != NULL) {
+        res = descr;
+        descr = NULL;
+        goto done;
+    }
+
+    attr_err:
+    PyErr_Format(PyExc_AttributeError,
+                 "'%.50s' object has no attribute '%U'",
+                 tp->tp_name, name);
+    done:
+    Py_XDECREF(descr);
+    Py_DECREF(name);
+    return res;
+}
+
+
+static int
+structdict_base_set_attro(PyObject *obj, PyObject *name, PyObject *value) {
+    PyTypeObject *tp = Py_TYPE(obj);
+    PyMappingMethods *m;
+    PyObject *descr;
+    descrsetfunc f;
+    PyObject *dict = NULL;
+    int res = -1;
+
+    if (!PyUnicode_Check(name)) {
+        PyErr_Format(PyExc_TypeError,
+                     "attribute name must be string, not '%.200s'",
+                     name->ob_type->tp_name);
+        return -1;
+    }
+
+    if (tp->tp_dict == NULL && PyType_Ready(tp) < 0)
+        return -1;
+
+    Py_INCREF(name);
+    Py_INCREF(obj);
+
+    m = tp->tp_as_mapping;
+    descr = _PyType_Lookup(tp, name);
+
+    if (descr != NULL) {
+        Py_INCREF(descr);
+        f = descr->ob_type->tp_descr_set;
+        if (f != NULL) {
+            res = f(descr, obj, value);
+            goto done;
+        }
+    } else if (m && m->mp_ass_subscript) {
+        if ((res = m->mp_ass_subscript(obj, name, value)) == 0) {
+            goto done;
+        } else if (res < 0 && PyErr_ExceptionMatches(PyExc_KeyError)) {
+            if (strcmp(PyUnicode_AsUTF8(name), "__dict__") != 0) {
+                PyErr_Format(PyExc_AttributeError,
+                             "'%.100s' object has no item with key '%U'.\n"
+                             "Note: Item may still be present in instance '__dict__' if it exists.",
+                             tp->tp_name, name);
+                goto done;
+            }
+        }
+    }
+
+    if (m == NULL) {
+        dict = PyObject_GenericGetDict(obj, NULL);
+        if (dict == NULL  && !PyErr_ExceptionMatches(PyExc_AttributeError)) {
+            goto done;
+        }
+    }
+
+    if (dict == NULL) {
+        if (descr == NULL) {
+            PyErr_Format(PyExc_AttributeError,
+                         "'%.100s' object has no attribute '%U'",
+                         tp->tp_name, name);
+        } else {
+            PyErr_Format(PyExc_AttributeError,
+                         "'%.50s' object attribute '%U' is read-only",
+                         tp->tp_name, name);
+        }
+        goto done;
+    }
+    res = PyDict_SetItem(dict, name, value);
+    Py_XDECREF(dict);
+
+    if (res < 0 && PyErr_ExceptionMatches(PyExc_KeyError)) {
+        PyErr_Format(PyExc_AttributeError,
+                     "'%.100s' object has no attribute '%U'",
+                     tp->tp_name, name);
+    }
+
+    done:
+    Py_XDECREF(descr);
+    Py_DECREF(obj);
+    Py_DECREF(name);
+    return res;
+}
+
+PyDoc_STRVAR(structdict_base_doc,
+             "StructDictBaseMixin() -> StructDictBaseMixin object\n"
+);
+
+
+PyTypeObject StructDictBaseMixin_Type = {
+        PyVarObject_HEAD_INIT(DEFERRED_ADDRESS(&PyType_Type), 0)
+        "accessors.StructDictBaseMixin",                  /* tp_name */
+        sizeof(StructDictBaseMixinObject),                /* tp_basicsize */
+        0,                                              /* tp_itemsize */
+        /* methods */
+        0,                                              /* tp_dealloc */
+        0,                                              /* tp_print */
+        0,                                              /* tp_getattr */
+        0,                                              /* tp_setattr */
+        0,                                              /* tp_reserved */
+        0,                                              /* tp_repr */
+        0,                                              /* tp_as_number */
+        0,                                              /* tp_as_sequence */
+        0,                                              /* tp_as_mapping */
+        0,                                              /* tp_hash */
+        0,                                              /* tp_call */
+        0,                                              /* tp_str */
+        (getattrofunc) structdict_base_get_attro,         /* tp_getattro */
+        (setattrofunc) structdict_base_set_attro,         /* tp_setattro */
+        0,                                              /* tp_as_buffer */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,         /* tp_flags */
+        structdict_base_doc,                              /* tp_doc */
+        0,                                              /* tp_traverse */
+        0,                                              /* tp_clear */
+        0,                                              /* tp_richcompare */
+        0,                                              /* tp_weaklistoffset */
+        0,                                              /* tp_iter */
+        0,                                              /* tp_iternext */
+        0,                                              /* tp_methods */
+        0,                                              /* tp_members */
+        0,                                              /* tp_getset */
+        DEFERRED_ADDRESS(&PyDict_Type),                 /* tp_base */
+        0,                                              /* tp_dict */
+        0,                                              /* tp_descr_get */
+        0,                                              /* tp_descr_set */
+        0,                                              /* tp_dictoffset */
+        0,                                              /* tp_init */
+        0,                                              /* tp_alloc */
+        0,                                              /* tp_new */
+        0,                                              /* tp_free */
+};
+
+/*
+ *END StructDictMixinBase type definition
+ */
+
 
 static int
 accessor_type_exec(PyObject *m) {
@@ -590,20 +803,23 @@ accessor_type_exec(PyObject *m) {
     if (PyType_Ready(&ItemAccessorMixin_Type) < 0)
         goto fail;
 
-
-//    ItemAccessorMixin_Type = PyType_FromSpec(&ItemAccessorMixin_Type_spec);
-//    if (ItemAccessorMixin_Type == NULL)
-//        goto fail;
-
     Py_INCREF(&ItemAccessorMixin_Type);
     if (PyModule_AddObject(m, "ItemAccessorMixin", (PyObject *) &ItemAccessorMixin_Type) < 0)
         goto fail;
 
+    StructDictBaseMixin_Type.tp_base = &PyDict_Type;
+    if (PyType_Ready(&StructDictBaseMixin_Type) < 0)
+        goto fail;
+
+    Py_INCREF(&StructDictBaseMixin_Type);
+    if (PyModule_AddObject(m, "StructDictBaseMixin", (PyObject *) &StructDictBaseMixin_Type) < 0)
+        goto fail;
 
     return 0;
     fail:
     Py_XDECREF(&AttributeAccessor_Type);
     Py_XDECREF(&ItemAccessorMixin_Type);
+    Py_XDECREF(&StructDictBaseMixin_Type);
     Py_XDECREF(m);
     return -1;
 }
@@ -625,6 +841,7 @@ static struct PyModuleDef _accessors_module = {
         NULL,                                           /* m_clear */
         NULL                                            /* m_free */
 };
+
 
 
 PyMODINIT_FUNC
