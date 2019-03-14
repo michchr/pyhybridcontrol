@@ -129,7 +129,7 @@ class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
     __slots__ = ()
     _all_slots = ()  # _all_slots is set by metaclass
 
-    __internal_names = []
+    __internal_names = ()
     # _internal_names_set is updated with all subclass internal names by metaclass
     _internal_names_set = set(__internal_names)
 
@@ -419,6 +419,7 @@ class StructPropDictMeta(StructDictMeta):
 
 
 class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
+    __internal_names = ()
     __slots__ = ()
 
     _field_names = ()
@@ -430,6 +431,7 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
         self._base_dict_init(*args, **kwargs)
 
 class StructPropFixedDictMixin(StructPropDictMixin):
+    __internal_names = ()
     __slots__ = ()
     _field_names = ()
     _field_names_set = frozenset(_field_names)

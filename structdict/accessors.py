@@ -80,7 +80,6 @@ try:
     import structdict._accessors as _accessors
     AttributeAccessor = _accessors.AttributeAccessor
     ItemAccessorMixin = _accessors.ItemAccessorMixin
-    StructDictBaseMixin = _accessors.StructDictBaseMixin
     _is_using_c = True
 except (ImportError, AttributeError):
     raise ImportWarning("Could not import accessors c extension.")
