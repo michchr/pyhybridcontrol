@@ -5,8 +5,8 @@ from reprlib import recursive_repr as _recursive_repr
 
 from utils.decorator_utils import process_method_args_decor
 from utils.func_utils import get_cached_func_spec, ParNotSet
-from utils.helper_funcs import num_not_None, is_all_None
-from utils.matrix_utils import atleast_2d_col, CallableMatrix, get_expr_shape, get_expr_shapes
+from utils.helper_funcs import num_not_None, is_all_None, is_any_None
+from utils.matrix_utils import atleast_2d_col, CallableMatrix, get_expr_shape, get_expr_shapes, matmul
 
 import numpy as np
 import scipy.linalg as scl
@@ -14,12 +14,14 @@ import scipy.sparse as scs
 import sympy as sp
 import wrapt
 
+import cvxpy as cvx
+
 from structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict
 
 
 class MldBase(StructPropDictMixin, dict):
-    __internal_names = []
-    _internal_names_set = StructPropDictMixin._internal_names_set.union(__internal_names)
+    __internal_names = ()
+    __slots__ = ()
 
     _data_types = ()
     _data_layout = {}
@@ -96,8 +98,8 @@ _shape_func_map = NamedTuple('shape_func_map', ['axis', 'func', 'items'])
 
 
 class MldInfo(MldBase):
-    __internal_names = []
-    _internal_names_set = MldBase._internal_names_set.union(__internal_names)
+    __internal_names = ()
+    __slots__ = ()
 
     _MLD_INFO_DATA_TYPE_NAMES = ['sys_dims', 'var_dims',
                                  'bin_dims', 'var_types', 'meta_data']
@@ -167,7 +169,7 @@ class MldInfo(MldBase):
     _field_names = sorted([data for data_type in _data_layout.values() for data in data_type])
     _field_names_set = frozenset(_field_names)
 
-    def __init__(self, mld_info_data=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def __init__(self, mld_info_data=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  required_params=None, **kwargs):
         super(MldInfo, self).__init__(**kwargs)
 
@@ -175,9 +177,8 @@ class MldInfo(MldBase):
                     var_types_struct=var_types_struct, required_params=required_params, _from_init=True, **kwargs)
 
     def copy(self):
-        copy = super(MldInfo, self).copy()
-        copy._base_dict_update(param_struct=_copy(self['param_struct']))
-        return copy
+        param_struct_copy = _copy(self['param_struct'])
+        return self._constructor_from_self(items_override={'param_struct': param_struct_copy}, copy_instance_attr=True)
 
     __copy__ = copy
 
@@ -207,7 +208,7 @@ class MldInfo(MldBase):
         return self[self._var_to_bin_dim_names_map[var_name]]
 
     @_process_mld_args_decor
-    def update(self, mld_info_data=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def update(self, mld_info_data=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                required_params=None, **kwargs):
 
         _from_init = kwargs.pop('_from_init', False)
@@ -243,8 +244,8 @@ class MldInfo(MldBase):
         if _from_init:
             if mld_dims is None:
                 mld_dims = {dim_name: 0 for dim_name in self._mld_dim_map}
-            if dt is None:
-                dt = 0
+            if dt is ParNotSet:
+                dt = None
 
         if mld_dims:
             new_mld_info.update(mld_dims)
@@ -261,9 +262,9 @@ class MldInfo(MldBase):
 
         super(MldInfo, self).update(new_mld_info)
 
-    def _set_metadata(self, info_data, dt=None, param_struct=None, required_params=None):
+    def _set_metadata(self, info_data, dt=ParNotSet, param_struct=None, required_params=None):
 
-        if dt is not None:
+        if dt is not ParNotSet:
             info_data['dt'] = dt
 
         if param_struct is not None:
@@ -377,8 +378,8 @@ class MldInfo(MldBase):
 
 
 class MldModel(MldBase):
-    __internal_names = ['_mld_info', '_mld_type', '_shapes_struct', '_all_empty_mats', '_all_zero_mats']
-    _internal_names_set = MldBase._internal_names_set.union(__internal_names)
+    __internal_names = ('_mld_info', '_mld_type', '_shapes_struct', '_all_empty_mats', '_all_zero_mats')
+    __slots__ = __internal_names
 
     _MLD_MODEL_TYPE_NAMES = ['numeric', 'callable', 'symbolic']
     MldModelTypesNamedTup = NamedTuple('MldModelTypes', _MLD_MODEL_TYPE_NAMES)
@@ -414,13 +415,14 @@ class MldModel(MldBase):
     _field_names = sorted(_sys_mat_names | _sys_mat_names_private)
     _field_names_set = frozenset(_field_names)
 
-    def __init__(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def __init__(self, system_matrices=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None,
+                 var_types_struct=None,
                  **kwargs):
         super(MldModel, self).__init__()
         super(MldModel, self).update(dict.fromkeys(self._field_names_set, np.empty(shape=(0, 0))))
         self._mld_info = MldInfo()
         self._mld_type = None
-        self._shapes_struct = None
+        self._shapes_struct = StructDict.fromkeys(self._field_names_set, (0, 0))
         self._all_empty_mats = set()
         self._all_zero_mats = set()
 
@@ -459,7 +461,7 @@ class MldModel(MldBase):
         return mld_model_repr
 
     @_process_mld_args_decor
-    def update(self, system_matrices=None, dt=None, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def update(self, system_matrices=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                **kwargs):
         from_init = kwargs.pop('from_init', False)
         mld_info_kwargs = {key: kwargs.pop(key) for key in list(kwargs) if key in MldInfo._field_names_set}
@@ -480,6 +482,7 @@ class MldModel(MldBase):
                 raise TypeError(f"Argument:'system_matrices' must be dictionary like: {te.args[0]}")
 
         new_sys_mats = self.as_base_dict()
+        new_shapes_struct = self._shapes_struct.as_base_dict()
         try:
             for sys_matrix_id, system_matrix in creation_matrices.items():
                 if sys_matrix_id in self._sys_mat_names:
@@ -495,6 +498,7 @@ class MldModel(MldBase):
                             if not np.issubdtype(system_matrix.dtype, np.number):
                                 raise TypeError("System matrices must be numeric, callable, or symbolic.")
                         new_sys_mats[sys_matrix_id] = system_matrix
+                        new_shapes_struct[sys_matrix_id] = get_expr_shape(system_matrix)
                 elif sys_matrix_id not in self._field_names_set:
                     if sys_matrix_id in kwargs:
                         raise ValueError("Invalid matrix name in kwargs: {}".format(sys_matrix_id))
@@ -504,20 +508,22 @@ class MldModel(MldBase):
             raise TypeError(f"Argument:'system_matrices' must be dictionary like: {ae.args[0]}")
 
         if from_init and creation_matrices.get('C') is None:
-            new_sys_mats['C'] = np.eye(*(get_expr_shape(new_sys_mats['A'])), dtype=np.int)
-            new_sys_mats['C'].setflags(write=False)
-            creation_matrices['C'] = new_sys_mats['C']
+            C = np.eye(*(get_expr_shape(new_sys_mats['A'])), dtype=np.int)
+            C.setflags(write=False)
+            creation_matrices['C'] = C
+            new_sys_mats['C'] = C
+            new_shapes_struct['C'] = C.shape
 
-        shapes_struct = get_expr_shapes(new_sys_mats)
-        if shapes_struct != self._shapes_struct:
-            mld_dims = self._mld_info._get_mld_dims(shapes_struct)
-            new_sys_mats, shapes_struct = self._validate_sys_matrix_shapes(new_sys_mats, shapes_struct, mld_dims)
+        if new_shapes_struct != self._shapes_struct:
+            mld_dims = self._mld_info._get_mld_dims(new_shapes_struct)
+            new_sys_mats, new_shapes_struct = (
+                self._validate_sys_matrix_shapes(new_sys_mats, new_shapes_struct, mld_dims))
             self._set_all_zero_or_empty(new_sys_mats, new_sys_mats.keys())
         else:
             self._set_all_zero_or_empty(new_sys_mats, creation_matrices.keys())
             mld_dims = None
 
-        self._shapes_struct = shapes_struct
+        self._shapes_struct.update(new_shapes_struct)
         new_sys_mats = self._set_mld_type(new_sys_mats)
         super(MldModel, self).update(new_sys_mats)
 
@@ -532,8 +538,8 @@ class MldModel(MldBase):
     # TODO not finished - needs to include output constraints, interpolation and datetime handling
     LSimStruct = struct_prop_dict('LSimStruct', ['t_out', 'y_out', 'x_out', 'con_out', 'x_out_k1'], sorted_repr=False)
 
-    def lsim(self, x_k=None, u=None, delta=None, z=None, mu=None, v=None, omega=None, t=None, dt=None):
-        dt = dt if dt is not None else self.mld_info.dt
+    def lsim(self, x_k=None, u=None, delta=None, z=None, mu=None, v=None, omega=None, t=None, dt=ParNotSet):
+        dt = dt if dt is not ParNotSet else self.mld_info.dt
         m_dims = self.mld_info.var_dims_struct
         inputs_struct = StructDict()
 
@@ -630,10 +636,24 @@ class MldModel(MldBase):
 
         return self.LSimStruct(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out, x_out_k1=x_out_k1)
 
-    LSimKStruct = struct_prop_dict('LSimKStruct', ['x_k', 'y_k', 'con_k', 'x_k1'], sorted_repr=False)
+    LSimKStruct = struct_prop_dict('LSimKStruct', ['x_k1', 'x_k',
+                                                   'u_k', 'delta_k', 'z_k', 'mu_k', 'v_k',
+                                                   'omega_k',
+                                                   'y_k',
+                                                   'con_k',
+                                                   ],
+                                   sorted_repr=False)
 
     def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None) -> LSimKStruct:
         m_dims = self.mld_info.var_dims_struct
+
+        if x_k is None:
+            x_k = np.zeros((m_dims.x, 1))
+        else:
+            x_k = np.asanyarray(x_k).reshape(m_dims.x, 1)
+
+        omega_k = atleast_2d_col(omega_k) if omega_k is not None else np.empty((0, 1))
+
         if v_k is not None:
             if not is_all_None(u_k, delta_k, z_k, mu_k):
                 raise ValueError(
@@ -647,16 +667,16 @@ class MldModel(MldBase):
                 mu_k = v_k[m_dims.u + m_dims.delta + m_dims.z:]
         else:
             u_k = atleast_2d_col(u_k) if u_k is not None else np.empty((0, 1))
-            delta_k = atleast_2d_col(delta_k) if delta_k is not None else np.empty((0, 1))
-            z_k = atleast_2d_col(z_k) if z_k is not None else np.empty((0, 1))
-            mu_k = atleast_2d_col(mu_k) if mu_k is not None else np.empty((0, 1))
+            mu_k = atleast_2d_col(mu_k) if mu_k is not None else np.zeros((m_dims.mu, 1))
+            if is_any_None(delta_k, z_k):
+                delta_k, z_k = (
+                    self._compute_aux(x_k=x_k, u_k=u_k, delta_k=delta_k, z_k=z_k, mu_k=mu_k, omega_k=omega_k,
+                                      m_dims=m_dims))
+            else:
+                delta_k = atleast_2d_col(delta_k)
+                z_k = atleast_2d_col(z_k)
 
-        if x_k is None:
-            x_k = np.zeros((m_dims.x, 1))
-        else:
-            x_k = np.asanyarray(x_k).reshape(m_dims.x, 1)
-
-        omega_k = atleast_2d_col(omega_k) if omega_k is not None else atleast_2d_col([])
+            v_k = np.vstack((u_k, delta_k, z_k, mu_k))
 
         x_k1 = (self.A @ x_k + self.B1 @ u_k + self.B2 @ delta_k + self.B3 @ z_k + self.B4 @ omega_k + self.b5)
         y_k = (self.C @ x_k + self.D1 @ u_k + self.D2 @ delta_k + self.D3 @ z_k + self.D4 @ omega_k + self.d5)
@@ -664,22 +684,87 @@ class MldModel(MldBase):
                  + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
                  self.Psi @ mu_k <= self.f5)
 
-        return self.LSimKStruct(x_k=x_k, y_k=y_k, con_k=con_k, x_k1=x_k1)
+        return self.LSimKStruct(x_k1=x_k1, x_k=x_k,
+                                u_k=u_k, delta_k=delta_k, z_k=z_k, mu_k=mu_k, v_k=v_k,
+                                y_k=y_k,
+                                con_k=con_k)
 
-    def to_numeric(self, param_struct=None, copy=False, dt=None):
-        if param_struct is None:
-            param_struct = self.mld_info.param_struct
+    def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None, m_dims=None):
 
-        if dt is None:
-            dt = param_struct.get('dt', self.mld_info.dt)
+        if delta_k is None and m_dims.delta:
+            delta_k = cvx.Variable((m_dims.delta, 1), boolean=True)
+        else:
+            delta_k = np.empty((0, 1))
+
+        if z_k is None and m_dims.z:
+            z_k = cvx.Variable((m_dims.z, 1))
+        else:
+            z_k = np.empty((0, 1))
+
+        if delta_k.size or z_k.size:
+            if m_dims.y:
+                y_k = cvx.Variable((m_dims.y, 1))
+            else:
+                y_k = np.empty((0, 1))
+
+            cons = []
+            if y_k.size:
+                cons.append(
+                    y_k == (matmul(self.C, x_k) +
+                            matmul(self.D1, u_k) +
+                            matmul(self.D2, delta_k) +
+                            matmul(self.D3, z_k) +
+                            matmul(self.D4, omega_k) +
+                            self.d5))
+
+            cons.append(
+                matmul(self.E, x_k) +
+                matmul(self.F1, u_k) +
+                matmul(self.F2, delta_k) +
+                matmul(self.F3, z_k) +
+                matmul(self.F4, omega_k) +
+                matmul(self.G, y_k) +
+                matmul(self.Psi, mu_k) <= self.f5
+            )
+
+            prob = cvx.Problem(cvx.Minimize(cvx.Constant(0)), cons)
+            prob.solve(verbose=False, solver=cvx.GUROBI)
+
+            # if prob.status not in (cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE):
+            #     raise ValueError(f"mld_model is infeasible")
+
+            if delta_k.size:
+                delta_k = delta_k.value if delta_k.value is not None else atleast_2d_col(np.NaN)
+            if z_k.size:
+                z_k = z_k.value if z_k.value is not None else atleast_2d_col(np.NaN)
+
+        return delta_k, z_k
+
+    def to_numeric(self, param_struct=None, dt=ParNotSet, copy=False):
+        param_struct = param_struct if param_struct is not None else self.mld_info.param_struct
+
+        if dt is ParNotSet:
+            if param_struct and param_struct.get('dt', ParNotSet) is not ParNotSet:
+                dt = param_struct['dt']
+            else:
+                dt = self.mld_info.dt
+
+        if param_struct is not None:
+            param_struct = _copy(param_struct)
+            if param_struct.get('dt', ParNotSet) is not ParNotSet:
+                param_struct['dt'] = dt
+
+        if self.mld_info.dt is None and dt is not None:
+            raise NotImplementedError("Discretization required")
+            # todo discretisation required
 
         if self.mld_type == self.MldModelTypes.callable:
             dict_numeric = {mat_id: mat_callable(param_struct=param_struct) for mat_id, mat_callable in
                             self.items()}
         elif self.mld_type == self.MldModelTypes.symbolic:
             print("Performance warning, mld_type is not callable had to convert to callable")
-            callable_mld = self.to_callable()
-            return callable_mld.to_numeric(param_struct=param_struct)
+            callable_mld = self.to_callable(param_struct=param_struct, dt=dt)
+            return callable_mld.to_numeric(param_struct=param_struct, copy=copy)
         else:
             dict_numeric = _deepcopy(self.as_base_dict()) if copy else self.as_base_dict()
 
@@ -688,14 +773,26 @@ class MldModel(MldBase):
             mat.setflags(write=False)
 
         mld_type = self.MldModelTypes.numeric
-        instance_dict = self.__dict__.copy()
-        instance_dict['_mld_info']._base_dict_update(param_struct=param_struct,
-                                                     dt=dt)
-        return self._constructor_from_self(items=dict_numeric, instance_dict=instance_dict,
-                                           copy_instance_attr=True, deepcopy_instance_attr=copy,
-                                           inst_dict_attr_override={'_mld_type': mld_type})
+        numeric_mld = self._constructor_from_self(items=dict_numeric, copy_instance_attr=True,
+                                                  deepcopy_instance_attr=copy,
+                                                  inst_slot_attr_override={'_mld_type': mld_type})
+        numeric_mld.mld_info._base_dict_update(param_struct=param_struct, dt=dt)
+        return numeric_mld
 
-    def to_callable(self, copy=False):
+    def to_callable(self, param_struct=None, dt=ParNotSet, copy=False):
+        param_struct = param_struct if param_struct is not None else self.mld_info.param_struct
+
+        if dt is ParNotSet:
+            if param_struct and param_struct.get('dt', ParNotSet) is not ParNotSet:
+                dt = param_struct['dt']
+            else:
+                dt = self.mld_info.dt
+
+        if param_struct is not None:
+            param_struct = _copy(param_struct)
+            if param_struct.get('dt', ParNotSet) is not ParNotSet:
+                param_struct['dt'] = dt
+
         if self.mld_type in (self.MldModelTypes.numeric, self.MldModelTypes.symbolic):
             dict_callable = {}
             for sys_matrix_id, system_matrix in self.items():
@@ -704,8 +801,11 @@ class MldModel(MldBase):
             dict_callable = _deepcopy(self.as_base_dict()) if copy else self.as_base_dict()
 
         mld_type = self.MldModelTypes.callable
-        return self._constructor_from_self(items=dict_callable, deepcopy_instance_attr=copy, copy_instance_attr=True,
-                                           inst_dict_attr_override={'_mld_type': mld_type})
+        callable_mld = self._constructor_from_self(items=dict_callable, copy_instance_attr=True,
+                                                   deepcopy_instance_attr=copy,
+                                                   inst_slot_attr_override={'_mld_type': mld_type})
+        callable_mld.mld_info._base_dict_update(param_struct=param_struct, dt=dt)
+        return callable_mld
 
     def _set_mld_type(self, mld_data):
         is_symbolic = (isinstance(sys_mat, (sp.Expr, sp.Matrix)) for sys_mat_id, sys_mat in
@@ -722,8 +822,12 @@ class MldModel(MldBase):
 
         return mld_data
 
-    def _set_all_zero_or_empty(self, mld_data, mat_ids):
-        for mat_id, mat in mld_data.items():
+    def _set_all_zero_or_empty(self, mld_data, mat_ids=None):
+        if mat_ids is not None:
+            changed_mats = StructDict.sub_struct_fromdict(mld_data, mat_ids)
+        else:
+            changed_mats = mld_data
+        for mat_id, mat in changed_mats.items():
             if isinstance(mat, CallableMatrix):
                 is_empty = mat.is_empty
                 is_all_zero = mat.is_all_zero
@@ -868,7 +972,7 @@ class MldModel(MldBase):
 class MldSystemModel:
     MldNames = MldModel.MldModelTypesNamedTup(numeric='mld_numeric', callable='mld_callable', symbolic='mld_symbolic')
 
-    def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, copy=True):
+    def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, copy=False):
         self._param_struct = None
         self._mld_numeric = None
         self._mld_callable = None
@@ -877,7 +981,7 @@ class MldSystemModel:
                         param_struct=param_struct, copy=copy, missing_param_check=True)
 
     def update_mld(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None,
-                   param_struct_subset=None, copy=True, missing_param_check=True, invalid_param_check=False, **kwargs):
+                   param_struct_subset=None, copy=False, missing_param_check=True, invalid_param_check=False, **kwargs):
 
         mlds = MldModel.MldModelTypesNamedTup(numeric=mld_numeric, callable=mld_callable, symbolic=mld_symbolic)
         if num_not_None(*mlds) > 1:
@@ -928,7 +1032,7 @@ class MldSystemModel:
 
     @property
     def param_struct(self):
-        return _copy(self._param_struct)
+        return self._param_struct
 
     @param_struct.setter
     def param_struct(self, param_struct):
@@ -990,7 +1094,7 @@ class MldSystemModel:
         return valid_param_struct
 
     def get_mld_numeric(self, param_struct=None, param_struct_subset=None, missing_param_check=False,
-                        invalid_param_check=True, copy=True, **kwargs):
+                        invalid_param_check=True, copy=False, **kwargs):
 
         if kwargs.pop('_bypass_param_struct_validation', False):
             compute_param_struct = param_struct
@@ -1007,7 +1111,10 @@ class MldSystemModel:
             except AttributeError:
                 raise TypeError("AgentModel does not contain valid mld_callable.")
         else:
-            return self._mld_numeric
+            if copy:
+                return self._mld_numeric.deepcopy()
+            else:
+                return self._mld_numeric
 
     def get_required_params(self):
         if self._mld_symbolic:

@@ -3,9 +3,9 @@ import numpy as np
 from datetime import datetime as DateTime
 import pprint
 
-from models.device_repository_old import DeviceRepository, DewhRepository
+from old_code.device_repository_old import DeviceRepository, DewhRepository
 from structdict import StructDict
-from models.model_generators_old import DewhModelGenerator, GridModelGenerator
+from old_code.model_generators_old import DewhModelGenerator, GridModelGenerator
 
 
 class MicroGridModel():

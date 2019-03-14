@@ -300,7 +300,7 @@ class MongoInterface():
                 if device_type in device_ids.keys():
                     device_ids[device_type].add(dev_id)
                 else:
-                    device_ids[device_type] = set([dev_id])
+                    device_ids[device_type] = {dev_id}
 
         if device_types != 'all' or device_types is not None:
             device_ids = {device_type: device_ids.get(device_type) for device_type in device_types}
@@ -424,17 +424,13 @@ if __name__ == '__main__':
     mi.collection.create_index("TimeStamp")
     print("Time taken is {}".format(Timer() - st))
 
-    st = Timer()
-
-    start_date = DateTime(2018, 9, 30, 12, 0)
-    end_date = DateTime(2018, 10, 30, 12, 3)
-
-    raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_datetime=start_date, end_datetime=end_date,
-                                           fields='all', convert=True)
-
-    # ipython().magic('%%timeit main()')
     #
-    print("Time taken is {}".format(Timer() - st))
+    # start_date = DateTime(2018, 9, 30, 12, 0)
+    # end_date = DateTime(2018, 10, 30, 12, 3)
+    #
+    # raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_datetime=start_date, end_datetime=end_date,
+    #                                        fields='all', convert=True)
+    #
 
     # raw_df
     #

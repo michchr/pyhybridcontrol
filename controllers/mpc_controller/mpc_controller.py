@@ -15,31 +15,40 @@ from utils.func_utils import ParNotSet
 
 
 class MpcBase:
-    def __init__(self, agent=None, N_p=None, N_tilde=None, model=None, mld_numeric_k=None):
+    def __init__(self, model=None, N_p=None, N_tilde=None, agent=None,
+                 mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None):
+
+        self._N_p = N_p if N_p is not None else 0
+        self._N_tilde = N_tilde if N_tilde is not None else self._N_p + 1
+
         if agent is not None:
             self._agent = agent
-            self._N_p = None
-            self._N_tilde = None
-            self._mld_numeric_tilde = None
-            self._model = self._agent._agent_model
+            self._model = None
         else:
-            self._model = model if model is not None else MldSystemModel(mld_numeric=mld_numeric_k)
+            self._model = model if model is not None else MldSystemModel(mld_numeric=mld_numeric,
+                                                                         mld_symbolic=mld_symbolic,
+                                                                         mld_callable=mld_callable,
+                                                                         param_struct=param_struct)
             self._agent = None
-            self._N_p = N_p or 0
-            self._mld_numeric_tilde = None
+
+        self._mld_numeric_tilde = None
 
     @property
     def N_p(self):
-        return (self._agent.N_p if self._agent else self._N_p)
+        return self._N_p
 
     @property
     def N_tilde(self):
-        return (self._agent.N_tilde if self._agent else self._N_tilde)
+        return self._N_tilde
+
+    @property
+    def model(self):
+        return self._agent.control_model if self._agent else self._model
 
     @property
     def mld_numeric_k(self) -> MldModel:
         mld_numeric_tilde = self._mld_numeric_tilde
-        return mld_numeric_tilde[0] if mld_numeric_tilde else self._model.mld_numeric
+        return mld_numeric_tilde[0] if mld_numeric_tilde else self.model.mld_numeric
 
     @property
     def mld_numeric_tilde(self):
@@ -56,11 +65,13 @@ class MpcController(MpcBase):
     FeedBackStruct = struct_prop_fixed_dict('FeedBackStruct',
                                             [var_name + "_k" for var_name in MpcOptimizationVars._var_names])
 
-    def __init__(self, agent=None, N_p=None, N_tilde=None,
-                 model: MldSystemModel = None, mld_numeric: MldModel = None,
+    def __init__(self, model=None, N_p=None, N_tilde=None, agent=None,
+                 mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None,
                  x_k=None, omega_tilde_k=None):
-        super(MpcController, self).__init__(agent=agent, N_p=N_p, N_tilde=N_tilde,
-                                            mld_numeric_k=mld_numeric, model=model)
+
+        super(MpcController, self).__init__(model=model, N_p=N_p, N_tilde=N_tilde, agent=agent,
+                                            mld_numeric=mld_numeric, mld_callable=mld_callable,
+                                            mld_symbolic=mld_symbolic, param_struct=param_struct)
 
         self._x_k = None
         self._omega_tilde_k = None
@@ -101,7 +112,7 @@ class MpcController(MpcBase):
         return self._constraints
 
     @property
-    def problem(self)->cvx.Problem:
+    def problem(self) -> cvx.Problem:
         return self._problem
 
     @property
@@ -178,7 +189,6 @@ class MpcController(MpcBase):
         else:
             return np.empty(required_shape)
 
-
     def set_std_obj_weights(self, objective_weights_struct=None, **kwargs):
         self._std_obj_weights.set(objective_weights_struct=objective_weights_struct, **kwargs)
         self.set_build_required()
@@ -193,10 +203,8 @@ class MpcController(MpcBase):
         except AttributeError:
             raise TypeError(f"objective_weights must be of type {MpcObjectiveWeights.__class__.__name__}")
 
-
     def gen_evo_mats(self):
         pass
-
 
     def _gen_std_evo_constraints(self):
         return [self.gen_evo_constraints(self.x_k, self.omega_tilde_k)]
@@ -231,7 +239,7 @@ class MpcController(MpcBase):
     def set_build_required(self):
         self._build_required = True
 
-    def build(self, with_std_cost=True, with_std_constraints=True, sense=None):
+    def build(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_cons=False):
         if with_std_cost:
             self._std_cost = self.gen_std_type_cost(self._std_obj_weights, self._opt_vars)
         else:
@@ -245,8 +253,16 @@ class MpcController(MpcBase):
         else:
             self._std_evo_constraints = []
 
-        self._constraints = self._std_evo_constraints + self._custom_constraints
+        if disable_soft_cons:
+            _soft_cons = [
+                self.opt_vars.mu.var_N_tilde == np.zeros(self.opt_vars.mu.var_N_tilde.shape)
+            ]
+        else:
+            _soft_cons = []
+
+        self._constraints = self._std_evo_constraints + self._custom_constraints + _soft_cons
         assert isinstance(self._constraints, list)
+
 
         sense = 'minimize' if sense is None else sense
         if sense.lower().startswith('min'):
@@ -287,9 +303,6 @@ class MpcController(MpcBase):
             self.x_k = x_k
         if omega_tilde_k is not None:
             self.omega_tilde_k = omega_tilde_k
-
-        if self._build_required:
-            self.build()
 
         self.solve(solver=solver,
                    ignore_dcp=ignore_dcp, warm_start=warm_start, verbose=verbose,

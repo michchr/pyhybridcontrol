@@ -101,7 +101,7 @@ class MpcEvoMatrices(MpcComponentsBase):
                                  itertools.product(_constraint_evo_mats, _var_lengths)]
 
     StateInputEvoMatStruct = struct_prop_fixed_dict('StateInputEvoMatStruct', _state_input_evo_mat_names)
-    OutputEvoMatStruct = struct_prop_fixed_dict('StateInputEvoMatStruct', _output_evo_mat_names)
+    OutputEvoMatStruct = struct_prop_fixed_dict('OutputEvoMatStruct', _output_evo_mat_names)
     ConstraintEvoMatStruct = struct_prop_fixed_dict('ConstraintEvoMatStruct',
                                                     _constraint_evo_mat_names)
 

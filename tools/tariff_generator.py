@@ -26,7 +26,10 @@ class TariffGenerator():
                                 high_off_peak=high_off_peak, high_stnd=high_stnd, high_peak=high_peak)
 
     def get_price_vector(self, N_p, date_time_0, control_ts):
-        delta_time = TimeDelta(hours=control_ts)
+        if isinstance(control_ts, TimeDelta):
+            delta_time = control_ts
+        else:
+            delta_time = TimeDelta(seconds=control_ts)
         time_vector = [date_time_0 + i * delta_time for i in range(N_p)]
         price_vector = np.atleast_2d([self.get_import_price(time_vector[i]) for i in range(N_p)]).T
         return price_vector
@@ -131,4 +134,4 @@ if __name__ == '__main__':
     print(test_date)
     print(tariff_gen.get_import_price(test_date))
 
-    pprint.pprint(tariff_gen.get_price_vector(24, test_date, 0.25))
+    pprint.pprint(tariff_gen.get_price_vector(24, test_date, 15*60))

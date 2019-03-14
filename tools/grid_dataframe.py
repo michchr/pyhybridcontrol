@@ -14,39 +14,44 @@ pd.set_option('mode.chained_assignment', 'raise')
 
 _VALID_DEVICE_TYPES = ['dewh', 'pm']
 
-_DEWH_RESAMPLE_FUNC_MAP = {'Temp': 'last',
-                           'Status': np.mean,
-                           'Error': np.max,
+_DEWH_RESAMPLE_FUNC_MAP = {'Temp'      : 'last',
+                           'Status'    : np.mean,
+                           'Error'     : np.max,
                            'is_Nan_Raw': np.mean,
                            'is_Nan_Rol': 'last',
-                           'Demand': np.mean}
+                           'Demand'    : np.mean}
 
-_DEWH_FILLNA_FUNC_MAP = {'Status': 'ffill',
-                         'Error': 'ffill',
+_DEWH_FILLNA_FUNC_MAP = {'Status'    : 'ffill',
+                         'Error'     : 'ffill',
                          'is_Nan_Raw': 'ffill'}
 
-_PM_FILLNA_FUNC_MAP = {'ID': 'ffill',
-                       'SN': 'ffill',
-                       'is_Nan_Raw': 'ffill'}
+_PM_FILLNA_FUNC_MAP = {'ID'                 : 'ffill',
+                       'SN'                 : 'ffill',
+                       'is_Nan_Raw'         : 'ffill',
+                       'ForActiveEnergy_L1' : 'ffill', 'ForActiveEnergy_L2': 'ffill', 'ForActiveEnergy_L3': 'ffill',
+                       'ForActiveEnergy_Tot': 'ffill',
+                       'RevActiveEnergy_L1' : 'ffill', 'RevActiveEnergy_L2': 'ffill', 'RevActiveEnergy_L3': 'ffill',
+                       'RevActiveEnergy_Tot': 'ffill',
+                       }
 
-_PM_RESAMPLE_FUNC_MAP = {'A_L1': np.mean, 'A_L2': np.mean, 'A_L3': np.mean,
-                         'ActivePower_L1': np.mean, 'ActivePower_L2': np.mean, 'ActivePower_L3': np.mean,
-                         'ActivePower_SF': np.mean, 'ActivePower_Tot': np.mean,
-                         'ApparentPower_L1': np.mean, 'ApparentPower_L2': np.mean, 'ApparentPower_L3': np.mean,
-                         'ApparentPower_Tot': np.mean,
-                         'ForActiveEnergy_L1': 'last', 'ForActiveEnergy_L2': 'last', 'ForActiveEnergy_L3': 'last',
+_PM_RESAMPLE_FUNC_MAP = {'A_L1'               : np.mean, 'A_L2': np.mean, 'A_L3': np.mean,
+                         'ActivePower_L1'     : np.mean, 'ActivePower_L2': np.mean, 'ActivePower_L3': np.mean,
+                         'ActivePower_SF'     : np.mean, 'ActivePower_Tot': np.mean,
+                         'ApparentPower_L1'   : np.mean, 'ApparentPower_L2': np.mean, 'ApparentPower_L3': np.mean,
+                         'ApparentPower_Tot'  : np.mean,
+                         'ForActiveEnergy_L1' : 'last', 'ForActiveEnergy_L2': 'last', 'ForActiveEnergy_L3': 'last',
                          'ForActiveEnergy_Tot': 'last',
-                         'GridFreq': np.mean,
-                         'ID': 'last',
-                         'PF': np.mean,
-                         'PF_L1': np.mean, 'PF_L2': np.mean, 'PF_L3': np.mean,
-                         'ReactivePower_L1': np.mean, 'ReactivePower_L2': np.mean, 'ReactivePower_L3': np.mean,
-                         'ReactivePower_Tot': np.mean,
-                         'RevActiveEnergy_L1': 'last', 'RevActiveEnergy_L2': 'last', 'RevActiveEnergy_L3': 'last',
+                         'GridFreq'           : np.mean,
+                         'ID'                 : 'last',
+                         'PF'                 : np.mean,
+                         'PF_L1'              : np.mean, 'PF_L2': np.mean, 'PF_L3': np.mean,
+                         'ReactivePower_L1'   : np.mean, 'ReactivePower_L2': np.mean, 'ReactivePower_L3': np.mean,
+                         'ReactivePower_Tot'  : np.mean,
+                         'RevActiveEnergy_L1' : 'last', 'RevActiveEnergy_L2': 'last', 'RevActiveEnergy_L3': 'last',
                          'RevActiveEnergy_Tot': 'last',
-                         'SN': 'last',
-                         'V_L1': np.mean, 'V_L2': np.mean, 'V_L3': np.mean,
-                         'is_Nan_Raw': np.mean}
+                         'SN'                 : 'last',
+                         'V_L1'               : np.mean, 'V_L2': np.mean, 'V_L3': np.mean,
+                         'is_Nan_Raw'         : np.mean}
 
 
 class MicroGridDataFrame(DataFrame):
@@ -137,7 +142,7 @@ class MicroGridDataFrame(DataFrame):
     def align_samples(self, sampling_time='1Min'):
         grouped = self.groupby(pd.Grouper(freq=sampling_time, closed='right', label='left')).last()
 
-        for dev in grouped.columns.levels[0]:
+        for dev in grouped.columns.get_level_values(0):
             grouped.loc[:, (dev, 'is_Nan_Raw')] = np.any(grouped.loc[:, IDX[dev, :]].isna().values, axis=1).astype(int)
 
         grouped.sort_index(axis=1, inplace=True)
@@ -146,7 +151,8 @@ class MicroGridDataFrame(DataFrame):
         return self._constructor_override(grouped)
 
     def resample_device(self, sample_time, func_map=None, device_type=None):
-        self.device_type = device_type
+        if device_type is not None:
+            self.device_type = device_type
 
         if not self.is_aligned:
             new_df = self.align_samples()
@@ -172,9 +178,13 @@ class MicroGridDataFrame(DataFrame):
             func_map = func_map or _DEWH_RESAMPLE_FUNC_MAP
         elif self.device_type == 'pm':
             energy_fields = new_df.get_device_fields(regex_filter="Energy")
+            energy_df = new_df.loc[:, IDX[:, energy_fields]].copy()
+            energy_df[np.isclose(energy_df, 0.0)] = np.NaN
+            new_df.loc[:, IDX[:, energy_fields]] = energy_df
             new_df = new_df._non_increasing_to_nan(fields=energy_fields)
             new_df.loc[:, IDX[:, energy_fields]] = new_df.loc[:, IDX[:, energy_fields]].interpolate(
                 limit_direction='both')
+
             func_map = func_map or _PM_RESAMPLE_FUNC_MAP
 
         new_df = new_df._groupby_resample(sample_time, func_map)
@@ -254,13 +264,25 @@ class MicroGridDataFrame(DataFrame):
 
         return self._constructor_override(joined)
 
+    def _unwrap(self, discont, axis=0, fields=None):
+        if fields is not None:
+            diff = self.loc[:, IDX[:, fields]].ffill().diff(axis=axis).values
+            correct = diff * -1
+            correct[np.abs(diff) < discont] = 0
+            new_df = self.copy()
+            new_df.loc[:, IDX[:, fields]] = new_df.loc[:, IDX[:, fields]] + np.nancumsum(correct, axis=axis)
+        else:
+            new_df = self
+
+        return self._constructor_override(new_df)
+
     def _non_increasing_to_nan(self, fields=None):
         # create mask to remove non-increasing values
         if fields is not None:
-            mask = np.isclose(
-                self.loc[:, IDX[:, fields]].apply(np.maximum.accumulate).astype(np.int).diff(), 0.0)
-            new_df = self.copy()
-            new_df.loc[:, IDX[:, fields]] = np.where(mask, np.nan, self.loc[:, IDX[:, fields]])
+            unwrapped = self._unwrap(discont=1e7, fields=fields)
+            mask = np.isclose((unwrapped.loc[:, IDX[:, fields]].apply(np.fmax.accumulate)).diff(), 0.0)
+            new_df = unwrapped
+            new_df.loc[:, IDX[:, fields]] = np.where(mask, np.nan, new_df.loc[:, IDX[:, fields]].values)
         else:
             new_df = self
 
@@ -322,52 +344,22 @@ class MicroGridSeries(Series):
 
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
+    import os
+
     from tools.mongo_interface import MongoInterface
 
     mi = MongoInterface("site_data", "Kikuyu")
 
-    start_datetime = DateTime(2018, 6, 27, 13, 0)
-    end_datetime = DateTime(2018, 10, 30, 14, 10)
+    start_datetime = DateTime(2018, 12, 1, 0, 0)
+    end_datetime = DateTime(2019, 2, 1, 0, 0)
 
-    raw_data = mi.get_many_dev_raw_dataframe('pm', [0], fields=None, start_datetime=start_datetime,
+    raw_data = mi.get_many_dev_raw_dataframe('pm', mi.get_one_dev_ids('pm'), fields=None,
+                                             start_datetime=start_datetime,
                                              end_datetime=end_datetime)
 
+    # raw_data = pd.read_pickle(
+    #     os.path.abspath(r"C:\Users\chris\Documents\University_local\Thesis_datasets\raw_power_meter_kikuyu"))
+
     al_df = raw_data.align_samples()
-    #
     df = al_df.resample_device(sample_time='15Min')
-
-    df = df.compute_power_from_energy()
-
-    # for i in range(1,2):
-    #     df.loc[:, IDX[i, ['Temp', 'Status', 'is_Nan_Rol']]].stair_plot(subplots=True)
-    #     figManager = plt.get_current_fig_manager()
-    #     figManager.window.showMaximized()
-    #     plt.show()
-
-    for i in range(0, 1):
-        df.loc[:, IDX[i, ['ForActivePower_Tot_Calc']]].stair_plot(subplots=True)
-        figManager = plt.get_current_fig_manager()
-        figManager.window.showMaximized()
-        plt.show()
-
-    #
-    # # Verify Power
-    # df.loc[:, (0, 'A_L2')] = (df.loc[:, (0, 'A_L1')] + df.loc[:, (0, 'A_L3')]) / 2.0
-    # df.loc[:, (0, 'Ave_Amps')] = (df.loc[:, (0, 'A_L1')] + df.loc[:, (0, 'A_L2')] + df.loc[:, (0, 'A_L3')]) / 3.0
-    # df.loc[:, (0, 'Power_Calc')] = np.sqrt(3) * df.loc[:, (0, 'Ave_Amps')] * 11000
-    # df.loc[:, IDX[:, ['ActivePower_Tot']]] *= -1
-    # ax1 = plt.subplot(211)
-    # plt.title('Kikuyu Power Analysis using Wattnode: PM0')
-    # plt.ylabel('Power (W)')
-    # df.loc[:, IDX[:, ['ForActivePower_Tot_Calc', 'Power_Calc', 'ActivePower_Tot']]].stair_plot(ax=ax1)
-    # labels=['Measured power taken from Kikuyu: Wattnode PM0',
-    #         'Power computed using ForActiveEnergyMeasurement and computing rate of change',
-    #         'Power computed from average of current measurements and assumption that voltage is fixed at 11kV'
-    # ]
-    # ax1.legend(labels)
-    # ax2 = plt.subplot(212, sharex=ax1)
-    # plt.ylabel('Voltage (V)')
-    # plt.title('Voltage Measurements: PM0')
-    # df.loc[:, IDX[:, ['V_L1', 'V_L2', 'V_L3']]].stair_plot(ax=ax2)
-    #
-    # plt.show()
+    df_pow = df.compute_power_from_energy()
