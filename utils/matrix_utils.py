@@ -15,12 +15,16 @@ from collections import namedtuple as NamedTuple
 from utils.decorator_utils import cache_hashable_args
 import functools
 
+def is_scalar_like(val):
+    shape = getattr(val, 'shape', (1,))
+    return all([d==1 for d in shape])
 
 def matmul(self, other):
-    try:
-        return self @ other
-    except ValueError:
+    if any(map(is_scalar_like, (self, other))):
         return self * other
+    else:
+        return self @ other
+
 
 def atleast_2d_col(arr, dtype=None, order=None):
     arr = np.asanyarray(arr, dtype=dtype, order=order)

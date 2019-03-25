@@ -8,6 +8,8 @@ from models.mld_model import MldModel, MldSystemModel, PvMldSystemModel
 from models.parameters import grid_p, dewh_p
 from utils.decorator_utils import cache_hashable_args
 
+from models.agents import Agent, MpcAgent
+
 from utils.helper_funcs import is_all_None
 
 
@@ -36,7 +38,6 @@ class DewhModel(PvMldSystemModel):
 
         p1 = U_h * A_h
         p2 = m_h * C_w
-        C2Kelvin = 273.15
         # Define continuous system matrices
         if const_heat:
             # Assume heat demand constant over sampling period and that
@@ -48,9 +49,9 @@ class DewhModel(PvMldSystemModel):
             b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
         else:
             # assume water demand flow rate constant over sampling period
-            A_c = sp.Matrix([-((D_h * (T_h_Nom-T_w)/(T_h-T_w) * C_w) + p1) / p2])
+            A_c = sp.Matrix([-((D_h * (T_h_Nom - T_w) / (T_h - T_w) * C_w) + p1) / p2])
             B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
-            B4_c = sp.Matrix([C_w * T_w * (T_h_Nom-T_w)/(T_h-T_w)]) * (p2 ** -1)
+            B4_c = sp.Matrix([C_w * T_w * (T_h_Nom - T_w) / (T_h - T_w)]) * (p2 ** -1)
             b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
 
         # Compute discretized system matrices
@@ -159,6 +160,15 @@ class GridModel(PvMldSystemModel):
         MldModel_sym = MldModel(mld_sym_struct, dt=0)
 
         return MldModel_sym
+
+
+class GridAgentMPC(MpcAgent):
+
+    def __init__(self, device_type='grid', device_id=None, N_p=None, N_tilde=None):
+        super().__init__(device_type=device_type, device_id=device_id, N_p=N_p,
+                         N_tilde=N_tilde)
+
+
 
 
 if __name__ == '__main__':

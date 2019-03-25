@@ -107,20 +107,21 @@ class StructDictMeta(ABCMeta):
         all_slots.discard('__dict__')
         kls._all_slots = tuple(all_slots)
 
-        _internal_name_set = (
-            all_slots.union(kls._internal_names_set) if hasattr(kls, '_internal_names_set') else all_slots)
-        _internal_names = getattr(kls, "".join(["_", kls.__name__, "__internal_names"]), None)
-        if _internal_names:
-            for name in _internal_names:
+        internal_names = [klass.__dict__.get(name, ()) for klass in mro for name in klass.__dict__ if
+                          "_internal_names" in name]
+
+        all_internal_names = frozenset(
+            set(itertools.chain.from_iterable(internal_names)) | all_slots
+        )
+
+        if all_internal_names:
+            for name in all_internal_names.difference(all_slots):
                 if getattr(kls, name, None) is None:
                     p = AttributeAccessor(name=name)
                     setattr(kls, name, p)
-            _internal_name_set.update(_internal_names)
 
-        _other_internal_names = (
-            set(kls.__bases__[0]._internal_names_set) if hasattr(kls.__bases__[0], '_internal_names_set') else set())
-        if _internal_name_set.difference(_other_internal_names):
-            kls._internal_names_set = _internal_name_set.union(_other_internal_names)
+        if not hasattr(kls, '_internal_names_set') or all_internal_names.difference(kls._internal_names_set):
+            kls._internal_names_set = all_internal_names
 
         return kls
 
@@ -133,42 +134,41 @@ class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
     # _internal_names_set is updated with all subclass internal names by metaclass
     _internal_names_set = set(__internal_names)
 
-
     def _get_slot_dict(self):
         # _all_slots is set by metaclass
         if self._all_slots:
             return {name: getattr(self, name, ParNotSet) for name in self._all_slots}
         else:
-            return None
+            return {}
 
     @classmethod
-    def _constructor(cls, items=None, copy_items=False, deepcopy_items=False,
-                     instance_dict=None, instance_slots=None,
-                     copy_instance_attr=False, deepcopy_instance_attr=False,
-                     items_override=None,
-                     inst_dict_attr_override=None,
-                     inst_slot_attr_override=None,
+    def _constructor(cls, items=None,
+                     copy_items=False, deepcopy_items=False, items_override=None,
+                     instance_attr=None,
+                     copy_instance_attr=False, deepcopy_instance_attr=False, instance_attr_override=None,
                      memo=None):
 
         obj = cls.__new__(cls)
 
-        if instance_dict is not None:
+        if instance_attr is not None:
             if deepcopy_instance_attr:
-                instance_dict = _deepcopy(instance_dict, memo=memo)
+                instance_attr = _deepcopy(instance_attr, memo=memo)
             elif copy_instance_attr:
-                instance_dict = {name: _copy(item) for name, item in instance_dict.items()}
+                instance_attr = {name: _copy(item) for name, item in instance_attr.items()}
 
-            obj.__dict__.update(instance_dict)
+        if instance_attr_override is not None:
+            instance_attr = instance_attr or {}
+            instance_attr.update(instance_attr_override)
 
-        if instance_slots is not None:
-            if deepcopy_instance_attr:
-                instance_slots = _deepcopy(instance_slots, memo=memo)
-            elif copy_instance_attr:
-                instance_slots = {name: _copy(item) for name, item in instance_slots.items()}
+        if instance_attr:
+            sentinel = object()
+            for name in obj._all_slots:
+                item = instance_attr.pop(name, sentinel)
+                if item is not sentinel:
+                    setattr(obj, name, item)
 
-            for name, value in instance_slots.items():
-                if value is not ParNotSet:
-                    setattr(obj, name, value)
+            if hasattr(obj, '__dict__'):
+                obj.__dict__.update(instance_attr)
 
         if items is not None:
             if items.__class__ is not cls._base_dict:
@@ -182,35 +182,29 @@ class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
                     items = [(name, _copy(item)) for name, item in items.items()]
             obj._base_dict_update(items)
 
-        if inst_dict_attr_override is not None:
-            obj.__dict__.update(inst_dict_attr_override)
-
-        if inst_slot_attr_override is not None:
-            for name, value in inst_slot_attr_override.items():
-                setattr(obj, name, value)
-
         if items_override is not None:
             obj._base_dict_update(items_override)
 
         return obj
 
-    def _constructor_from_self(self, items=None, copy_items=False, deepcopy_items=False,
-                               instance_dict=None, instance_slots=None,
-                               copy_instance_attr=False, deepcopy_instance_attr=False,
-                               items_override=None,
-                               inst_dict_attr_override=None,
-                               inst_slot_attr_override=None,
+    def _constructor_from_self(self, items=None,
+                               copy_items=False, deepcopy_items=False, items_override=None,
+                               instance_attr=None,
+                               copy_instance_attr=False, deepcopy_instance_attr=False, instance_attr_override=None,
                                memo=None):
 
         items = items if items is not None else self.as_base_dict()
-        instance_dict = instance_dict if instance_dict is not None else getattr(self, '__dict__', None)
-        instance_slots = instance_slots if instance_slots is not None else self._get_slot_dict()
 
-        return self._constructor(items=items, copy_items=copy_items, deepcopy_items=deepcopy_items,
-                                 instance_dict=instance_dict, instance_slots=instance_slots,
+        if instance_attr is None:
+            instance_attr = getattr(self, '__dict__', {})
+            instance_attr.update(self._get_slot_dict())
+
+        return self._constructor(items=items,
+                                 copy_items=copy_items, deepcopy_items=deepcopy_items, items_override=items_override,
+                                 instance_attr=instance_attr,
                                  copy_instance_attr=copy_instance_attr, deepcopy_instance_attr=deepcopy_instance_attr,
-                                 items_override=items_override, inst_dict_attr_override=inst_dict_attr_override,
-                                 inst_slot_attr_override=inst_slot_attr_override, memo=memo)
+                                 instance_attr_override=instance_attr_override,
+                                 memo=memo)
 
     @property
     def base_dict(self):
@@ -430,6 +424,7 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
     def __init__(self, *args, **kwargs):
         self._base_dict_init(*args, **kwargs)
 
+
 class StructPropFixedDictMixin(StructPropDictMixin):
     __internal_names = ()
     __slots__ = ()
@@ -496,10 +491,11 @@ class {typename}(_StructPropDict):
     __slots__ = ()
     _field_names = {field_names!r}
     
-    def __init__(self, *args, {kwargs_map} **kwargs):
-        'Initialize new instance of {typename}(*args, {kwargs_map} **kwargs)'
-        self._base_dict_init({kwargs_eq_map})
-        self._base_dict_update(*args, **kwargs)
+    if _field_names:
+        def __init__(_self, *args, {kwargs_map} **kwargs):
+            'Initialize new instance of {typename}(*args, {kwargs_map} **kwargs)'
+            _self._base_dict_init({kwargs_eq_map})
+            _self._base_dict_update(*args, **kwargs)
 
     if {sorted_repr}:
         __repr__ = StructMixin._sorted_repr

@@ -323,10 +323,9 @@ item_accessor_get_attro(PyObject *obj, PyObject *name) {
             goto done;
         }
     } else if (m && m->mp_subscript) { /*if mapping and no class attribute override lookup*/
-        res = m->mp_subscript(obj, name);
-        if (res != NULL || !PyErr_ExceptionMatches(PyExc_KeyError)) {
+        if ((res = m->mp_subscript(obj, name))!=NULL) {
             goto done;
-        } else {
+        } else if (PyErr_ExceptionMatches(PyExc_KeyError)) {
             PyErr_Clear();
             if (strcmp(PyUnicode_AsUTF8(name), "__dict__") != 0) {
                 PyErr_Format(PyExc_AttributeError,
@@ -336,6 +335,8 @@ item_accessor_get_attro(PyObject *obj, PyObject *name) {
                 goto done;
             }
             goto attr_err;
+        } else {
+            goto done;
         }
     }
 
@@ -421,24 +422,18 @@ item_accessor_set_attro(PyObject *obj, PyObject *name, PyObject *value) {
     m = tp->tp_as_mapping;
     descr = _PyType_Lookup(tp, name);
 
-    if (descr != NULL) {
+    if (descr != NULL) { /*Check for class attribute*/
         Py_INCREF(descr);
         f = descr->ob_type->tp_descr_set;
         if (f != NULL) {
             res = f(descr, obj, value);
             goto done;
         }
-    } else if (m && m->mp_ass_subscript) {
+    } else if (m && m->mp_ass_subscript) { /*if mapping and no class attribute override set_item*/
         if ((res = m->mp_ass_subscript(obj, name, value)) == 0) {
             goto done;
-        } else if (res < 0 && PyErr_ExceptionMatches(PyExc_KeyError)) {
-            if (strcmp(PyUnicode_AsUTF8(name), "__dict__") != 0) {
-                PyErr_Format(PyExc_AttributeError,
-                             "'%.100s' object has no item with key '%U'.\n"
-                             "Note: Item may still be present in instance '__dict__' if it exists.",
-                             tp->tp_name, name);
-                goto done;
-            }
+        } else if (res < 0 && strcmp(PyUnicode_AsUTF8(name), "__dict__") != 0) {
+            goto done;
         }
     }
 

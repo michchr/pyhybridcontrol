@@ -18,26 +18,30 @@ import cvxpy as cvx
 
 from structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict
 
+from utils.versioning import VersionMixin, increments_version_decor, versioned
 
+@versioned
 class MldBase(StructPropDictMixin, dict):
     __internal_names = ()
-    __slots__ = ()
 
     _data_types = ()
     _data_layout = {}
     _field_names = ()
     _field_names_set = frozenset(_field_names)
 
+    @increments_version_decor
     def __init__(self, *args, **kwargs):
         super(MldBase, self).__init__()
         super(MldBase, self).update(dict.fromkeys(self._field_names_set))
 
+    @increments_version_decor
     def __setitem__(self, key, value):
         if key in self._field_names_set:
             self.update(**{key: value})
         else:
             raise KeyError("key: '{}' is not in self._field_names_set.".format(key))
 
+    @increments_version_decor
     def clear(self):
         self.__init__()
 
@@ -47,6 +51,7 @@ class MldBase(StructPropDictMixin, dict):
     def popitem(self, *args, **kwargs):
         raise NotImplementedError(f"Items cannot be removed from a {self.__class__.__name__} object.")
 
+    @increments_version_decor
     def setdefault(self, key, default=None):
         if key in self:
             return self[key]
@@ -96,7 +101,7 @@ def _process_mld_args_decor(func):
 
 _shape_func_map = NamedTuple('shape_func_map', ['axis', 'func', 'items'])
 
-
+@versioned(versioned_sub_objects=())
 class MldInfo(MldBase):
     __internal_names = ()
     __slots__ = ()
@@ -208,6 +213,7 @@ class MldInfo(MldBase):
         return self[self._var_to_bin_dim_names_map[var_name]]
 
     @_process_mld_args_decor
+    @increments_version_decor
     def update(self, mld_info_data=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                required_params=None, **kwargs):
 
@@ -376,10 +382,9 @@ class MldInfo(MldBase):
         else:
             return (np.asanyarray(var_types_vect, dtype=np.str) == 'b').sum()
 
-
+@versioned(versioned_sub_objects=('mld_info',))
 class MldModel(MldBase):
     __internal_names = ('_mld_info', '_mld_type', '_shapes_struct', '_all_empty_mats', '_all_zero_mats')
-    __slots__ = __internal_names
 
     _MLD_MODEL_TYPE_NAMES = ['numeric', 'callable', 'symbolic']
     MldModelTypesNamedTup = NamedTuple('MldModelTypes', _MLD_MODEL_TYPE_NAMES)
@@ -433,13 +438,6 @@ class MldModel(MldBase):
     def mld_info(self):
         return self._mld_info
 
-    @mld_info.setter
-    def mld_info(self, mld_info):
-        if isinstance(mld_info, MldInfo):
-            self._mld_info = mld_info
-        else:
-            raise TypeError("mld_info must be of type '{}'".format(self.mld_info.__class__.__name__))
-
     @property
     def shapes_struct(self):
         return self._shapes_struct
@@ -452,15 +450,17 @@ class MldModel(MldBase):
         base_repr = super(MldModel, self).__repr__()
         mld_model_str = ("\n"
                          "x(k+1) = A*x(k) + B1*u(k) + B2*delta(k) + B3*z(k) + B4*omega(k) + b5\n"
-                         "y(k) = C*x(k) + D1*u(k) + D2*delta(k) + D3*z(k) + D4*omega(k) + d5\n"
+                         "y(k)   = C*x(k) + D1*u(k) + D2*delta(k) + D3*z(k) + D4*omega(k) + d5\n"
                          "E*x(k) + F1*u(k) + F2*delta(k) + F3*z(k) + F4*omega(k) + G*y(k) + Psi*mu(k) <= f5\n"
+                         "                                                                      mu(k) >= 0\n"
                          f"mld_type : {self.mld_type}\n"
                          "\n"
                          "with:\n")
-        mld_model_repr = base_repr.replace('\n', '\n' + mld_model_str, 1)
+        mld_model_repr = base_repr.replace('{', '{\n' + mld_model_str, 1)
         return mld_model_repr
 
     @_process_mld_args_decor
+    @increments_version_decor
     def update(self, system_matrices=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                **kwargs):
         from_init = kwargs.pop('from_init', False)
@@ -775,7 +775,7 @@ class MldModel(MldBase):
         mld_type = self.MldModelTypes.numeric
         numeric_mld = self._constructor_from_self(items=dict_numeric, copy_instance_attr=True,
                                                   deepcopy_instance_attr=copy,
-                                                  inst_slot_attr_override={'_mld_type': mld_type})
+                                                  instance_attr_override={'_mld_type': mld_type})
         numeric_mld.mld_info._base_dict_update(param_struct=param_struct, dt=dt)
         return numeric_mld
 
@@ -803,7 +803,7 @@ class MldModel(MldBase):
         mld_type = self.MldModelTypes.callable
         callable_mld = self._constructor_from_self(items=dict_callable, copy_instance_attr=True,
                                                    deepcopy_instance_attr=copy,
-                                                   inst_slot_attr_override={'_mld_type': mld_type})
+                                                   instance_attr_override={'_mld_type': mld_type})
         callable_mld.mld_info._base_dict_update(param_struct=param_struct, dt=dt)
         return callable_mld
 
@@ -969,10 +969,12 @@ class MldModel(MldBase):
         return concat_mld
 
 
-class MldSystemModel:
+@versioned(versioned_sub_objects=('mld_numeric', 'mld_callable', 'mld_symbolic'))
+class MldSystemModel(VersionMixin):
     MldNames = MldModel.MldModelTypesNamedTup(numeric='mld_numeric', callable='mld_callable', symbolic='mld_symbolic')
 
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, copy=False):
+        super(MldSystemModel, self).__init__()
         self._param_struct = None
         self._mld_numeric = None
         self._mld_callable = None
@@ -980,6 +982,7 @@ class MldSystemModel:
         self.update_mld(mld_numeric=mld_numeric, mld_callable=mld_callable, mld_symbolic=mld_symbolic,
                         param_struct=param_struct, copy=copy, missing_param_check=True)
 
+    @increments_version_decor
     def update_mld(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None,
                    param_struct_subset=None, copy=False, missing_param_check=True, invalid_param_check=False, **kwargs):
 
@@ -1038,6 +1041,7 @@ class MldSystemModel:
     def param_struct(self, param_struct):
         self.update_param_struct(param_struct=param_struct)
 
+    @increments_version_decor
     def update_param_struct(self, param_struct=None, param_struct_subset=None, missing_param_check=True,
                             invalid_param_check=False, **kwargs):
         param_struct = self._validate_param_struct(param_struct=param_struct,

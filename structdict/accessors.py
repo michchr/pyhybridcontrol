@@ -70,7 +70,9 @@ class ItemAccessorMixin:
             try:
                 return self[key]
             except KeyError:
-                raise AttributeError(f"{self.__class__.__name__!r} object has no attribute {key!r}")
+                raise AttributeError(
+                    f"{self.__class__.__name__!r} object has no item with key {key!r}\n"
+                    f"Note: Item may still be present in instance '__dict__' if it exists.")
         else:
             return object.__getattribute__(self, key)
 
@@ -78,6 +80,7 @@ class ItemAccessorMixin:
 _is_using_c = False
 try:
     import structdict._accessors as _accessors
+
     AttributeAccessor = _accessors.AttributeAccessor
     ItemAccessorMixin = _accessors.ItemAccessorMixin
     _is_using_c = True

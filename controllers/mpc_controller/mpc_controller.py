@@ -3,7 +3,7 @@ import numpy as np
 
 import cvxpy.expressions.expression as cvx_e
 
-from controllers.mpc_controller.mpc_components import MpcEvoMatrices, MpcOptimizationVars, MpcObjectiveWeights
+from controllers.mpc_controller.mpc_components import MpcEvoMatrices, MpcVariables, MpcObjectiveWeights
 from controllers.mpc_controller.mpc_utils import process_base_args
 from models.mld_model import MldModel, MldInfo, MldSystemModel
 from utils.decorator_utils import process_method_args_decor
@@ -12,12 +12,20 @@ from structdict import struct_prop_fixed_dict, struct_repr
 from utils.helper_funcs import is_all_val
 
 from utils.func_utils import ParNotSet
+from utils.versioning import VersionMixin, versioned
+
+import wrapt
+import io
+import contextlib
 
 
-class MpcBase:
+
+@versioned(versioned_sub_objects=('model', 'mld_numeric_k', 'mld_numeric_tilde', 'mld_info_k'))
+class MpcBase(VersionMixin):
     def __init__(self, model=None, N_p=None, N_tilde=None, agent=None,
                  mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None):
 
+        super(MpcBase, self).__init__()
         self._N_p = N_p if N_p is not None else 0
         self._N_tilde = N_tilde if N_tilde is not None else self._N_p + 1
 
@@ -59,12 +67,26 @@ class MpcBase:
         return self.mld_numeric_k.mld_info
 
 
+def build_required_decor(set=True):
+    @wrapt.decorator
+    def wrapper(wrapped, self, args, kwargs):
+        ret = wrapped(*args, **kwargs)
+        if set:
+            self.set_build_required()
+        else:
+            self._build_required = False
+        return ret
+
+    return wrapper
+
+
+@versioned(versioned_sub_objects=('variables', 'sys_evo_matrices'))
 class MpcController(MpcBase):
-    _data_types = ['_opt_vars', '_std_obj_weights']
+    _data_types = ['std_obj_weights','variables', 'mld_numeric_k']
 
-    FeedBackStruct = struct_prop_fixed_dict('FeedBackStruct',
-                                            [var_name + "_k" for var_name in MpcOptimizationVars._var_names])
+    VarStruct_k = struct_prop_fixed_dict('VarStruct_k', MldInfo._var_names)
 
+    @build_required_decor()
     def __init__(self, model=None, N_p=None, N_tilde=None, agent=None,
                  mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None,
                  x_k=None, omega_tilde_k=None):
@@ -75,25 +97,40 @@ class MpcController(MpcBase):
 
         self._x_k = None
         self._omega_tilde_k = None
-        self.set_x_k(x_k=x_k)
-        self.set_omega_tilde_k(omega_tilde_k=omega_tilde_k)
 
-        self._sys_evo_matrices = MpcEvoMatrices(self)
-        self._opt_vars = MpcOptimizationVars(self)
-
-        self._std_obj_weights = MpcObjectiveWeights(self)
         self._std_cost = None
-        self._custom_cost = None
+        self._other_cost = None
         self._cost = None
 
         self._std_evo_constraints = []
-        self._custom_constraints = []
+        self._other_constraints = []
         self._constraints = []
-        self._build_required = True
+
+        if self.model.mld_numeric is not None:
+            self._sys_evo_matrices = MpcEvoMatrices(self)
+            self._variables = MpcVariables(mpc_controller=self, x_k=x_k, omega_tilde_k=omega_tilde_k)
+            self._std_obj_weights = MpcObjectiveWeights(self)
+        else:
+            self._sys_evo_matrices = None
+            self._variables = None
+            self._std_obj_weights = None
 
     @property
-    def opt_vars(self):
-        return self._opt_vars
+    def variables(self):
+        return self._variables
+
+    @property
+    def variables_k(self):
+        vars_k = self.VarStruct_k()
+        if self._variables:
+            for var_name, var in self._variables.items():
+                var_k = var.var_k
+                if var_k is not None:
+                    if isinstance(var_k, cvx_e.Expression):
+                        vars_k[var_name] = var_k.value
+                    else:
+                        vars_k[var_name] = var_k
+        return vars_k
 
     @property
     def sys_evo_matrices(self):
@@ -117,97 +154,54 @@ class MpcController(MpcBase):
 
     @property
     def x_k(self):
-        return self._x_k
+        return self._variables.x_k
 
     @x_k.setter
     def x_k(self, value):
-        self.set_x_k(x_k=value)
+        self._variables.x_k=value
 
     @property
     def omega_tilde_k(self) -> cvx.Parameter:
-        return self._omega_tilde_k
+        return self._variables.omega.var_N_tilde
 
     @omega_tilde_k.setter
     def omega_tilde_k(self, value):
-        self.set_omega_tilde_k(omega_tilde_k=value)
+        self._variables.omega_tilde_k = value
 
-    @process_method_args_decor(process_base_args)
-    def set_x_k(self, x_k=None, mld_numeric_k=None, mld_numeric_tilde=None, mld_info_k=None):
-
-        required_shape = (mld_info_k.nx, 1)
-        updated_param = self._process_parameter(name="x_k", parameter=self._x_k,
-                                                required_shape=required_shape,
-                                                new_value=x_k)
-        if updated_param is not None:
-            self._x_k = updated_param
-            self.set_build_required()
-
-    @process_method_args_decor(process_base_args)
-    def set_omega_tilde_k(self, omega_tilde_k=None, N_tilde=None,
-                          mld_numeric_k=None, mld_numeric_tilde=None, mld_info_k=None):
-        required_shape = (mld_info_k.nomega * N_tilde, 1)
-        updated_param = self._process_parameter(name="omega_tilde_k", parameter=self._omega_tilde_k,
-                                                required_shape=required_shape,
-                                                new_value=omega_tilde_k)
-        if updated_param is not None:
-            self._omega_tilde_k = updated_param
-            self.set_build_required()
-
-    def _process_parameter(self, name, parameter, required_shape, new_value=None):
-        if 0 not in required_shape:
-            if new_value is not None:
-                if isinstance(new_value, cvx_e.Expression):
-                    set_value = new_value
-                    if set_value.shape == required_shape:
-                        return set_value
-                else:
-                    set_value = atleast_2d_col(new_value)
-                    if set_value.dtype == np.object_:
-                        raise TypeError(
-                            f"'new_value' must be a subclass of a cvxpy {cvx_e.Expression.__name__}, an numeric array "
-                            f"like object or None.")
-
-                if set_value.shape != required_shape:
-                    raise ValueError(
-                        f"Incorrect shape:{set_value.shape} for {name}, a shape of {required_shape} is required.")
-            else:
-                set_value = None
-
-            if parameter is None or parameter.shape != required_shape:
-                if set_value is None:
-                    if parameter is not None and not isinstance(parameter, cvx.Parameter):
-                        raise ValueError(
-                            f"'{name}' is currently a '{parameter.__class__.__name__}' object and can therefore not be "
-                            f"automatically set to a zero 'cvx.Parameter' object. It needs to be set explicitly.")
-                    set_value = np.zeros((required_shape))
-                return cvx.Parameter(shape=required_shape, name=name, value=set_value)
-            elif set_value is not None:
-                if isinstance(parameter, cvx.Parameter):
-                    parameter.value = set_value
-                else:
-                    return cvx.Parameter(shape=required_shape, name=name, value=set_value)
-        else:
-            return np.empty(required_shape)
-
+    @build_required_decor()
     def set_std_obj_weights(self, objective_weights_struct=None, **kwargs):
-        self._std_obj_weights.set(objective_weights_struct=objective_weights_struct, **kwargs)
-        self.set_build_required()
+        if self._std_obj_weights:
+            self._std_obj_weights.set(objective_weights_struct=objective_weights_struct, **kwargs)
+        else:
+            self._std_obj_weights = MpcObjectiveWeights(self, objective_weights_struct=objective_weights_struct,
+                                                        **kwargs)
 
+    @build_required_decor()
     def update_std_obj_weights(self, objective_weights_struct=None, **kwargs):
-        self._std_obj_weights.update(objective_weights_struct, **kwargs)
-        self.set_build_required()
+        if self._std_obj_weights:
+            self._std_obj_weights.update(objective_weights_struct, **kwargs)
+        else:
+            self._std_obj_weights = MpcObjectiveWeights(self, objective_weights_struct=objective_weights_struct,
+                                                        **kwargs)
 
-    def gen_std_type_cost(self, objective_weights: MpcObjectiveWeights, opt_vars: MpcOptimizationVars):
+    def gen_std_type_cost(self, objective_weights: MpcObjectiveWeights, variables: MpcVariables):
         try:
-            return objective_weights.gen_cost(opt_vars)
+            return objective_weights.gen_cost(variables)
         except AttributeError:
-            raise TypeError(f"objective_weights must be of type {MpcObjectiveWeights.__class__.__name__}")
+            if objective_weights is None:
+                return 0
+            else:
+                raise TypeError(f"objective_weights must be of type {MpcObjectiveWeights.__class__.__name__}")
 
     def gen_evo_mats(self):
         pass
 
     def _gen_std_evo_constraints(self):
-        return [self.gen_evo_constraints(self.x_k, self.omega_tilde_k)]
+        std_evo_constraints = self.gen_evo_constraints(self.x_k, self.omega_tilde_k)
+        if std_evo_constraints is not None:
+            return [std_evo_constraints]
+        else:
+            return []
 
     def gen_evo_constraints(self, x_k=None, omega_tilde_k=None,
                             N_p=ParNotSet, N_tilde=ParNotSet, mld_numeric_k=ParNotSet, mld_numeric_tilde=ParNotSet,
@@ -229,40 +223,47 @@ class MpcController(MpcBase):
             else:
                 sys_evo_matrices = self._sys_evo_matrices
 
-        LHS = (matmul(sys_evo_matrices.constraint['H_v_N_tilde'], self._opt_vars['v']['var_N_tilde']))
-        RHS = (matmul(sys_evo_matrices.constraint['H_x_N_tilde'], x_k) +
-               matmul(sys_evo_matrices.constraint['H_omega_N_tilde'], omega_tilde_k)
-               + sys_evo_matrices.constraint['H_5_N_tilde'])
+        if sys_evo_matrices is not None:
+            LHS = (matmul(sys_evo_matrices.constraint['H_v_N_tilde'], self._variables['v']['var_N_tilde']))
+            RHS = (matmul(sys_evo_matrices.constraint['H_x_N_tilde'], x_k) +
+                   matmul(sys_evo_matrices.constraint['H_omega_N_tilde'], omega_tilde_k)
+                   + sys_evo_matrices.constraint['H_5_N_tilde'])
 
-        return LHS <= RHS
+            return LHS <= RHS
+        else:
+            return None
 
     def set_build_required(self):
         self._build_required = True
 
-    def build(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_cons=False):
+    @property
+    def build_required(self):
+        return self._build_required or self.has_updated_version()
+
+    @build_required_decor(set=False)
+    def build(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
         if with_std_cost:
-            self._std_cost = self.gen_std_type_cost(self._std_obj_weights, self._opt_vars)
+            self._std_cost = self.gen_std_type_cost(self._std_obj_weights, self._variables)
         else:
             self._std_cost = 0
 
-        custom_cost = self._custom_cost if self._custom_cost is not None else 0
-        self._cost = self._std_cost + custom_cost
+        other_cost = self._other_cost if self._other_cost is not None else 0
+        self._cost = self._std_cost + other_cost
 
         if with_std_constraints:
             self._std_evo_constraints = self._gen_std_evo_constraints()
         else:
             self._std_evo_constraints = []
 
-        if disable_soft_cons:
-            _soft_cons = [
-                self.opt_vars.mu.var_N_tilde == np.zeros(self.opt_vars.mu.var_N_tilde.shape)
+        if disable_soft_constraints:
+            soft_cons = [
+                self.variables.mu.var_N_tilde == np.zeros(self.variables.mu.var_N_tilde.shape)
             ]
         else:
-            _soft_cons = []
+            soft_cons = []
 
-        self._constraints = self._std_evo_constraints + self._custom_constraints + _soft_cons
+        self._constraints = self._std_evo_constraints + self._other_constraints + soft_cons
         assert isinstance(self._constraints, list)
-
 
         sense = 'minimize' if sense is None else sense
         if sense.lower().startswith('min'):
@@ -272,7 +273,7 @@ class MpcController(MpcBase):
         else:
             raise ValueError(f"Problem 'sense' must be either 'minimize' or 'maximize', got '{sense}'.")
 
-        self._build_required = False
+        self.update_stored_version()
 
     def solve(self, solver=None,
               ignore_dcp=False,
@@ -280,14 +281,33 @@ class MpcController(MpcBase):
               verbose=False,
               parallel=False, *, method=None, **kwargs):
 
-        if self._build_required:
+        if self.build_required:
             raise RuntimeError("Mpc problem has not been built or needs to be rebuilt.")
 
-        solution = self._problem.solve(solver=solver,
-                                       ignore_dcp=ignore_dcp,
-                                       warm_start=warm_start,
-                                       verbose=verbose,
-                                       parallel=parallel, method=method, **kwargs)
+        try:
+            solution = self._problem.solve(solver=solver,
+                                           ignore_dcp=ignore_dcp,
+                                           warm_start=warm_start,
+                                           verbose=verbose,
+                                           parallel=parallel, method=method, **kwargs)
+        except cvx.error.SolverError as se:
+            with io.StringIO() as std_out_redirect:
+                if verbose==False:
+                    with contextlib.redirect_stdout(std_out_redirect):
+                        try:
+                            self._problem.solve(solver=solver,
+                                                ignore_dcp=ignore_dcp,
+                                                warm_start=warm_start,
+                                                verbose=True,
+                                                parallel=parallel, method=method, **kwargs)
+                        except:
+                            pass
+                        std_out_redirect.seek(0)
+                        out = std_out_redirect.read()
+                else:
+                    out = ""
+
+            raise RuntimeError(f"{se.args[0]}\n\n{out}") from se
 
         if not np.isfinite(solution):
             raise RuntimeError(f"solve() failed with objective: '{solution}', and status: {self._problem.status}")
@@ -308,22 +328,14 @@ class MpcController(MpcBase):
                    ignore_dcp=ignore_dcp, warm_start=warm_start, verbose=verbose,
                    parallel=parallel, method=method, **kwargs)
 
-        feedback_struct = self.FeedBackStruct()
-        for var_name_k in feedback_struct.keys():
-            var_name = var_name_k.rstrip('_k')
-            opt_var = self._opt_vars[var_name]['var_mat_N_tilde']
-            if isinstance(opt_var, cvx_e.Expression):
-                feedback_struct[var_name_k] = self._opt_vars[var_name]['var_mat_N_tilde'].value[:, :1]
-            else:
-                feedback_struct[var_name_k] = self._opt_vars[var_name]['var_mat_N_tilde'][:, :1]
-
-        return feedback_struct
+        return self.variables_k
 
     def __repr__(self):
-        def value_repr(value): return (
-            struct_repr(value, type_name='', repr_format_str='{type_name}{{{key_arg}{items}}}', align_values=True))
-
-        repr_dict = {data_type: value_repr(getattr(self, data_type, None)) for data_type in
-                     self._data_types}
+        repr_dict = {data_type: getattr(self, data_type, ParNotSet) for data_type in self._data_types}
         return struct_repr(repr_dict, type_name=self.__class__.__name__, align_values=True, align_padding_width=1,
                            value_format_str='\b{value}')
+
+    def __dir__(self):
+        super_dir = super(MpcController, self).__dir__()
+        new_dir = set([item for item in super_dir if item[0]!='_' or item[1]=='_'])
+        return sorted(new_dir)

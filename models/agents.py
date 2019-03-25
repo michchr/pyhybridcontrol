@@ -9,15 +9,25 @@ from controllers.mpc_controller.mpc_controller import MpcController
 from structdict import StructDict, struct_repr
 from models.mld_model import MldSystemModel
 
+from utils.helper_funcs import is_all_None
+
 
 class Agent:
     _device_type_id_struct = StructDict()
 
-    def __init__(self, device_type=None, device_id=None, sim_model: MldSystemModel = None):
+    def __init__(self, device_type=None, device_id=None,
+                 sim_model: MldSystemModel = None,
+                 control_model: MldSystemModel = None):
 
         self._device_type = device_type or "not_specified"
         self._device_id = device_id
-        self._sim_model = sim_model
+
+        if is_all_None(sim_model, control_model):
+            self._sim_model = MldSystemModel()
+            self._control_model = None
+        else:
+            self._sim_model = sim_model
+            self._control_model = control_model
 
         if self._device_type in self._device_type_id_struct:
             _id_set = self._device_type_id_struct[self._device_type].id_set
@@ -59,6 +69,10 @@ class Agent:
         return self._sim_model
 
     @property
+    def control_model(self):
+        return self._control_model if self._control_model is not None else self._sim_model
+
+    @property
     def mld_numeric(self):
         return self._sim_model._mld_numeric
 
@@ -68,22 +82,17 @@ class Agent:
 
     @_recursive_repr()
     def __repr__(self):
-        repr_dict = OrderedDict(device_type=self.device_type, device_id=self.device_id,
-                                sim_model=self._sim_model)
+        repr_dict = OrderedDict(device_type=self.device_type,
+                                device_id=self.device_id,
+                                sim_model=self.sim_model,
+                                control_model=self.control_model)
         return struct_repr(repr_dict, type_name=self.__class__.__name__)
 
 
 class MpcAgent(Agent):
 
     def __init__(self, device_type=None, device_id=None, sim_model=None, control_model=None, N_p=None, N_tilde=None):
-        super().__init__(device_type=device_type, device_id=device_id, sim_model=sim_model)
-
-        if all((sim_model, control_model)):
-            self._sim_model = sim_model
-            self._control_model = control_model
-        else:
-            self._sim_model = sim_model or control_model
-            self._control_model = control_model or sim_model
+        super().__init__(device_type=device_type, device_id=device_id, sim_model=sim_model, control_model=control_model)
 
         N_p = N_p if N_p is not None else 0
         N_tilde = N_tilde if N_tilde is not None else N_p + 1
@@ -119,14 +128,6 @@ class MpcAgent(Agent):
                                              ignore_dcp=ignore_dcp, warm_start=warm_start, verbose=verbose,
                                              parallel=parallel, method=method, **kwargs
                                              )
-
-    @property
-    def sim_model(self):
-        return self._sim_model
-
-    @property
-    def control_model(self):
-        return self._control_model
 
     @property
     def mld_numeric_tilde(self):
