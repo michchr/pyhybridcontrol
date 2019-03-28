@@ -1,174 +1,92 @@
-import sympy as sp
-import pandas as pd
-import numpy as np
-import scipy.linalg as scl
+from models.micro_grid_models import DewhModel, GridModel
+from models.agents import MpcAgent
 
-from structdict import StructDict
-from models.mld_model import MldModel, MldSystemModel, PvMldSystemModel
-from models.parameters import grid_p, dewh_p
-from utils.decorator_utils import cache_hashable_args
+from utils.func_utils import ParNotSet
 
-from models.agents import Agent, MpcAgent
-
-from utils.helper_funcs import is_all_None
+import cvxpy as cvx
 
 
-class DewhModel(PvMldSystemModel):
-    def __init__(self, param_struct=None, const_heat=True,
-                 mld_numeric=None, mld_callable=None, mld_symbolic=None):
+class DewhAgentMpc(MpcAgent):
 
-        param_struct = param_struct or dewh_p
+    def __init__(self, device_type='dewh', device_id=None,
+                 sim_model=ParNotSet, control_model=ParNotSet,
+                 N_p=None, N_tilde=None):
+        sim_model = sim_model if sim_model is not ParNotSet else DewhModel(const_heat=False)
+        control_model = control_model if control_model is not ParNotSet else DewhModel(const_heat=True)
 
-        if is_all_None(mld_numeric, mld_callable, mld_symbolic):
-            mld_symbolic = self.get_dewh_mld_symbolic(const_heat=const_heat)
-
-        super(DewhModel, self).__init__(mld_numeric=mld_numeric,
-                                        mld_symbolic=mld_symbolic,
-                                        mld_callable=mld_callable,
-                                        param_struct=param_struct)
-
-    @staticmethod
-    @cache_hashable_args(maxsize=2)
-    def get_dewh_mld_symbolic(const_heat=True):
-        dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
-            'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
-        T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
-        T_h_Nom = sp.symbols('T_h_Nom')
-        T_h = sp.symbols('T_h')
-
-        p1 = U_h * A_h
-        p2 = m_h * C_w
-        # Define continuous system matrices
-        if const_heat:
-            # Assume heat demand constant over sampling period and that
-            # that energy demand is equivalent to energy of water volume
-            # extracted at T_h_Nom
-            A_c = sp.Matrix([-p1]) * (p2 ** -1)
-            B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
-            B4_c = sp.Matrix([C_w * (T_w - T_h_Nom)]) * (p2 ** -1)
-            b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
-        else:
-            # assume water demand flow rate constant over sampling period
-            A_c = sp.Matrix([-((D_h * (T_h_Nom - T_w) / (T_h - T_w) * C_w) + p1) / p2])
-            B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
-            B4_c = sp.Matrix([C_w * T_w * (T_h_Nom - T_w) / (T_h - T_w)]) * (p2 ** -1)
-            b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
-
-        # Compute discretized system matrices
-        A = sp.Matrix.exp(A_c * dt)
-        em = A_c.pinv() * (sp.Matrix.exp(A_c * dt) - sp.eye(*A.shape))
-        B1 = em * B1_c
-        B4 = em * B4_c
-        b5 = em * b5_c
-
-        mld_sym_struct = StructDict()
-        mld_sym_struct.A = A
-        mld_sym_struct.B1 = B1
-        mld_sym_struct.B4 = B4
-        mld_sym_struct.b5 = b5
-
-        mld_sym_struct.E = np.array([[1,
-                                      -1,
-                                      0,
-                                      0]]).T
-        mld_sym_struct.F1 = np.array([[0,
-                                       0,
-                                       1,
-                                       -1]]).T
-
-        mld_sym_struct.Psi = np.array([[-1, 0],
-                                       [0, -1],
-                                       [0, 0],
-                                       [0, 0]])
-
-        mld_sym_struct.f5 = sp.Matrix([[T_h_max,
-                                        -T_h_min,
-                                        1,
-                                        0]]).T
-
-        MldModel_sym = MldModel(mld_sym_struct, nu_l=1, dt=0)
-
-        return MldModel_sym
-
-
-class GridModel(PvMldSystemModel):
-    def __init__(self, param_struct=None, num_devices=None,
-                 mld_numeric=None, mld_callable=None, mld_symbolic=None):
-
-        param_struct = param_struct or grid_p
-
-        num_devices = num_devices if num_devices is not None else param_struct.get('num_devices')
-
-        if not np.issubdtype(type(num_devices), np.integer):
-            raise ValueError("num_devices must be an integer")
-        else:
-            self._num_devices = num_devices
-
-        if is_all_None(mld_numeric, mld_callable, mld_symbolic):
-            mld_symbolic = self.get_grid_mld_symbolic(num_devices=num_devices)
-
-        super(GridModel, self).__init__(mld_numeric=mld_numeric,
-                                        mld_symbolic=mld_symbolic,
-                                        mld_callable=mld_callable,
-                                        param_struct=param_struct)
+        super().__init__(device_type=device_type, device_id=device_id,
+                         sim_model=sim_model, control_model=control_model,
+                         N_p=N_p, N_tilde=N_tilde)
 
     @property
-    def num_devices(self):
-        return self._num_devices
+    def power_N_tilde(self):
+        return self._mpc_controller.variables.u.var_N_tilde * self.control_model.param_struct.P_h_Nom
 
-    @num_devices.setter
-    def num_devices(self, num_devices):
-        if num_devices != self._num_devices:
-            mld_symbolic = self.get_grid_mld_symbolic(num_devices)
-            self.update_mld(mld_symbolic=mld_symbolic)
-            self._num_devices = num_devices
+    @property
+    def cost(self):
+        return self._mpc_controller.cost
 
-    @staticmethod
-    def get_grid_mld_symbolic(num_devices):
-        P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
-        eps = sp.symbols('eps')
+    @property
+    def constraints(self):
+        return self._mpc_controller.constraints
 
-        mld_sym_struct = StructDict()
+    def set_device_penalties(self, objective_weights_struct=None, **kwargs):
+        self._mpc_controller.set_std_obj_weights(objective_weights_struct=objective_weights_struct, **kwargs)
 
-        mld_sym_struct.D4 = np.ones((1, num_devices))
-
-        mld_sym_struct.F2 = sp.Matrix([[-P_g_min,
-                                        -(P_g_max + eps),
-                                        -P_g_max,
-                                        P_g_min,
-                                        -P_g_min,
-                                        P_g_max]]).T
-        mld_sym_struct.F3 = sp.Matrix([[0,
-                                        0,
-                                        1,
-                                        -1,
-                                        1,
-                                        -1]]).T
-        mld_sym_struct.f5 = sp.Matrix([[-P_g_min,
-                                        -eps,
-                                        0,
-                                        0,
-                                        -P_g_min,
-                                        P_g_max]]).T
-        mld_sym_struct.G = sp.Matrix([[-1,
-                                       1,
-                                       0,
-                                       0,
-                                       -1,
-                                       1]]).T
-
-        MldModel_sym = MldModel(mld_sym_struct, dt=0)
-
-        return MldModel_sym
+    def build_device(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
+        self._mpc_controller.build(with_std_cost=with_std_cost, with_std_constraints=with_std_constraints, sense=sense,
+                                   disable_soft_constraints=disable_soft_constraints)
 
 
-class GridAgentMPC(MpcAgent):
+class GridAgentMpc(MpcAgent):
 
     def __init__(self, device_type='grid', device_id=None, N_p=None, N_tilde=None):
-        super().__init__(device_type=device_type, device_id=device_id, N_p=N_p,
-                         N_tilde=N_tilde)
 
+        grid_model = GridModel(num_devices=0)
+        super().__init__(device_type=device_type, device_id=device_id,
+                         sim_model=grid_model, control_model=grid_model,
+                         N_p=N_p, N_tilde=N_tilde)
 
+        self.devices = []
+        self.device_powers = []
+        self.device_constraints = []
+        self.device_costs = []
+
+    def add_device(self, device):
+        self.devices.append(device)
+
+    def build_grid(self, N_p=ParNotSet, N_tilde=ParNotSet):
+        self.update_horizons(N_p=N_p, N_tilde=N_tilde)
+        for device in self.devices:
+            if device.N_tilde != self.N_tilde:
+                raise ValueError(
+                    f"All devices in self.devices must have 'N_tilde' equal to 'self.N_tilde':{self.N_tilde}")
+        grid_model = GridModel(num_devices=len(self.devices))
+        self.update_models(sim_model=grid_model, control_model=grid_model)
+
+    def get_device_data(self):
+        device_powers = []
+        device_costs = []
+        device_constraints = []
+
+        for device in self.devices:
+            device_powers.append(device.power_N_tilde)
+            device_costs.append(device.cost)
+            device_constraints.extend(device.constraints)
+
+        self.device_powers = device_powers
+        self.device_costs = device_costs
+        self.device_constraints = device_constraints
+
+    def set_grid_device_powers(self):
+        omega_mat_tilde_k = cvx.hstack(self.device_powers).T
+        self._mpc_controller.omega_tilde_k = cvx.reshape(omega_mat_tilde_k, (omega_mat_tilde_k.size, 1))
+
+    def set_grid_device_costs(self):
+        self._mpc_controller.set_costs(other_costs=self.device_costs)
+
+    def set_grid_device_constraints(self):
+        self._mpc_controller.set_constraints(other_constraints=self.device_constraints)
 
 
 if __name__ == '__main__':

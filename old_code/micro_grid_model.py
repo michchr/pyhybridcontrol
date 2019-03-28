@@ -130,26 +130,26 @@ class MicroGridModel():
 
 if __name__ == '__main__':
     import timeit
-    from models.parameters import dewh_p, grid_p
+    from models.parameters import dewh_param_struct, grid_param_struct
 
     def main():
         N_h = 1
 
 
         dewh_repo = DewhRepository(DewhModelGenerator)
-        dewh_repo.default_param_struct = dewh_p
+        dewh_repo.default_param_struct = dewh_param_struct
 
         for i in range(N_h):
             # dewh_repo.default_param_struct.P_h_Nom +=1
             dewh_repo.add_device_by_default_data(i)
 
         mg_model = MicroGridModel()
-        mg_model.grid_param_struct = grid_p
+        mg_model.grid_param_struct = grid_param_struct
 
         mg_model.add_device_repository(dewh_repo)
         mg_model.gen_concat_device_system_mld()
 
-        mg_model.gen_power_balance_constraint_mld(grid_p)
+        mg_model.gen_power_balance_constraint_mld(grid_param_struct)
         #
         pprint.pprint(mg_model.grid_mld_mat_struct)
         # pprint.pprint(mg_model.device_mld_mat_struct)

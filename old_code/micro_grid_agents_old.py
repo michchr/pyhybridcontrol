@@ -5,7 +5,7 @@ import scipy.linalg as scl
 
 from structdict import StructDict
 from models.mld_model import MldModel, MldSystemModel, PvMldSystemModel
-from models.parameters import grid_p
+from models.parameters import grid_param_struct
 
 from utils.helper_funcs import is_all_None
 
@@ -15,7 +15,7 @@ from tools.mongo_interface import MongoInterface
 
 class DewhModel(PvMldSystemModel):
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, const_heat=True):
-        param_struct = param_struct or dewh_p
+        param_struct = param_struct or dewh_param_struct
         if is_all_None(mld_numeric, mld_callable, mld_symbolic):
             mld_symbolic = self.get_dewh_mld_symbolic(const_heat=const_heat)
         super(DewhModel, self).__init__(mld_numeric=mld_numeric, mld_symbolic=mld_symbolic,
@@ -79,7 +79,7 @@ class DewhModel(PvMldSystemModel):
 class GridModel(MldSystemModel):
 
     def __init__(self, mld_numeric=None, mld_callable=None, mld_symbolic=None, param_struct=None, num_devices=1):
-        param_struct = param_struct or grid_p
+        param_struct = param_struct or grid_param_struct
         if is_all_None(mld_numeric, mld_callable, mld_symbolic):
             mld_symbolic = self.get_grid_mld_symbolic(num_devices=num_devices)
         super(GridModel, self).__init__(mld_numeric=mld_numeric, mld_symbolic=mld_symbolic,
@@ -156,14 +156,14 @@ class Dewh:
 if __name__ == '__main__':
     import matplotlib.pyplot as plt
     from datetime import datetime as DateTime
-    from models.parameters import dewh_p
+    from models.parameters import dewh_param_struct
 
     start_datetime = DateTime(2018, 8, 26)
     end_datetime = DateTime(2018, 8, 30)
 
     dewh_g = DewhModel(const_heat=True)
     for dev_id in range(3, 4):
-        dewh = Dewh(dewh_g, dev_id=dev_id, param_struct=dewh_p)
+        dewh = Dewh(dewh_g, dev_id=dev_id, param_struct=dewh_param_struct)
         df = dewh.load_historical(start_datetime, end_datetime)
         dewh.compute_historical_demand()
         dewh.lsim()

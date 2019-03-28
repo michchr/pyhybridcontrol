@@ -1,14 +1,14 @@
 from models.agents import MpcAgent
-from models.micro_grid_agents import DewhModel, GridModel
-from models.parameters import dewh_p, grid_p
+from models.micro_grid_models import DewhModel, GridModel
+from models.parameters import dewh_param_struct, grid_param_struct
 from controllers.mpc_controller.mpc_controller import *
 import numpy as np
 from matplotlib import pyplot as plt
 
-dewh_model = DewhModel(param_struct=dewh_p)
+dewh_model = DewhModel(param_struct=dewh_param_struct)
 
 num_devices = 100
-grid_model = GridModel(num_devices=num_devices, param_struct=grid_p)
+grid_model = GridModel(num_devices=num_devices, param_struct=grid_param_struct)
 
 a = dict.fromkeys(MldModel._field_names, np.random.rand(3, 3))
 a.update(b5=np.ones((3, 1)), d5=np.ones((3, 1)), f5=np.ones((3, 1)))
@@ -16,7 +16,7 @@ a.update(A=np.random.rand(3, 3), B2=None, D2=None, F2=None)
 
 agent_model2 = MldSystemModel(MldModel(a, nu_l=1))
 
-mld = dewh_model.get_mld_numeric(dewh_p)
+mld = dewh_model.get_mld_numeric(dewh_param_struct)
 
 import time
 

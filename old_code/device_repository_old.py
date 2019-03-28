@@ -108,7 +108,7 @@ class DewhSys(object):
 
 if __name__ == '__main__':
     import timeit
-    from models.parameters import dewh_p
+    from models.parameters import dewh_param_struct
     from old_code.model_generators_old import DewhModelGenerator
 
 
@@ -117,7 +117,7 @@ if __name__ == '__main__':
         N_p = 3
 
         dewh_repo = DewhRepository(DewhModelGenerator)
-        dewh_repo.default_param_struct = dewh_p
+        dewh_repo.default_param_struct = dewh_param_struct
 
         for i in range(N_h):
             dewh_repo.add_device_by_default_data(i)

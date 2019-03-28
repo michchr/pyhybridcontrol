@@ -13,7 +13,12 @@ from utils.func_utils import ParNotSet
 from utils.matrix_utils import block_toeplitz, atleast_2d_col, block_diag_dense, matmul
 from structdict import StructPropFixedDictMixin, struct_prop_fixed_dict, StructDict
 
+from utils.helper_funcs import is_all_None
+
 from utils.versioning import versioned, increments_version_decor, VersionStruct, VersionMixin
+
+import re as regex
+
 
 @versioned(versioned_sub_objects=('mld_numeric_k', 'mld_numeric_tilde'))
 class MpcComponentsBase(StructPropFixedDictMixin, dict, VersionMixin):
@@ -568,7 +573,8 @@ class MpcEvoMatrices(MpcComponentsBase):
             return mat_ops.zeros(tuple(np.array(mat_hstack_k.shape) * N_tilde))
 
 
-MpcVariableStruct = struct_prop_fixed_dict('MpcVariableStruct', ['var_k', 'var_N_tilde', 'var_N_p', 'var_mat_N_tilde'],
+MpcVariableStruct = struct_prop_fixed_dict('MpcVariableStruct',
+                                           ['var_k', 'var_N_tilde', 'var_N_p', 'var_mat_N_tilde', 'var_k_neg1'],
                                            sorted_repr=False)
 
 
@@ -582,6 +588,9 @@ class MpcVariables(MpcComponentsBase):
     _var_names = MldInfo._var_names
     _field_names = _var_names
     _field_names_set = frozenset(_field_names)
+
+    VarStruct_k = struct_prop_fixed_dict('VarStruct_k', _var_names)
+    VarStruct_k_neg1 = struct_prop_fixed_dict('VarStruct_k_neg1', _var_names)
 
     __internal_names = ['mpc_evo_mats', '_x_k']
     _internal_names_set = set(__internal_names)
@@ -619,43 +628,73 @@ class MpcVariables(MpcComponentsBase):
     def x_k(self, value):
         self.update(x_k=value)
 
-    #increments version conditionally hence no version increment decorator
+
+    @property
+    def variables_k(self):
+        vars_k = self.VarStruct_k()
+        for var_name, var in self.items():
+            var_k = var.var_k
+            if var_k is not None:
+                if isinstance(var_k, cvx_e.Expression):
+                    vars_k[var_name] = var_k.value
+                else:
+                    vars_k[var_name] = var_k
+        return vars_k
+
+    @property
+    def variables_k_neg1(self):
+        vars_k_neg1 = self.VarStruct_k_neg1()
+        for var_name, var in self.items():
+            var_k_neg1 = var.var_k_neg1
+            if var_k_neg1 is not None:
+                if isinstance(var_k_neg1, cvx_e.Expression):
+                    vars_k_neg1[var_name] = var_k_neg1.value
+                else:
+                    vars_k_neg1[var_name] = var_k_neg1
+        return vars_k_neg1
+
+    @variables_k_neg1.setter
+    def variables_k_neg1(self, variables_k_neg1_struct):
+        variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1()
+        self.update(variables_k_neg1_struct=variables_k_neg1_struct)
+
+    # increments version conditionally hence no version increment decorator
     @process_method_args_decor(process_base_args)
     def update(self, x_k=None, omega_tilde_k=None, N_p=None, N_tilde=None,
                mld_numeric_k: MldModel = None, mld_numeric_tilde=None,
-               mld_info_k: MldInfo = None):
+               mld_info_k: MldInfo = None, variables_k_neg1_struct=None):
 
-        x_k = self._set_x_k(_disable_process_args=True,
-                            x_k=x_k,
-                            N_p=N_p, N_tilde=N_tilde,
-                            mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
-                            mld_info_k=mld_info_k)
+        x_k_update = self._set_x_k(_disable_process_args=True,
+                                   x_k=x_k,
+                                   N_p=N_p, N_tilde=N_tilde,
+                                   mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
+                                   mld_info_k=mld_info_k)
 
-        if x_k is not None:
-            self._x_k = x_k
+        if x_k_update is not None:
+            self._x_k = x_k_update
 
-        omega_var = self._set_omega_var(_disable_process_args=True,
-                                        omega_tilde_k=omega_tilde_k,
-                                        N_p=N_p, N_tilde=N_tilde,
-                                        mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
-                                        mld_info_k=mld_info_k)
+        omega_var_update = self._set_omega_var(_disable_process_args=True,
+                                               omega_tilde_k=omega_tilde_k,
+                                               N_p=N_p, N_tilde=N_tilde,
+                                               mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
+                                               mld_info_k=mld_info_k)
 
-        if omega_var is not None:
-            self._base_dict_update(omega=omega_var)
+        if omega_var_update is not None:
+            self._base_dict_update(omega=omega_var_update)
 
         if self.has_updated_version(sub_object_names=('mld_numeric_k', 'mld_numeric_tilde')):
-            variables = (
+            variables_update = (
                 self.gen_optimization_vars(_disable_process_args=True,
                                            N_p=N_p, N_tilde=N_tilde,
                                            mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
                                            mld_info_k=mld_info_k))
-            self._base_dict_update(variables)
+            self._base_dict_update(variables_update)
             self.update_stored_version()
         else:
-            variables = None
+            variables_update = None
 
-        if x_k is not None or omega_var is not None or variables:
-            state_output_vars = (
+        if not is_all_None(x_k_update, omega_var_update, variables_update):
+            state_output_vars_update = (
                 self.gen_state_output_vars(_disable_process_args=True,
                                            variables=self,
                                            x_k=self.x_k, omega_tilde_k=self.omega_tilde_k,
@@ -663,9 +702,25 @@ class MpcVariables(MpcComponentsBase):
                                            mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
                                            mld_info_k=mld_info_k))
 
+            self._base_dict_update(state_output_vars_update)
+        else:
+            state_output_vars_update = None
+
+        variables_k_neg1_struct_update = (
+            self._set_vars_k_neg1(_disable_process_args=True,
+                                  variables_k_neg1_struct=variables_k_neg1_struct,
+                                  N_p=N_p, N_tilde=N_tilde,
+                                  mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
+                                  mld_info_k=mld_info_k))
+
+        if variables_k_neg1_struct_update is not None:
+            for var_name, var_k_neg1 in variables_k_neg1_struct_update.items():
+                self[var_name].var_k_neg1 = var_k_neg1
+
+        if not is_all_None(x_k_update, omega_var_update, variables_update, state_output_vars_update,
+                           variables_k_neg1_struct_update):
             self.increment_version()
             self.set_build_required()
-            self._base_dict_update(state_output_vars)
 
         self._update_set_with(N_p, N_tilde)
 
@@ -804,19 +859,36 @@ class MpcVariables(MpcComponentsBase):
                        mld_numeric_k: MldModel = None, mld_numeric_tilde=None,
                        mld_info_k: MldInfo = None):
         required_shape = (mld_info_k.nomega * N_tilde, 1)
-        updated_param = self._process_parameter_update(name="omega_tilde_k", parameter=self.omega.var_N_tilde,
+        omega_tilde_k = self._process_parameter_update(name="omega_tilde_k", parameter=self.omega.var_N_tilde,
                                                        required_shape=required_shape,
                                                        new_value=omega_tilde_k)
 
-        if updated_param is not None:
+        if omega_tilde_k is not None:
             omega_var = MpcVariableStruct()
             return self._set_var_from_var_N_tilde(variable=omega_var,
                                                   var_name='omega',
-                                                  var_N_tilde=updated_param,
+                                                  var_N_tilde=omega_tilde_k,
                                                   N_p=N_p, N_tilde=N_tilde,
                                                   mld_info_k=mld_info_k)
         else:
-            return None
+            return omega_tilde_k
+
+    @process_method_args_decor(process_base_args)
+    def _set_vars_k_neg1(self, variables_k_neg1_struct=None, N_p=None, N_tilde=None,
+                         mld_numeric_k: MldModel = None, mld_numeric_tilde=None,
+                         mld_info_k: MldInfo = None):
+
+        variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1()
+        variables_k_neg1_struct_update = StructDict()
+        for var_name in self._var_names:
+            var_update = (
+                self._process_parameter_update(name=var_name + "_k_neg1", parameter=self[var_name].var_k_neg1,
+                                               required_shape=(mld_info_k.get_var_dim(var_name), 1),
+                                               new_value=variables_k_neg1_struct[var_name]))
+            if var_update is not None:
+                variables_k_neg1_struct_update[var_name] = var_update
+
+        return variables_k_neg1_struct_update if variables_k_neg1_struct_update else None
 
     @staticmethod
     def _process_parameter_update(name, parameter, required_shape, new_value=None):
@@ -854,8 +926,10 @@ class MpcVariables(MpcComponentsBase):
                     return cvx.Parameter(shape=required_shape, name=name, value=set_value)
             else:
                 return None
-        else:
+        elif parameter is None or parameter.shape != required_shape:
             return np.empty(required_shape)
+        else:
+            return None
 
 
 class MpcObjectiveWeightBase(MpcComponentsBase):
@@ -984,6 +1058,9 @@ class MpcQuadraticWeight(MpcObjectiveWeightBase):
                 f"{{{var_dim}, {var_dim}*{length_name}}}")
 
 
+
+_mpc_objective_weight_forms = ['linear', 'quadratic', 'L1', 'L2', 'Linf', 'Lp']
+
 _mpc_objective_weight_types = ['linear', 'quadratic']
 ObjectiveWeightStruct = struct_prop_fixed_dict('ObjectiveWeightStruct',
                                                _mpc_objective_weight_types,
@@ -1070,9 +1147,24 @@ class MpcObjectiveWeights(MpcComponentsBase):
         self.update(_disable_process_args=True, objective_weights_struct=objective_weights_struct, **kwargs)
 
     def _set_weight_from_weight_string(self, update_weights, weight_name, value, N_p, N_tilde, mld_info_k):
-        var_info = weight_name.split('_', 2)
-        var_name = "".join(var_info[1:2]).lower()
-        post_fix = "".join(var_info[2:3])
+        var_info = weight_name.split('_')
+
+        weight_type = 'linear' if "".join(var_info[0:1]).islower() else 'quadratic'
+
+        weight_form =  "".join(var_info[1:2])
+        if not regex.search(r'([Ll]((inf)|\d+))', weight_form):
+            weight_form = weight_type
+            var_name = "".join(var_info[1:2]).lower()
+            post_fix = "".join(var_info[2:3])
+        else:
+            var_name = "".join(var_info[2:3]).lower()
+            post_fix = "".join(var_info[3:4])
+
+        is_rate_weight = False
+        if regex.search(r'[dD][^e]', var_name):
+            var_name = var_name[1:]
+            is_rate_weight = True
+
         if var_name in self._var_names and post_fix in self._allowed_post_fix:
             if value is None:
                 return
@@ -1090,8 +1182,8 @@ class MpcObjectiveWeights(MpcComponentsBase):
             self._set_weight(update_weights, var_name, weight_type, value, weight_length_name)
         else:
             raise ValueError(
-                f"weight_name: '{weight_name}' is not valid. Must be of the form: [lower/upper]_[var_name] for "
-                f"stage weights or [lower/upper]_[var_name]_f for terminal weights.")
+                f"weight_name: '{weight_name}' is not valid. Must be of the form:\n"
+                f"  \"lower/upper[_L1|_L2|_Linf|_L\\d]_[d]var_name[_N_tilde|_N_p|_f]\"")
 
     def _set_weight(self, update_weights, var_name, weight_type, value, weight_length_name):
         if not update_weights.get(var_name):

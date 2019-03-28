@@ -2,12 +2,12 @@ from structdict import StructDict
 from datetime import timedelta as TimeDelta
 import numpy as np
 
-__all__ = ['dewh_p', 'grid_p']
+__all__ = ['dewh_param_struct', 'grid_param_struct']
 
 control_dt = TimeDelta(minutes=15)
 
 
-dewh_p = StructDict(
+dewh_param_struct = StructDict(
     C_w=4.1816 * 10 ** 3,  # J/kg/K
     A_h=2.35,  # m^2
     U_h=0.88,  # W/m^2/K
@@ -27,9 +27,7 @@ dewh_p = StructDict(
 C_imp = None
 C_exp = None
 
-grid_p = StructDict(
-    num_devices = 3,
-
+grid_param_struct = StructDict(
     P_g_min=-2e6,
     P_g_max=2e6,
     eps=np.finfo(float).eps,
@@ -39,4 +37,14 @@ grid_p = StructDict(
     C_imp_sub_exp=C_imp - C_exp if C_imp and C_exp else None,
 
     dt=control_dt.seconds,
+)
+
+pv_param_struct = StructDict(
+    P_pv_max = 5000, # W (Joules/s)
+    P_pv_units = 1,
+)
+
+res_demand_param_struct = StructDict(
+    P_res_ave = 1200, # W (Joules/s)
+    P_res_units = 1,
 )
