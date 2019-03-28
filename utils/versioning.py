@@ -199,3 +199,18 @@ def versioned(kls=None, versioned_sub_objects=None):
 
     new_kls = type(kls)(kls.__name__, bases, new_kls_dict)
     return new_kls
+
+class VersionObject(VersionMixin):
+
+    def __init__(self, name=None):
+        super(VersionObject, self).__init__()
+        self.name = name or ""
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name}) with version: {self.self_version}"
+
+    def __eq__(self, other):
+        if isinstance(other, (VersionObject, dict)):
+            return self.version == other.version
+        else:
+            return self.self_version == other
