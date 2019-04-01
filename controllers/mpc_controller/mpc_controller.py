@@ -1,14 +1,12 @@
 import cvxpy as cvx
 import numpy as np
 
-import cvxpy.expressions.expression as cvx_e
-
-from controllers.mpc_controller.mpc_components import MpcEvoMatrices, MpcVariables, MpcObjectiveWeights
-from controllers.mpc_controller.mpc_utils import process_base_args
+from controllers.mpc_controller.mpc_components.objective_atoms import MpcObjectiveAtoms
+from controllers.mpc_controller.mpc_components.variables import MpcVariables
+from controllers.mpc_controller.mpc_components.evolution_matrices import MpcEvoMatrices
 from models.mld_model import MldModel, MldInfo, MldSystemModel
-from utils.decorator_utils import process_method_args_decor
-from utils.matrix_utils import atleast_2d_col, matmul
-from structdict import struct_prop_fixed_dict, struct_repr
+from utils.matrix_utils import matmul
+from structdict import struct_repr
 from utils.helper_funcs import eq_all_val
 
 from utils.func_utils import ParNotSet
@@ -115,7 +113,7 @@ class MpcController(MpcBase):
         if self.model.mld_numeric is not None:
             self._sys_evo_matrices = MpcEvoMatrices(self)
             self._variables: MpcVariables = MpcVariables(mpc_controller=self, x_k=x_k, omega_tilde_k=omega_tilde_k)
-            self._std_obj_weights = MpcObjectiveWeights(self)
+            self._std_obj_weights = MpcObjectiveAtoms(self)
         else:
             self._sys_evo_matrices = None
             self._variables: MpcVariables = None
@@ -193,29 +191,29 @@ class MpcController(MpcBase):
         self._variables.omega_tilde_k = value
 
     @build_required_decor
-    def set_std_obj_weights(self, objective_weights_struct=None, **kwargs):
+    def set_std_obj_weights(self, objective_atoms_struct=None, **kwargs):
         if self._std_obj_weights:
-            self._std_obj_weights.set(objective_weights_struct=objective_weights_struct, **kwargs)
+            self._std_obj_weights.set(objective_atoms_struct=objective_atoms_struct, **kwargs)
         else:
-            self._std_obj_weights = MpcObjectiveWeights(self, objective_weights_struct=objective_weights_struct,
-                                                        **kwargs)
+            self._std_obj_weights = MpcObjectiveAtoms(self, objective_atoms_struct=objective_atoms_struct,
+                                                      **kwargs)
 
     @build_required_decor
     def update_std_obj_weights(self, objective_weights_struct=None, **kwargs):
         if self._std_obj_weights:
             self._std_obj_weights.update(objective_weights_struct, **kwargs)
         else:
-            self._std_obj_weights = MpcObjectiveWeights(self, objective_weights_struct=objective_weights_struct,
-                                                        **kwargs)
+            self._std_obj_weights = MpcObjectiveAtoms(self, objective_atoms_struct=objective_weights_struct,
+                                                      **kwargs)
 
-    def gen_std_type_cost(self, objective_weights: MpcObjectiveWeights, variables: MpcVariables):
+    def gen_std_type_cost(self, objective_weights: MpcObjectiveAtoms, variables: MpcVariables):
         try:
             return objective_weights.gen_cost(variables)
         except AttributeError:
             if objective_weights is None:
                 return 0
             else:
-                raise TypeError(f"objective_weights must be of type {MpcObjectiveWeights.__class__.__name__}")
+                raise TypeError(f"objective_weights must be of type {MpcObjectiveAtoms.__class__.__name__}")
 
     @build_required_decor
     def set_costs(self, std_cost=ParNotSet, other_costs=ParNotSet):

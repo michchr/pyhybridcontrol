@@ -8,6 +8,7 @@ import os
 import pandas as pd
 from datetime import datetime as DateTime
 from tools.tariff_generator import TariffGenerator
+from utils.matrix_utils import atleast_2d_col
 
 file_path = os.path.normpath(
     r"C:\Users\chris\Documents\University_on_gdrive\Thesis\Software\DHW_2_02b\DHW0001\DHW0001_DHW.txt")

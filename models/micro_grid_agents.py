@@ -31,7 +31,7 @@ class DewhAgentMpc(MpcAgent):
         return self._mpc_controller.constraints
 
     def set_device_penalties(self, objective_weights_struct=None, **kwargs):
-        self._mpc_controller.set_std_obj_weights(objective_weights_struct=objective_weights_struct, **kwargs)
+        self._mpc_controller.set_std_obj_weights(objective_atoms_struct=objective_weights_struct, **kwargs)
 
     def build_device(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
         self._mpc_controller.build(with_std_cost=with_std_cost, with_std_constraints=with_std_constraints, sense=sense,
