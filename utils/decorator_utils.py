@@ -26,7 +26,7 @@ def process_method_args_decor(*processor_funcs):
             return kwargs
 
         @wrapt.decorator(adapter=func)
-        def no_posonly_vargs_wrapper(wrapped, self, args_in, kwargs_in):
+        def no_posonly_or_vargs_wrapper(wrapped, self, args_in, kwargs_in):
             if kwargs_in.pop('_disable_process_args', False):
                 return wrapped(*args_in, **kwargs_in)
 
@@ -41,7 +41,7 @@ def process_method_args_decor(*processor_funcs):
             return wrapped(*args, **kwargs)
 
         @wrapt.decorator(adapter=func)
-        def with_posonly_vargs_wrapper(wrapped, self, args_in, kwargs_in):
+        def with_posonly_or_vargs_wrapper(wrapped, self, args_in, kwargs_in):
             if kwargs_in.pop('_disable_process_args', False):
                 return wrapped(*args_in, **kwargs_in)
 
@@ -56,9 +56,9 @@ def process_method_args_decor(*processor_funcs):
             return wrapped(*args, **kwargs)
 
         if f_spec.arg_spec.varargs or f_spec.pos_only_params:
-            return with_posonly_vargs_wrapper(func)
+            return with_posonly_or_vargs_wrapper(func)
         else:
-            return no_posonly_vargs_wrapper(func)
+            return no_posonly_or_vargs_wrapper(func)
 
     return wrapper_up
 

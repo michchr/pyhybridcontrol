@@ -67,16 +67,14 @@ attr_accessor_get(PyObject *self, PyObject *obj, PyObject *type) {
 
 
     if (dict != NULL) {
-        Py_INCREF(dict);
         if (PyDict_Size(dict) > 0) {
             ret = PyDict_GetItem(dict, gs->attr_accessor_name);
             if (ret != NULL) {
                 Py_INCREF(ret);
-                Py_DECREF(dict);
                 goto done;
             }
         }
-        Py_DECREF(dict);
+
         PyErr_Format(PyExc_AttributeError,
                      "'%.100s' object has no attribute '%U' in instance '__dict__'",
                      Py_TYPE(obj)->tp_name, gs->attr_accessor_name);
@@ -89,6 +87,7 @@ attr_accessor_get(PyObject *self, PyObject *obj, PyObject *type) {
     }
 
     done:
+    Py_XDECREF(dict);
     Py_XDECREF(gs->attr_accessor_name);
     Py_DECREF(obj);
     return ret;
@@ -106,13 +105,11 @@ attr_accessor_set(PyObject *self, PyObject *obj, PyObject *value) {
     dict = PyObject_GenericGetDict(obj, NULL);
 
     if (dict != NULL) {
-        Py_INCREF(dict);
         if (value != NULL) {
             ret = PyDict_SetItem(dict, gs->attr_accessor_name, value);
         } else {
             ret = PyDict_DelItem(dict, gs->attr_accessor_name);
         }
-        Py_DECREF(dict);
         if (!ret) {
             goto done;
         } else {
@@ -129,6 +126,7 @@ attr_accessor_set(PyObject *self, PyObject *obj, PyObject *value) {
 
 
     done:
+    Py_XDECREF(dict);
     Py_XDECREF(gs->attr_accessor_name);
     Py_DECREF(obj);
     return ret;
@@ -249,7 +247,7 @@ PyTypeObject AttributeAccessor_Type = {
         0,                                          /* tp_setattro */
         0,                                          /* tp_as_buffer */
         Py_TPFLAGS_DEFAULT | Py_TPFLAGS_HAVE_GC |
-        Py_TPFLAGS_BASETYPE,                        /* tp_flags */
+            Py_TPFLAGS_BASETYPE,                    /* tp_flags */
         attr_accessor_doc,                          /* tp_doc */
         (traverseproc) attr_accessor_traverse,      /* tp_traverse */
         (inquiry) attr_accessor_clear,              /* tp_clear */
@@ -484,7 +482,7 @@ PyTypeObject ItemAccessorMixin_Type = {
         sizeof(ItemAccessorMixinObject),                /* tp_basicsize */
         0,                                              /* tp_itemsize */
         /* methods */
-        0,//(destructor)item_accessor_dealloc,          /* tp_dealloc */
+        0,                                              /* tp_dealloc */
         0,                                              /* tp_print */
         0,                                              /* tp_getattr */
         0,                                              /* tp_setattr */
@@ -499,7 +497,7 @@ PyTypeObject ItemAccessorMixin_Type = {
         (getattrofunc) item_accessor_get_attro,         /* tp_getattro */
         (setattrofunc) item_accessor_set_attro,         /* tp_setattro */
         0,                                              /* tp_as_buffer */
-        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,      /* tp_flags */
+        Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,       /* tp_flags */
         item_accessor_doc,                              /* tp_doc */
         0,                                              /* tp_traverse */
         0,                                              /* tp_clear */

@@ -379,6 +379,7 @@ class SortedStructDict(StructDictMixin, _SortedDict):
 # ### struct_prop_dict
 # ################################################################################
 
+#MAYBE RENAME TO StructNamedDict
 
 class StructPropDictMeta(StructDictMeta):
     def __new__(cls, name, bases, _dict, **kwargs):
@@ -504,7 +505,7 @@ class {typename}(_StructPropDict):
 
 
 def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, structdict_module=__name__,
-                     base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None):
+                     base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None, frame_depth=1):
     """Returns a new subclass of StructDict with all fields as properties."""
 
     # Validate the field names.  At the user's option, either generate an error
@@ -587,7 +588,7 @@ def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, s
     # specified a particular module.
     if module is None:
         try:
-            module = _sys._getframe(1).f_globals.get('__name__', '__main__')
+            module = _sys._getframe(frame_depth).f_globals.get('__name__', '__main__')
         except (AttributeError, ValueError):
             pass
     if module is not None:
@@ -598,20 +599,22 @@ def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, s
 
 def struct_prop_fixed_dict(typename, field_names=None, default=None, fixed=True, *,
                            structdict_module=__name__, base_dict=None, sorted_repr=False,
-                           verbose=False, rename=False, module=None):
+                           verbose=False, rename=False, module=None, frame_depth=2):
+
     return struct_prop_dict(typename, field_names=field_names, default=default, fixed=fixed,
                             structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
                             verbose=verbose,
-                            rename=rename, module=module)
+                            rename=rename, module=module, frame_depth=frame_depth)
 
 
 def struct_prop_ordereddict(typename, field_names=None, default=None, fixed=False, *,
                             structdict_module=__name__, base_dict=_OrderedDict, sorted_repr=False,
-                            verbose=False, rename=False, module=None):
+                            verbose=False, rename=False, module=None, frame_depth=2):
+
     return struct_prop_dict(typename, field_names=field_names, default=default, fixed=fixed,
                             structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
                             verbose=verbose,
-                            rename=rename, module=module)
+                            rename=rename, module=module, frame_depth=frame_depth)
 
 
 if __name__ == '__main__':

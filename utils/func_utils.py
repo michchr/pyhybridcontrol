@@ -2,16 +2,17 @@ import inspect
 from inspect import Parameter
 from collections import namedtuple, OrderedDict
 import types
-import functools
-import importlib
+from copy import deepcopy as _deepcopy
 
 
 class SingletonMeta(type):
     _instances = {}
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
 
 class ParNotSetType(metaclass=SingletonMeta):
     __slots__ = ()
@@ -76,6 +77,7 @@ def make_function(arg_spec, name='func', body='pass', global_ns=None, local_ns=N
 
     global_ns = global_ns if global_ns is not None else {}
     local_ns = local_ns if local_ns is not None else {}
+
     exec(f"def {name}{arg_spec_str}: {body}", global_ns, local_ns)
     func = local_ns[name]
     return func
@@ -85,7 +87,7 @@ _ArgsKwargs = namedtuple('ArgsKwargs', ['pos_only_args', 'var_args', 'all_kw_arg
 
 
 def make_args_kwargs_getter(func, f_spec=None):
-    f_spec = f_spec if f_spec is not None else get_cached_func_spec(func, bypass_cache=True)
+    f_spec = _deepcopy(f_spec) if f_spec is not None else get_cached_func_spec(func, bypass_cache=True)
 
     if f_spec.pos_only_params:
         pos_only_args = f"tuple([all_kw_args.pop(arg) for arg in {f_spec.pos_only_params}])"
@@ -106,25 +108,41 @@ def make_args_kwargs_getter(func, f_spec=None):
 
     body = f"""
         all_kw_args = locals()
-        #pos_only_args = {pos_only_args}
-        #var_args = {var_args}
+        #pos_only_args = {pos_only_args} #inlined below
+        #var_args = {var_args} #inlined below
         var_kwargs = {var_kwargs}
         {process_kwargs}
-        return _ArgsKwargs({pos_only_args}, {var_args}, all_kw_args, var_kwargs)
+        return _ArgsKwargs__({pos_only_args}, {var_args}, all_kw_args, var_kwargs)
     """
 
-    global_ns = {'_ArgsKwargs': _ArgsKwargs}
+    global_ns = {'_ArgsKwargs__': _ArgsKwargs}
     global_ns.update(func.__globals__)
 
-    for klass in func.__annotations__.values():
-        if klass.__module__ not in ('builtins', func.__module__):
-            package = inspect.getmodule(klass).__package__
-            if package:
-                global_ns[package] = importlib.import_module(package)
-            else:
-                global_ns[klass.__module__] = importlib.import_module(klass.__module__)
+    cur_annotations = f_spec.arg_spec.annotations.copy()
+    annotation_update = {}
+    for var, annotation in cur_annotations.items():
+        if isinstance(annotation, str):
+            annotation_update[var] = r"'" + annotation + "'"
+        elif getattr(annotation, '__module__', ParNotSet) in (func.__module__, 'builtins'):
+            continue
+        else:
+            annotation_name = f'__annotation_var_{func.__name__}_{var}'
+            global_ns[annotation_name] = annotation
+            annotation_update[var] = annotation_name
 
-    formatannotation = functools.partial(inspect.formatannotation, base_module=func.__module__)
+    f_spec.arg_spec.annotations.update(annotation_update)
+
+    def formatannotation(annotation):
+        if getattr(annotation, '__module__', None) == 'typing':
+            return repr(annotation).replace('typing.', '')
+        elif isinstance(annotation, type):
+            if annotation.__module__ in ('builtins', func.__module__):
+                return annotation.__qualname__
+            return annotation.__module__ + '.' + annotation.__qualname__
+        elif isinstance(annotation, str) and annotation.startswith('__annotation_var'):
+            return annotation
+        else:
+            return repr(annotation)
 
     return make_function(f_spec.arg_spec, name=func.__name__ + "_args_kwargs_getter", body=body,
                          global_ns=global_ns, formatannotation=formatannotation)

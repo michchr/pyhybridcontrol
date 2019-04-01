@@ -27,7 +27,7 @@ class AttributeAccessor:
             except (AttributeError, KeyError):
                 raise AttributeError(
                     f"{instance.__class__.__name__!r} object has no attribute {self.name!r} in instance "
-                    f"'_dict__'")
+                    f"'__dict__'")
 
     def __set__(self, instance, value):
         try:
@@ -35,7 +35,7 @@ class AttributeAccessor:
         except AttributeError:
             raise AttributeError(
                 f"{instance.__class__.__name__!r} object has no attribute {self.name!r} in instance "
-                f"'_dict__'")
+                f"'__dict__'")
 
     def __delete__(self, instance):
         try:
@@ -43,7 +43,7 @@ class AttributeAccessor:
         except (AttributeError, KeyError):
             raise AttributeError(
                 f"{instance.__class__.__name__!r} object has no attribute {self.name!r} in instance "
-                f"'_dict__'")
+                f"'__dict__'")
 
     def __set_name__(self, owner, name):
         if name != self.name:
@@ -80,7 +80,6 @@ class ItemAccessorMixin:
 _is_using_c = False
 try:
     import structdict._accessors as _accessors
-
     AttributeAccessor = _accessors.AttributeAccessor
     ItemAccessorMixin = _accessors.ItemAccessorMixin
     _is_using_c = True

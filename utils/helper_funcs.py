@@ -24,10 +24,10 @@ def num_not_val(*args, val=None):
 
 
 def is_all_None(*args):
-    return is_all_val(*args, val=None)
+    return all([arg is None for arg in args])
 
 def is_any_None(*args):
-    return is_any_val(*args, val=None)
+    return any([arg is None for arg in args])
 
 def num_not_None(*args):
     return num_not_val(*args, val=None)
