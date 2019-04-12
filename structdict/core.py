@@ -16,7 +16,7 @@ import warnings as _warnings
 _warnings.filterwarnings('error', category=DeprecationWarning,
                          message="The truth value of an empty array is ambiguous.")
 
-_default_structdict_np_printoptions = dict(threshold=36,
+_default_structdict_np_printoptions = dict(threshold=10,
                                            precision=6,
                                            linewidth=120)
 
@@ -83,6 +83,16 @@ class StructDictMeta(ABCMeta):
 
     def __new__(cls, name, bases, _dict, **kwargs):
         kls = super().__new__(cls, name, bases, _dict, **kwargs)
+
+        abstracts = set(kls.__abstractmethods__)
+        for base in bases:
+            base_abstracts = getattr(base, '__abstractmethods__', set())
+            for abstract in abstracts.difference(base_abstracts):
+                if getattr(base, abstract, None) and abstract not in _dict:
+                    abstracts.discard(abstract)
+
+        kls.__abstractmethods__ = frozenset(abstracts)
+
         mro = kls.mro()
 
         def _get_base_dict(_mro):
@@ -275,20 +285,21 @@ class StructDictMixin(ItemAccessorMixin, metaclass=StructDictMeta):
 
     __deepcopy__ = deepcopy
 
-    def get_sub_base_dict(self, keys, default=ParNotSet):
+    def get_sub_base_dict(self, keys, default=ParNotSet, base_dict=None):
+        base_dict = base_dict or self._base_dict
         if default is ParNotSet:
             try:
-                if self._base_dict is dict:
-                    return self._base_dict({key: self[key] for key in keys})
+                if base_dict is dict:
+                    return base_dict({key: self[key] for key in keys})
                 else:
-                    return self._base_dict([(key, self[key]) for key in keys])
+                    return base_dict([(key, self[key]) for key in keys])
             except KeyError as ke:
                 raise KeyError(f"Invalid key in keys: '{ke.args[0]}'")
         else:
-            if self._base_dict is dict:
-                return self._base_dict({key: self.get(key, default) for key in keys})
+            if base_dict is dict:
+                return base_dict({key: self.get(key, default) for key in keys})
             else:
-                return self._base_dict([(key, self.get(key, default)) for key in keys])
+                return base_dict([(key, self.get(key, default)) for key in keys])
 
     def get_sub_list(self, keys, default=ParNotSet):
         if default is ParNotSet:
@@ -621,5 +632,3 @@ if __name__ == '__main__':
     st = StructDict(a=1, b=2)
     ost = OrderedStructDict(b=1, a=2)
     sst = SortedStructDict(b=1, a=2)
-
-from collections import namedtuple

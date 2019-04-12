@@ -546,6 +546,9 @@ accessor_type_exec(PyObject *m) {
     if (PyType_Ready(&ItemAccessorMixin_Type) < 0)
         goto fail;
 
+    //Enable ItemAccessorMixin instantiation - Disable if issues arise
+    ItemAccessorMixin_Type.tp_new = PyBaseObject_Type.tp_new;
+
     Py_INCREF(&ItemAccessorMixin_Type);
     if (PyModule_AddObject(m, "ItemAccessorMixin", (PyObject *) &ItemAccessorMixin_Type) < 0)
         goto fail;
