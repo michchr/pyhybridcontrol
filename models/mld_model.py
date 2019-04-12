@@ -15,10 +15,12 @@ import sympy as sp
 import wrapt
 
 import cvxpy as cvx
+from cvxpy.expressions import expression as cvx_e
 
 from structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict
 
 from utils.versioning import VersionMixin, increments_version_decor, versioned
+
 
 @versioned
 class MldBase(StructPropDictMixin, dict):
@@ -100,6 +102,7 @@ def _process_mld_args_decor(func):
 
 
 _shape_func_map = NamedTuple('shape_func_map', ['axis', 'func', 'items'])
+
 
 @versioned(versioned_sub_objects=())
 class MldInfo(MldBase):
@@ -382,6 +385,7 @@ class MldInfo(MldBase):
         else:
             return (np.asanyarray(var_types_vect, dtype=np.str) == 'b').sum()
 
+
 @versioned(versioned_sub_objects=('mld_info',))
 class MldModel(MldBase):
     __internal_names = ('_mld_info', '_mld_type', '_shapes_struct', '_all_empty_mats', '_all_zero_mats')
@@ -636,15 +640,11 @@ class MldModel(MldBase):
 
         return self.LSimStruct(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out, x_out_k1=x_out_k1)
 
-    LSimKStruct = struct_prop_dict('LSimKStruct', ['x_k1', 'x_k',
-                                                   'u_k', 'delta_k', 'z_k', 'mu_k', 'v_k',
-                                                   'omega_k',
-                                                   'y_k',
-                                                   'con_k',
-                                                   ],
-                                   sorted_repr=False)
+    LSimStruct_k = struct_prop_dict('LSimStruct_k', ['x_k1']+list(MldInfo._var_names)+ ['con'],
+                                    sorted_repr=False)
 
-    def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None) -> LSimKStruct:
+    def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None,
+               solver=None, cons_tol=1e-6) -> LSimStruct_k:
         m_dims = self.mld_info.var_dims_struct
 
         if x_k is None:
@@ -671,7 +671,7 @@ class MldModel(MldBase):
             if is_any_None(delta_k, z_k):
                 delta_k, z_k = (
                     self._compute_aux(x_k=x_k, u_k=u_k, delta_k=delta_k, z_k=z_k, mu_k=mu_k, omega_k=omega_k,
-                                      m_dims=m_dims))
+                                      m_dims=m_dims, solver=solver))
             else:
                 delta_k = atleast_2d_col(delta_k)
                 z_k = atleast_2d_col(z_k)
@@ -682,24 +682,31 @@ class MldModel(MldBase):
         y_k = (self.C @ x_k + self.D1 @ u_k + self.D2 @ delta_k + self.D3 @ z_k + self.D4 @ omega_k + self.d5)
         con_k = (self.E @ x_k + self.F1 @ u_k + self.F2 @ delta_k
                  + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
-                 self.Psi @ mu_k <= self.f5)
+                 self.Psi @ mu_k - self.f5 <= cons_tol)
 
-        return self.LSimKStruct(x_k1=x_k1, x_k=x_k,
-                                u_k=u_k, delta_k=delta_k, z_k=z_k, mu_k=mu_k, v_k=v_k,
-                                y_k=y_k,
-                                con_k=con_k)
+        return self.LSimStruct_k(x_k1=x_k1, x=x_k,
+                                 u=u_k, delta=delta_k, z=z_k, mu=mu_k, v=v_k,
+                                 y=y_k, omega=omega_k,
+                                 con=con_k)
 
-    def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None, m_dims=None):
+    def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None, m_dims=None,
+                     solver=None):
 
-        if delta_k is None and m_dims.delta:
-            delta_k = cvx.Variable((m_dims.delta, 1), boolean=True)
+        if delta_k is None:
+            if m_dims.delta:
+                delta_k = cvx.Variable((m_dims.delta, 1), boolean=True)
+            else:
+                delta_k = np.empty((0, 1))
         else:
-            delta_k = np.empty((0, 1))
+            delta_k = atleast_2d_col(delta_k)
 
-        if z_k is None and m_dims.z:
-            z_k = cvx.Variable((m_dims.z, 1))
+        if z_k is None:
+            if m_dims.z:
+                z_k = cvx.Variable((m_dims.z, 1))
+            else:
+                z_k = np.empty((0, 1))
         else:
-            z_k = np.empty((0, 1))
+            z_k = atleast_2d_col(z_k)
 
         if delta_k.size or z_k.size:
             if m_dims.y:
@@ -728,14 +735,14 @@ class MldModel(MldBase):
             )
 
             prob = cvx.Problem(cvx.Minimize(cvx.Constant(0)), cons)
-            prob.solve(verbose=False, solver=cvx.GUROBI)
+            prob.solve(verbose=False, solver=solver or cvx.GUROBI)
 
             # if prob.status not in (cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE):
             #     raise ValueError(f"mld_model is infeasible")
 
-            if delta_k.size:
-                delta_k = delta_k.value if delta_k.value is not None else atleast_2d_col(np.NaN)
-            if z_k.size:
+            if isinstance(delta_k, cvx_e.Expression) and delta_k.size:
+                delta_k = np.abs(delta_k.value) if delta_k.value is not None else atleast_2d_col(np.NaN)
+            if isinstance(z_k, cvx_e.Expression) and z_k.size:
                 z_k = z_k.value if z_k.value is not None else atleast_2d_col(np.NaN)
 
         return delta_k, z_k
@@ -1022,15 +1029,15 @@ class MldSystemModel(VersionMixin):
             self._mld_numeric = self._mld_callable.to_numeric(param_struct=param_struct, copy=copy)
 
     @property
-    def mld_numeric(self):
+    def mld_numeric(self) -> MldModel:
         return self._mld_numeric
 
     @property
-    def mld_callable(self):
+    def mld_callable(self) -> MldModel:
         return self._mld_callable
 
     @property
-    def mld_symbolic(self):
+    def mld_symbolic(self) -> MldModel:
         return self._mld_symbolic
 
     @property
@@ -1098,7 +1105,7 @@ class MldSystemModel(VersionMixin):
         return valid_param_struct
 
     def get_mld_numeric(self, param_struct=None, param_struct_subset=None, missing_param_check=False,
-                        invalid_param_check=True, copy=False, **kwargs):
+                        invalid_param_check=True, copy=False, **kwargs) -> MldModel:
 
         if kwargs.pop('_bypass_param_struct_validation', False):
             compute_param_struct = param_struct

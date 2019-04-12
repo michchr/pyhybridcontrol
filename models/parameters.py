@@ -18,7 +18,7 @@ dewh_param_struct = StructDict(
     T_h_min=50.0,  # C
     T_h_max=65.0,  # C
     T_h_Nom=45.0, # C
-    T_h = 0.0, #C
+    T_h = 45.0, #C
     D_h=0.0,  # kg/s
     control_dt=control_dt,
     dt=control_dt.seconds,
@@ -36,15 +36,22 @@ grid_param_struct = StructDict(
     C_exp=None,
     C_imp_sub_exp=C_imp - C_exp if C_imp and C_exp else None,
 
+    control_dt = control_dt,
     dt=control_dt.seconds,
 )
 
 pv_param_struct = StructDict(
     P_pv_max = 5000, # W (Joules/s)
     P_pv_units = 1,
+
+    control_dt = control_dt,
+    dt = control_dt.seconds
 )
 
 res_demand_param_struct = StructDict(
     P_res_ave = 1200, # W (Joules/s)
     P_res_units = 1,
+
+    control_dt = control_dt,
+    dt = control_dt.seconds
 )

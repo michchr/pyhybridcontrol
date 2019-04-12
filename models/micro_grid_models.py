@@ -24,7 +24,7 @@ class DewhModel(PvMldSystemModel):
 
     @staticmethod
     @cache_hashable_args(maxsize=2)
-    def get_dewh_mld_symbolic(const_heat=True):
+    def get_dewh_mld_symbolic(const_heat=True, binary_input=True):
         dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
             'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
@@ -62,26 +62,40 @@ class DewhModel(PvMldSystemModel):
         mld_sym_struct.B4 = B4
         mld_sym_struct.b5 = b5
 
-        mld_sym_struct.E = np.array([[1,
-                                      -1,
-                                      0,
-                                      0]]).T
-        mld_sym_struct.F1 = np.array([[0,
-                                       0,
-                                       1,
-                                       -1]]).T
+        if binary_input:
+            mld_sym_struct.E = np.array([[1,
+                                          -1,
+                                          0,
+                                          0]]).T
+            mld_sym_struct.F1 = np.array([[0,
+                                           0,
+                                           1,
+                                           -1]]).T
 
-        mld_sym_struct.Psi = np.array([[-1, 0],
-                                       [0, -1],
-                                       [0, 0],
-                                       [0, 0]])
+            mld_sym_struct.Psi = np.array([[-1, 0],
+                                           [0, -1],
+                                           [0, 0],
+                                           [0, 0]])
 
-        mld_sym_struct.f5 = sp.Matrix([[T_h_max,
-                                        -T_h_min,
-                                        1,
-                                        0]]).T
+            mld_sym_struct.f5 = sp.Matrix([[T_h_max,
+                                            -T_h_min,
+                                            1.1,
+                                            0.1]]).T
+        else:
+            mld_sym_struct.E = np.array([[1,
+                                          -1]]).T
+            mld_sym_struct.F1 = np.array([[0,
+                                           0]]).T
 
-        MldModel_sym = MldModel(mld_sym_struct, nu_l=1, dt=0)
+            mld_sym_struct.Psi = np.array([[-1, 0],
+                                           [0, -1]])
+
+            mld_sym_struct.f5 = sp.Matrix([[T_h_max,
+                                            -T_h_min]]).T
+
+        nu_l = 1 if binary_input else 0
+
+        MldModel_sym = MldModel(mld_sym_struct, nu_l=nu_l, dt=0)
 
         return MldModel_sym
 

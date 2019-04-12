@@ -7,7 +7,7 @@ from reprlib import recursive_repr as _recursive_repr
 
 from controllers.mpc_controller.mpc_controller import MpcController
 from structdict import StructDict, struct_repr
-from models.mld_model import MldSystemModel
+from models.mld_model import MldSystemModel, MldModel, MldInfo
 
 from utils.func_utils import ParNotSet
 from utils.helper_funcs import is_all_None
@@ -58,7 +58,7 @@ class Agent:
             self._control_model = None
         else:
             self._sim_model = sim_model if sim_model is not ParNotSet else self._sim_model or MldSystemModel()
-            self._control_model = control_model if control_model is ParNotSet else self._control_model or None
+            self._control_model = control_model if control_model is not ParNotSet else self._control_model or None
 
     # todo think about cleanup
     def __del__(self):
@@ -78,16 +78,20 @@ class Agent:
         return self._device_id
 
     @property
-    def sim_model(self):
+    def sim_model(self) -> MldSystemModel:
         return self._sim_model
 
     @property
-    def control_model(self):
+    def control_model(self) -> MldSystemModel:
         return self._control_model if self._control_model is not None else self._sim_model
 
     @property
-    def mld_numeric(self):
+    def mld_numeric(self) -> MldModel:
         return self._sim_model._mld_numeric
+
+    @property
+    def mld_info(self) -> MldInfo:
+        return self.mld_numeric.mld_info
 
     @property
     def mld_numeric_tilde(self):
@@ -107,8 +111,16 @@ class MpcAgent(Agent):
     def __init__(self, device_type=None, device_id=None, sim_model=None, control_model=None, N_p=None, N_tilde=None):
         super().__init__(device_type=device_type, device_id=device_id, sim_model=sim_model, control_model=control_model)
 
-        self._mpc_controller = MpcController(self, N_p=N_p, N_tilde=N_tilde)
-
+        self._mpc_controller = MpcController(agent=self, N_p=N_p, N_tilde=N_tilde)
+    
+    
+    def update_models(self, sim_model: MldSystemModel = ParNotSet,
+                      control_model: MldSystemModel = ParNotSet):
+        super(MpcAgent, self).update_models(sim_model=sim_model, control_model=control_model)
+        mpc_controller:MpcController = getattr(self, '_mpc_controller', None)
+        if mpc_controller:
+            mpc_controller.reset_components()
+    
     def update_horizons(self, N_p=ParNotSet, N_tilde=ParNotSet):
         N_p = N_p if N_p is not ParNotSet else self.N_p or 0
         N_tilde = N_tilde if N_tilde is not ParNotSet else N_p + 1
@@ -141,18 +153,3 @@ class MpcAgent(Agent):
     @omega_tilde_k_hat.setter
     def omega_tilde_k_hat(self, omega_tilde_k_hat):
         self._mpc_controller.omega_tilde_k = omega_tilde_k_hat
-
-    def feedback(self, x_k=None, omega_tilde_k=None,
-                 solver=None,
-                 ignore_dcp=False, warm_start=True, verbose=False,
-                 parallel=False, *, method=None, **kwargs
-                 ):
-        return self._mpc_controller.feedback(x_k=x_k, omega_tilde_k=omega_tilde_k,
-                                             solver=solver,
-                                             ignore_dcp=ignore_dcp, warm_start=warm_start, verbose=verbose,
-                                             parallel=parallel, method=method, **kwargs
-                                             )
-
-    @property
-    def mld_numeric_tilde(self):
-        return None

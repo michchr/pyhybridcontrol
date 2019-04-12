@@ -5,7 +5,7 @@ import numpy as np
 
 from controllers.mpc_controller.mpc_components.mpc_component import MpcComponentsBase
 from controllers.mpc_controller.mpc_utils import process_base_args, process_mat_op_args, process_A_pow_tilde_arg
-from models.mld_model import MldModel
+from models.mld_model import MldModel, MldInfo
 from structdict import struct_prop_fixed_dict
 from utils.decorator_utils import process_method_args_decor
 from utils.func_utils import ParNotSet
@@ -52,27 +52,62 @@ class MpcEvoMatrices(MpcComponentsBase):
                  mld_numeric_k=ParNotSet, mld_numeric_tilde=ParNotSet):
         super(MpcEvoMatrices, self).__init__(mpc_controller, N_p=N_p, N_tilde=N_tilde,
                                              mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde)
-        self.update()
+        self.update(reset=True)
+
+    def __repr__(self):
+        base_repr = super(MpcEvoMatrices, self).__repr__()
+        mpc_evo_mat_str = ("\n"
+                         "              x_N_tilde = Phi_x_N_tilde @ x(0) + Gamma_v_N_tilde @ v_N_tilde\n"
+                         "                          + Gamma_omega_N_tilde @ omega_N_tilde\n"
+                         "                          + Gamma_5_N_tilde\n"
+                         "              y_N_tilde = L_x_N_tilde @ x(0) + L_v_N_tilde @ v_N_tilde\n"
+                         "                          + L_omega_N_tilde @ omega_N_tilde\n"
+                         "                          + L_5_N_tilde\n"
+                         "H_v_N_tilde @ v_N_tilde <= H_x_N_tilde @ x(0) + H_omega_N_tilde @ omega_N_tilde\n"
+                         "                          + H_5_N_tilde\n"
+                         "\n"
+                         "with:\n")
+        mpc_evo_mat_repr = base_repr.replace('{', '{\n' + mpc_evo_mat_str, 1)
+        return mpc_evo_mat_repr
 
     @increments_version_decor
     @process_method_args_decor(process_base_args, process_mat_op_args, process_A_pow_tilde_arg)
     def update(self, N_p=None, N_tilde=None,
                mld_numeric_k=None, mld_numeric_tilde=None, mld_info_k=None,
-               A_pow_tilde=None, sparse=None, mat_ops=None):
+               A_pow_tilde=None, sparse=None, mat_ops=None, reset=False):
 
-        self._base_dict_update(
-            self.gen_mpc_evo_matrices(_disable_process_args=True, N_p=N_p, N_tilde=N_tilde,
-                                      mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
-                                      mld_info_k=mld_info_k,
-                                      A_pow_tilde=A_pow_tilde,
-                                      sparse=sparse, mat_ops=mat_ops))
+        if reset or self.has_updated_version(sub_object_names=('mld_numeric_k', 'mld_numeric_tilde')):
+            self._base_dict_update(
+                self.gen_mpc_evo_matrices(_disable_process_args=True, N_p=N_p, N_tilde=N_tilde,
+                                          mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde,
+                                          mld_info_k=mld_info_k,
+                                          A_pow_tilde=A_pow_tilde,
+                                          sparse=sparse, mat_ops=mat_ops, reset=True))
+            self.update_stored_version()
+            self._update_set_with(N_p, N_tilde)
 
-        self._update_set_with(N_p, N_tilde)
+    @process_method_args_decor(process_base_args)
+    def get_evo_matrices_N_tilde(self, N_tilde=None, mld_info_k: MldInfo = None):
+        if N_tilde == self.N_tilde:
+            return self
+        elif N_tilde > self.N_tilde:
+            raise ValueError(f"N_tilde:{N_tilde} cannot be greater than self.N_tilde:{self.N_tilde}")
+
+        evo_matrices_N_tilde = self._constructor_from_self(copy_items=True)
+
+        for mat_type, dim_name in zip(self.matrix_types, MldInfo._sys_dim_names):
+            row_partition_size = mld_info_k[dim_name]
+            for evo_mat_N_tilde_name, evo_mat_N_tilde in self[mat_type].items():
+                if evo_mat_N_tilde_name.endswith('N_tilde'):
+                    evo_matrices_N_tilde[mat_type][evo_mat_N_tilde_name] = (
+                        self[mat_type][evo_mat_N_tilde_name][:N_tilde * row_partition_size, :])
+
+        return evo_matrices_N_tilde
 
     @process_method_args_decor(process_base_args, process_mat_op_args, process_A_pow_tilde_arg)
     def gen_mpc_evo_matrices(self, N_p=None, N_tilde=None,
                              mld_numeric_k=None, mld_numeric_tilde=None, mld_info_k=None,
-                             A_pow_tilde=None, sparse=None, mat_ops=None):
+                             A_pow_tilde=None, sparse=None, mat_ops=None, reset=False):
 
         gen_kwargs = dict(_disable_process_args=True, N_tilde=N_tilde,
                           mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde, mld_info_k=mld_info_k,
@@ -91,10 +126,10 @@ class MpcEvoMatrices(MpcComponentsBase):
                                          **gen_kwargs))
 
         mpc_evo_struct[self.matrix_types.constraint].update(
-            self.gen_cons_evo_matrices(N_p=N_p,
-                                       state_input_evo_struct=mpc_evo_struct[self.matrix_types.state_input],
-                                       output_evo_struct=mpc_evo_struct[self.matrix_types.output],
-                                       **gen_kwargs))
+            self.gen_constraint_evo_matrices(N_p=N_p,
+                                             state_input_evo_struct=mpc_evo_struct[self.matrix_types.state_input],
+                                             output_evo_struct=mpc_evo_struct[self.matrix_types.output],
+                                             **gen_kwargs))
 
         return mpc_evo_struct
 
@@ -116,7 +151,7 @@ class MpcEvoMatrices(MpcComponentsBase):
         state_input_evo_struct['Gamma_omega_N_tilde'] = self._gen_gamma_omega(**gen_kwargs)
         state_input_evo_struct['Gamma_5_N_tilde'] = self._gen_gamma_5(**gen_kwargs)
 
-        self._update_with_N_p_slices(state_input_evo_struct, mld_info_k['n_states'], N_p)
+        self._update_with_N_p_slices(state_input_evo_struct, mld_info_k.n_states, N_p)
 
         return state_input_evo_struct
 
@@ -153,16 +188,16 @@ class MpcEvoMatrices(MpcComponentsBase):
         output_evo_struct['L_omega_N_tilde'] = C_tilde @ Gamma_omega_N_tilde + D4_tilde
         output_evo_struct['L_5_N_tilde'] = C_tilde @ Gamma_5_N_tilde + d5_tilde
 
-        self._update_with_N_p_slices(output_evo_struct, mld_info_k['n_outputs'], N_p)
+        self._update_with_N_p_slices(output_evo_struct, mld_info_k.n_outputs, N_p)
 
         return output_evo_struct
 
     @process_method_args_decor(process_base_args, process_mat_op_args, process_A_pow_tilde_arg)
-    def gen_cons_evo_matrices(self, N_p=None, N_tilde=None,
-                              mld_numeric_k=None, mld_numeric_tilde=None, mld_info_k=None,
-                              state_input_evo_struct=None,
-                              output_evo_struct=None,
-                              A_pow_tilde=None, sparse=None, mat_ops=None):
+    def gen_constraint_evo_matrices(self, N_p=None, N_tilde=None,
+                                    mld_numeric_k=None, mld_numeric_tilde=None, mld_info_k=None,
+                                    state_input_evo_struct=None,
+                                    output_evo_struct=None,
+                                    A_pow_tilde=None, sparse=None, mat_ops=None):
 
         # H_v @ v_tilde <= H_x @ x_0 + H_omega @ omega_tilde + H_5
 
@@ -204,7 +239,7 @@ class MpcEvoMatrices(MpcComponentsBase):
         cons_evo_struct['H_omega_N_tilde'] = -(E_tilde @ Gamma_omega_N_tilde + F4_tilde + G_tilde @ L_omega_N_tilde)
         cons_evo_struct['H_5_N_tilde'] = f5_tilde - (E_tilde @ Gamma_5_N_tilde + G_tilde @ L_5_N_tilde)
 
-        self._update_with_N_p_slices(cons_evo_struct, mld_info_k['n_constraints'], N_p)
+        self._update_with_N_p_slices(cons_evo_struct, mld_info_k.n_constraints, N_p)
 
         return cons_evo_struct
 

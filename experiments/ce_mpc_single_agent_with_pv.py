@@ -9,6 +9,8 @@ import pandas as pd
 from datetime import datetime as DateTime
 from tools.tariff_generator import TariffGenerator
 
+from utils.matrix_utils import atleast_2d_col
+
 file_path = os.path.normpath(
     r"C:\Users\chris\Documents\University_on_gdrive\Thesis\Software\DHW_2_02b\DHW0001\DHW0001_DHW.txt")
 #
@@ -51,7 +53,7 @@ tariff_gen = TariffGenerator(low_off_peak=48.40, low_stnd=76.28, low_peak=110.84
                              high_stnd=102.95, high_peak=339.77)
 
 time_0 = DateTime(2018, 1, 1)
-cost_profile = tariff_gen.get_price_vector(len(agent_demand_omega_profile), time_0, dewh_param_struct.control_dt)
+cost_profile = tariff_gen.get_price_vector(time_0, len(agent_demand_omega_profile), dewh_param_struct.control_dt)
 
 import time
 
@@ -85,13 +87,13 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4):
 
     q_mu = [10e9, 10e3]
     Q_mu = np.array([[10000, 0], [0, 10]])
-    agent.mpc_controller.set_std_obj_weights(q_mu=q_mu)
+    agent.mpc_controller.set_std_obj_atoms(q_mu=q_mu)
 
     x_out_mpc[0, :] = x_k_mpc
     x_out_therm[0, :] = x_k_therm
     for k in range(sim_steps):
         q_z = cost_profile[k:N_tilde + k]
-        grid.mpc_controller.update_std_obj_weights(q_z=q_z)
+        grid.mpc_controller.update_std_obj_atoms(q_z=q_z)
 
         st = time.clock()
 
@@ -111,10 +113,10 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4):
         grid.omega_tilde_k_hat = grid_omega_tilde_k
 
         grid.mpc_controller._custom_constraints = agent.mpc_controller.constraints
-        grid.mpc_controller._custom_cost = agent.mpc_controller.cost
+        grid.mpc_controller._custom_cost = agent.mpc_controller.objective
         grid.mpc_controller.build()
 
-        grid.feedback(TimeLimit=2, MIPGap=MIPGap, verbose=False)
+        grid.mpc_controller.feedback(TimeLimit=2, MIPGap=MIPGap, verbose=False)
 
         print(time.clock() - st, grid.mpc_controller.opt_vars.z.var_mat_N_tilde.value[0, 0])
 
@@ -125,7 +127,7 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4):
         T_h = x_k_mpc if x_k_mpc > dewh_param_struct.T_w else dewh_param_struct.T_w + 0.1
         mld_mpc_sim = agent.sim_model.get_mld_numeric(D_h=D_h, T_h=T_h)
         sim = mld_mpc_sim.lsim_k(x_k=x_k_mpc, u_k=agent.mpc_controller.opt_vars.u.var_mat_N_tilde.value[0, 0],
-                                 omega_k=D_h)
+                                omega_k=D_h)
 
         x_k_mpc = x_out_mpc[k + 1, :] = sim.x_k1[0, 0]
         u_in_mpc[k] = agent.mpc_controller.opt_vars.u.var_mat_N_tilde.value[0, 0]

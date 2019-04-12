@@ -7,9 +7,12 @@ def process_base_args(self, f_kwargs=None, *,
                       mld_numeric_k=ParNotSet, mld_numeric_tilde=ParNotSet, mld_info_k=ParNotSet, **kwargs):
     if N_p is None:
         f_kwargs['N_p'] = N_p = self.N_p
+    else:
+        N_p = self.N_p
 
     if N_tilde is None:
-        f_kwargs['N_tilde'] = N_p + 1 if N_p is not ParNotSet else self.N_p + 1
+        N_tilde = getattr(self, 'N_tilde', None)
+        f_kwargs['N_tilde'] = N_tilde if N_tilde is not None else N_p + 1
 
     if mld_numeric_tilde is None:
         f_kwargs['mld_numeric_tilde'] = mld_numeric_tilde = self.mld_numeric_tilde

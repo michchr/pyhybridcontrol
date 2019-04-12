@@ -48,6 +48,12 @@ class MpcObjectiveWeightBase(MpcComponentsBase):
     def var_name(self):
         return self._var_name
 
+    def is_zero(self):
+        if self.weight_N_tilde is None or np.all(np.isclose(self.weight_N_tilde,0.0)):
+            return True
+        else:
+            return False
+
     @increments_version_decor
     def update(self, weight_N_tilde=None, weight_N_p=None, weight_f=None):
         var_dim = self.mld_info_k.get_var_dim(self._var_name)
@@ -71,24 +77,43 @@ class MpcVectorWeight(MpcObjectiveWeightBase):
     _weight_type = 'vector'
 
     def _set_weight(self, var_dim, weight_N_tilde=None, weight_N_p=None, weight_f=None):
-        weight = (self['weight_N_tilde'] if self['weight_N_tilde'] is not None else np.zeros(
-            (self.N_tilde * var_dim, 1)))
+        weight = self['weight_N_tilde']
+
+        N_tilde = self.N_tilde
+        N_p = self.N_p
+        required_weight_shape = (N_tilde * var_dim, 1)
+
+        if weight is None or weight.shape != required_weight_shape:
+            weight = np.zeros(required_weight_shape)
+
         if weight_N_tilde is not None:
             weight[:] = self._process_vector_weight(var_dim=var_dim,
-                                                    value=weight_N_tilde, length=self.N_tilde,
+                                                    value=weight_N_tilde, length=N_tilde,
                                                     length_name='N_tilde', is_terminal=False)
-        elif weight_N_p is not None:
-            weight[:self.N_p * var_dim, :1] = self._process_vector_weight(var_dim=var_dim,
-                                                                          value=weight_N_p, length=self.N_p,
-                                                                          length_name='N_p', is_terminal=False)
+
+        if weight_N_p is not None:
+            if N_p > N_tilde:
+                raise ValueError("Cannot set weight_N_p if N_tilde < N_p")
+            else:
+                weight[:N_p * var_dim, :1] = (
+                    self._process_vector_weight(var_dim=var_dim, value=weight_N_p, length=N_p, length_name='N_p',
+                                                is_terminal=False))
+
         if weight_f is not None:
             weight[-var_dim:, :1] = self._process_vector_weight(var_dim=var_dim,
                                                                 value=weight_f, length=1,
                                                                 length_name='1', is_terminal=True)
 
+        if N_p > N_tilde:
+            weight_N_p = None
+        else:
+            weight_N_p = weight[:N_p * var_dim, :1]
+
+        weight_f = weight[-var_dim:, :1]
+
         self._base_dict_update(weight_N_tilde=weight,
-                               weight_N_p=weight[:self.N_p * var_dim, :1],
-                               weight_f=weight[-var_dim:, :1])
+                               weight_N_p=weight_N_p,
+                               weight_f=weight_f)
 
     def _process_vector_weight(self, var_dim, value, length, length_name, is_terminal=False):
         value = atleast_2d_col(value)
@@ -116,24 +141,46 @@ class MpcMatrixWeight(MpcObjectiveWeightBase):
     _weight_type = 'matrix'
 
     def _set_weight(self, var_dim, weight_N_tilde=None, weight_N_p=None, weight_f=None):
-        weight = (self['weight_N_tilde'] if self['weight_N_tilde'] is not None else np.zeros(
-            (self.N_tilde * var_dim, self.N_tilde * var_dim)))
+        weight = self['weight_N_tilde']
+
+        N_tilde = self.N_tilde
+        N_p = self.N_p
+        required_weight_shape = (N_tilde * var_dim, N_tilde * var_dim)
+
+        if weight is None or weight.shape != required_weight_shape:
+            weight = np.zeros(required_weight_shape)
+
         if weight_N_tilde is not None:
             weight[:] = self._process_matrix_weight(var_dim=var_dim,
-                                                    value=weight_N_tilde, length=self.N_tilde,
+                                                    value=weight_N_tilde, length=N_tilde,
                                                     length_name='N_tilde', is_terminal=False)
-        elif weight_N_p is not None:
-            weight[:self.N_p * self._var_dim, :self.N_p * self._var_dim] = (
-                self._process_matrix_weight(var_dim=var_dim, value=weight_N_p, length=self.N_p,
+        if weight_N_p is not None:
+            weight[:N_p * var_dim, :N_p * var_dim] = (
+                self._process_matrix_weight(var_dim=var_dim, value=weight_N_p, length=N_p,
                                             length_name='N_p', is_terminal=False))
+
+            if N_p > N_tilde:
+                raise ValueError("Cannot set weight_N_p if N_tilde < N_p")
+            else:
+                weight[:N_p * var_dim, :N_p * var_dim] = (
+                    self._process_matrix_weight(var_dim=var_dim, value=weight_N_p, length=N_p, length_name='N_p',
+                                                is_terminal=False))
+
         if weight_f is not None:
-            weight[-var_dim:, -var_dim:] = self._process_matrix_weight(var_dim=var_dim,
-                                                                       value=weight_f, length=1,
-                                                                       length_name='1', is_terminal=True)
+            weight[-var_dim:, -var_dim:] = (
+                self._process_matrix_weight(var_dim=var_dim, value=weight_f, length=1, length_name='1',
+                                            is_terminal=True))
+
+        if N_p > N_tilde:
+            weight_N_p = None
+        else:
+            weight_N_p = weight[:N_p * var_dim, :N_p * var_dim]
+
+        weight_f = weight[-var_dim:, -var_dim:]
 
         self._base_dict_update(weight_N_tilde=weight,
-                               weight_N_p=weight[:self.N_p * var_dim, :self.N_p * var_dim],
-                               weight_f=weight[-var_dim:, -var_dim:])
+                               weight_N_p=weight_N_p,
+                               weight_f=weight_f)
 
     def _process_matrix_weight(self, var_dim, value, length, length_name, is_terminal=False):
         value = atleast_2d_col(value)
@@ -163,7 +210,7 @@ _mpc_objective_atom_types = ['linear', 'quadratic', 'L1', 'L2', 'Linf']
 
 
 class MpcObjectiveAtomBase(MpcComponentsBase):
-    _field_names = ['weight', 'is_rate_atom']
+    _field_names = ['weight', 'is_rate_atom', 'cost']
     _field_names_set = frozenset(_field_names)
     _atom_type = 'base'
 
@@ -183,6 +230,7 @@ class MpcObjectiveAtomBase(MpcComponentsBase):
 
         self.is_rate_atom: bool = is_rate_atom
         self.weight: MpcObjectiveWeightBase = None
+        self.cost = 0
         if weight is not None:
             self.update(weight=weight)
 
@@ -221,13 +269,17 @@ class MpcObjectiveAtomBase(MpcComponentsBase):
                                                                  N_tilde=N_tilde)
 
             if isinstance(self.weight, MpcVectorWeight):
-                return self.apply_atom_with_vector_weight(variable=variable, weight=weight, var_dim=var_dim)
+                cost = self.apply_atom_with_vector_weight(variable=variable, weight=weight, var_dim=var_dim)
             elif isinstance(self.weight, MpcMatrixWeight):
-                return self.apply_atom_with_matrix_weight(variable=variable, weight=weight, var_dim=var_dim)
+                cost = self.apply_atom_with_matrix_weight(variable=variable, weight=weight, var_dim=var_dim)
             else:
-                return self.apply_atom_with_unity_weight(variable=variable, weight=weight, var_dim=var_dim)
+                # todo ensure this is correct
+                cost = self.apply_atom_with_unity_weight(variable=variable, weight=weight, var_dim=var_dim)
         else:
-            return 0
+            cost = 0
+
+        self.cost = cost
+        return cost
 
     @abstractmethod
     def apply_atom_with_unity_weight(self, variable, weight, var_dim=None):
@@ -370,18 +422,24 @@ class MpcObjectiveAtoms(MpcComponentsBase):
         N_tilde = self.N_tilde
         mld_info_k = self.mld_info_k
         update_atoms = self.as_base_dict()
-        for var_name_or_weight_str, weight in objective_atoms_struct.items():
-            if var_name_or_weight_str in self._var_names:
-                if isinstance(weight, MpcObjectiveWeightBase):
-                    self._set_atom(update_atoms, var_name_or_weight_str, weight.weight_type,
-                                   weight['weight_N_tilde'], 'weight_N_tilde')
+        for var_name_or_atom_str, weight in objective_atoms_struct.items():
+            if var_name_or_atom_str in self._var_names:
+                if isinstance(weight, MpcObjectiveAtomBase):
+                    pass
+                    # todo tidyup
+                    # self._set_atom(update_atoms, var_name_or_atom_str, weight.weight_type,
+                    #                weight['weight_N_tilde'], 'weight_N_tilde')
                 else:
                     raise TypeError(
-                        f"{var_name_or_weight_str} value in objective_weights_struct must be"
+                        f"{var_name_or_atom_str} value in objective_weights_struct must be"
                         f" subclass of {MpcComponentsBase.__name__}")
             else:
-                self._set_atom_from_string(update_atoms=update_atoms, string_in=var_name_or_weight_str,
+                self._set_atom_from_string(update_atoms=update_atoms, string_in=var_name_or_atom_str,
                                            value=weight, N_p=N_p, N_tilde=N_tilde, mld_info_k=mld_info_k)
+
+        for var_name, var_atoms in update_atoms.items():
+            if var_atoms is not None and not var_atoms:
+                update_atoms[var_name]=None
 
         self._base_dict_update(update_atoms)
         self._update_set_with(N_p, N_tilde)
@@ -404,14 +462,12 @@ class MpcObjectiveAtoms(MpcComponentsBase):
             var_name = "".join(atom_info[2:3]).lower()
             post_fix = "_".join(atom_info[3:])
 
-
         is_rate_atom = False
         if self._regex_atom_is_rate_pat.search(var_name):  # ^e to enable capture of delta variable
             var_name = var_name[1:]
             is_rate_atom = True
 
         atom_name = "_".join([atom_type_name, weight_type_name]) + ("_d" if is_rate_atom else "")
-
 
         if var_name in self._var_names and post_fix in self._allowed_post_fix:
             if value is None:
@@ -448,7 +504,7 @@ class MpcObjectiveAtoms(MpcComponentsBase):
 
         var_atom = var_atoms.get(atom_name)
         weight_value = {weight_length_name: value}
-        if not var_atom:
+        if not var_atom and not np.all(np.isclose(value, 0.0)):
             weight = weight_type.from_mpc_component(self, var_name=var_name, **weight_value)
             update_atoms[var_name][atom_name] = atom_type.from_mpc_component(self, var_name=var_name,
                                                                              weight=weight,
@@ -459,6 +515,9 @@ class MpcObjectiveAtoms(MpcComponentsBase):
             else:
                 var_atom.weight = weight_type.from_mpc_component(self, var_name=var_name,
                                                                  **weight_value)
+            if var_atom.weight.is_zero():
+                del var_atoms[atom_name]
+
 
     def gen_cost(self, variables: MpcVariables):
         cost = 0

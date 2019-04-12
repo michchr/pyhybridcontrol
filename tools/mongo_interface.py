@@ -15,7 +15,8 @@ pd.set_option('mode.chained_assignment', 'raise')
 
 console_hand = logging.StreamHandler(sys.stdout)
 console_hand.setLevel(logging.INFO)
-console_hand.setFormatter(logging.Formatter(fmt='%(levelname)s:%(name)s:%(message)s'))
+console_hand.setFormatter(logging.Formatter(fmt='\"%(pathname)s:%(lineno)s\"\n'
+                                                '%(levelname)s:%(name)s:%(message)s'))
 
 logger = logging.getLogger(__name__)
 logger.propagate = False

@@ -19,6 +19,14 @@ import contextlib
 import functools
 
 
+class MpcBuildRequiredError(RuntimeError):
+    pass
+
+
+class MpcSolverError(RuntimeError):
+    pass
+
+
 @versioned(versioned_sub_objects=('model', 'mld_numeric_k', 'mld_numeric_tilde', 'mld_info_k'))
 class MpcBase(VersionMixin):
     def __init__(self, model=None, N_p=None, N_tilde=None, agent=None,
@@ -84,7 +92,7 @@ def build_required_decor(wrapped=None, set=True):
 
 @versioned(versioned_sub_objects=('variables', 'sys_evo_matrices', 'solve_version'))
 class MpcController(MpcBase):
-    _data_types = ['std_obj_weights', 'variables', 'mld_numeric_k']
+    _data_types = ['std_obj_atoms', 'variables', 'mld_numeric_k']
 
     @build_required_decor
     def __init__(self, model=None, N_p=None, N_tilde=None, agent=None,
@@ -98,26 +106,26 @@ class MpcController(MpcBase):
         self._x_k = None
         self._omega_tilde_k = None
         self.solve_version = VersionObject('solve_version')
-        self._update_components(x_k=x_k, omega_tilde_k=omega_tilde_k)
+        self.reset_components(x_k=x_k, omega_tilde_k=omega_tilde_k)
 
     @build_required_decor
-    def _update_components(self, x_k=None, omega_tilde_k=None):
-        self._std_cost = 0
-        self._other_costs = []
-        self._cost = 0
+    def reset_components(self, x_k=None, omega_tilde_k=None):
+        self._std_objective = 0
+        self._other_objectives = []
+        self._objective = 0
 
         self._std_evo_constraints = []
         self._other_constraints = []
         self._constraints = []
 
         if self.model.mld_numeric is not None:
-            self._sys_evo_matrices = MpcEvoMatrices(self)
+            self._sys_evo_matrices: MpcEvoMatrices = MpcEvoMatrices(self)
             self._variables: MpcVariables = MpcVariables(mpc_controller=self, x_k=x_k, omega_tilde_k=omega_tilde_k)
-            self._std_obj_weights = MpcObjectiveAtoms(self)
+            self._std_obj_atoms: MpcObjectiveAtoms = MpcObjectiveAtoms(self)
         else:
-            self._sys_evo_matrices = None
+            self._sys_evo_matrices: MpcEvoMatrices  = None
             self._variables: MpcVariables = None
-            self._std_obj_weights = None
+            self._std_obj_atoms: MpcObjectiveAtoms = None
 
     def update_horizons(self, N_p=ParNotSet, N_tilde=ParNotSet, x_k=None, omega_k_tilde=None):
         old_N_p = self.N_p
@@ -126,8 +134,8 @@ class MpcController(MpcBase):
         self._N_p = N_p if N_p is not ParNotSet else self.N_p or 0
         self._N_tilde = N_tilde if N_tilde is not ParNotSet else N_p + 1
 
-        if old_N_p!=self._N_p or old_N_tilde!=self._N_tilde:
-            self._update_components()
+        if old_N_p != self._N_p or old_N_tilde != self._N_tilde:
+            self.reset_components()
 
     @property
     def variables(self) -> MpcVariables:
@@ -150,7 +158,7 @@ class MpcController(MpcBase):
     @variables_k_neg1.setter
     def variables_k_neg1(self, variables_k_neg1_struct):
         if self._variables:
-            self._variables.variables_k_neg1=variables_k_neg1_struct
+            self._variables.variables_k_neg1 = variables_k_neg1_struct
         else:
             raise AttributeError("MpcController 'variables' attribute has not been initialised.")
 
@@ -159,12 +167,12 @@ class MpcController(MpcBase):
         return self._sys_evo_matrices
 
     @property
-    def std_obj_weights(self):
-        return self._std_obj_weights
+    def std_obj_atoms(self):
+        return self._std_obj_atoms
 
     @property
-    def cost(self):
-        return self._cost
+    def objective(self):
+        return self._objective
 
     @property
     def constraints(self):
@@ -191,22 +199,22 @@ class MpcController(MpcBase):
         self._variables.omega_tilde_k = value
 
     @build_required_decor
-    def set_std_obj_weights(self, objective_atoms_struct=None, **kwargs):
-        if self._std_obj_weights:
-            self._std_obj_weights.set(objective_atoms_struct=objective_atoms_struct, **kwargs)
+    def set_std_obj_atoms(self, objective_atoms_struct=None, **kwargs):
+        if self._std_obj_atoms:
+            self._std_obj_atoms.set(objective_atoms_struct=objective_atoms_struct, **kwargs)
         else:
-            self._std_obj_weights = MpcObjectiveAtoms(self, objective_atoms_struct=objective_atoms_struct,
-                                                      **kwargs)
+            self._std_obj_atoms = MpcObjectiveAtoms(self, objective_atoms_struct=objective_atoms_struct,
+                                                    **kwargs)
 
     @build_required_decor
-    def update_std_obj_weights(self, objective_weights_struct=None, **kwargs):
-        if self._std_obj_weights:
-            self._std_obj_weights.update(objective_weights_struct, **kwargs)
+    def update_std_obj_atoms(self, objective_weights_struct=None, **kwargs):
+        if self._std_obj_atoms:
+            self._std_obj_atoms.update(objective_weights_struct, **kwargs)
         else:
-            self._std_obj_weights = MpcObjectiveAtoms(self, objective_atoms_struct=objective_weights_struct,
-                                                      **kwargs)
+            self._std_obj_atoms = MpcObjectiveAtoms(self, objective_atoms_struct=objective_weights_struct,
+                                                    **kwargs)
 
-    def gen_std_type_cost(self, objective_weights: MpcObjectiveAtoms, variables: MpcVariables):
+    def gen_std_objective(self, objective_weights: MpcObjectiveAtoms, variables: MpcVariables):
         try:
             return objective_weights.gen_cost(variables)
         except AttributeError:
@@ -216,14 +224,14 @@ class MpcController(MpcBase):
                 raise TypeError(f"objective_weights must be of type {MpcObjectiveAtoms.__class__.__name__}")
 
     @build_required_decor
-    def set_costs(self, std_cost=ParNotSet, other_costs=ParNotSet):
-        if std_cost is not ParNotSet:
-            self._std_cost = std_cost if std_cost is not None else self.gen_std_type_cost(self.std_obj_weights,
-                                                                                          self.variables)
-        if other_costs is not ParNotSet:
-            self._other_costs = other_costs if other_costs is not None else []
+    def set_objective(self, std_objective=ParNotSet, other_objectives=ParNotSet):
+        if std_objective is not ParNotSet:
+            self._std_objective = std_objective if std_objective is not None else (
+                self.gen_std_objective(self.std_obj_atoms, self.variables))
+        if other_objectives is not ParNotSet:
+            self._other_objectives = other_objectives if other_objectives is not None else []
 
-        self._cost = self._std_cost + cvx.sum(self._other_costs)
+        self._objective = self._std_objective + cvx.sum(self._other_objectives)
 
         self.set_build_required()
 
@@ -248,14 +256,23 @@ class MpcController(MpcBase):
         if sys_evo_matrices is ParNotSet:
             mld_numeric_k = mld_numeric_k if mld_numeric_k is not self.mld_numeric_k else ParNotSet
             mld_numeric_tilde = mld_numeric_tilde if mld_numeric_tilde is not self.mld_numeric_tilde else ParNotSet
-            N_p = N_p if N_p != self.N_p else ParNotSet
-            N_tilde = N_tilde if N_tilde != self.N_tilde else ParNotSet
 
-            if not eq_all_val(mld_numeric_k, mld_numeric_tilde, N_p, N_tilde, val=ParNotSet):
+            N_p = N_p if N_p is not ParNotSet else self.N_p
+            N_tilde = N_tilde if N_tilde is not ParNotSet else self.N_tilde
+
+            if not N_tilde <= self.N_tilde:
+                raise ValueError(f"N_tilde: {N_tilde} must be less or equal to self.N_tilde: {self.N_tilde}")
+
+            if not N_p <= self.N_tilde:
+                raise ValueError(f"N_p: {N_tilde} must be less or equal to self.N_tilde: {self.N_tilde}")
+
+            if not eq_all_val(mld_numeric_k, mld_numeric_tilde, val=ParNotSet):
                 sys_evo_matrices = MpcEvoMatrices(self, N_p=N_p, N_tilde=N_tilde,
                                                   mld_numeric_k=mld_numeric_k, mld_numeric_tilde=mld_numeric_tilde)
-            else:
+            elif N_tilde == self.N_tilde:
                 sys_evo_matrices = self._sys_evo_matrices
+            else:
+                sys_evo_matrices = self._sys_evo_matrices.get_evo_matrices_N_tilde(N_tilde=N_tilde)
 
         if sys_evo_matrices is not None:
             LHS = (matmul(sys_evo_matrices.constraint['H_v_N_tilde'], self._variables['v']['var_N_tilde']))
@@ -267,6 +284,7 @@ class MpcController(MpcBase):
         else:
             return None
 
+    @build_required_decor
     def set_constraints(self, std_evo_constaints=ParNotSet, other_constraints=ParNotSet,
                         disable_soft_constraints=False):
         if std_evo_constaints is not ParNotSet:
@@ -284,7 +302,6 @@ class MpcController(MpcBase):
 
         self._constraints = self._std_evo_constraints + self._other_constraints + soft_cons
 
-
     def set_build_required(self):
         self._build_required = True
 
@@ -294,12 +311,12 @@ class MpcController(MpcBase):
 
     @build_required_decor(set=False)
     def build(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
-        if with_std_cost:
-            std_cost = None
-        else:
-            std_cost = 0
+        self._sys_evo_matrices.update()
 
-        self.set_costs(std_cost=std_cost)
+        if with_std_cost:
+            self.set_objective(std_objective=None)
+        else:
+            self.set_objective(std_objective=0)
 
         if with_std_constraints:
             std_evo_constraints = None
@@ -311,9 +328,9 @@ class MpcController(MpcBase):
 
         sense = 'minimize' if sense is None else sense
         if sense.lower().startswith('min'):
-            self._problem = cvx.Problem(cvx.Minimize(self._cost), self._constraints)
+            self._problem = cvx.Problem(cvx.Minimize(self._objective), self._constraints)
         elif sense.lower().startswith('max'):
-            self._problem = cvx.Problem(cvx.Maximize(self._cost), self._constraints)
+            self._problem = cvx.Problem(cvx.Maximize(self._objective), self._constraints)
         else:
             raise ValueError(f"Problem 'sense' must be either 'minimize' or 'maximize', got '{sense}'.")
 
@@ -326,11 +343,10 @@ class MpcController(MpcBase):
               parallel=False, *, method=None, **kwargs):
 
         if self.build_required:
-            raise RuntimeError("Mpc problem has not been built or needs to be rebuilt.")
+            raise MpcBuildRequiredError("Mpc problem has not been built or needs to be rebuilt.")
 
         try:
             solution = self._problem.solve(solver=solver,
-                                           ignore_dcp=ignore_dcp,
                                            warm_start=warm_start,
                                            verbose=verbose,
                                            parallel=parallel, method=method, **kwargs)
@@ -351,11 +367,12 @@ class MpcController(MpcBase):
                 else:
                     out = ""
 
-            raise RuntimeError(f"{se.args[0]}\n\n{out}") from se
+            raise MpcSolverError(f"{se.args[0]}\n\n{out}") from se
 
         if not np.isfinite(solution):
-            raise RuntimeError(f"solve() failed with objective: '{solution}', and status: {self._problem.status}")
+            raise MpcSolverError(f"solve() failed with objective: '{solution}', and status: {self._problem.status}")
         else:
+            self.variables_k_neg1 = self.variables_k
             return solution
 
     def feedback(self, x_k=None, omega_tilde_k=None,

@@ -12,7 +12,8 @@ from utils.helper_funcs import is_all_None
 from utils.matrix_utils import matmul, atleast_2d_col
 
 MpcVariableStruct = struct_prop_fixed_dict('MpcVariableStruct',
-                                           ['var_k', 'var_N_tilde', 'var_N_p', 'var_mat_N_tilde', 'var_k_neg1'],
+                                           ['var_k', 'var_N_tilde', 'var_N_p', 'var_mat_N_tilde', 'var_k_neg1',
+                                            'var_dim'],
                                            sorted_repr=False)
 
 
@@ -30,7 +31,7 @@ class MpcVariables(MpcComponentsBase):
     VarStruct_k = struct_prop_fixed_dict('VarStruct_k', _var_names)
     VarStruct_k_neg1 = struct_prop_fixed_dict('VarStruct_k_neg1', _var_names)
 
-    __internal_names = ['mpc_evo_mats', '_x_k']
+    __internal_names = ['_x_k', '_custom_variables']
     _internal_names_set = set(__internal_names)
 
     def __init__(self, mpc_controller=None, x_k=None, omega_tilde_k=None,
@@ -44,6 +45,7 @@ class MpcVariables(MpcComponentsBase):
     def _reset(self):
         super(MpcVariables, self)._reset()
         self._base_dict_init({var_name: MpcVariableStruct() for var_name in self._var_names})
+        self._custom_variables = []
         self._x_k = None
 
     @property
@@ -94,6 +96,25 @@ class MpcVariables(MpcComponentsBase):
     def variables_k_neg1(self, variables_k_neg1_struct):
         variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1()
         self.update(variables_k_neg1_struct=variables_k_neg1_struct)
+
+
+    #todo still needs work
+    def add_custom_var(self, var_name, var_N_tilde, N_tilde=None, N_p=None):
+        if var_name in self:
+            raise ValueError(f"Variable with name:{var_name} already exists.")
+        elif not isinstance(var_N_tilde, cvx_e.Expression):
+            raise TypeError(f"Variable must be a subtype of class {cvx_e.Expression.__name__}.")
+        else:
+            N_tilde = N_tilde if N_tilde is not None else self.N_tilde
+            N_p = N_p if N_p is not None else self.N_p
+            if var_N_tilde.size % N_tilde:
+                raise ValueError(f"var_N_tilde.size: {var_N_tilde.size} must be a multiple of N_tilde: {N_tilde}")
+            var_dim = var_N_tilde.size // N_tilde
+            self[var_name] = MpcVariableStruct()
+            self._set_var_using_var_N_tilde(variable=self[var_name],
+                                            var_dim=var_dim, var_N_tilde=var_N_tilde, N_tilde=N_tilde, N_p=N_p)
+
+            self.update()
 
     # increments version conditionally hence no version increment decorator
     @process_method_args_decor(process_base_args)
@@ -210,13 +231,10 @@ class MpcVariables(MpcComponentsBase):
                                 mld_info_k.get_var_dim(var_name)]
 
         v_var_mat_N_tilde = cvx.vstack(opt_var_mats_N_tilde) if opt_var_mats_N_tilde else np.empty((0, N_tilde))
-        v_var_N_tilde = (cvx.reshape(v_var_mat_N_tilde, (np.prod(v_var_mat_N_tilde.shape), 1))
-                         if v_var_mat_N_tilde.size else np.empty((0, 1)))
-        v_var_N_p = v_var_N_tilde[:mld_info_k.nv * N_p, :]
-        v_var_k = v_var_mat_N_tilde[:, :1]
-
-        variables.v.update(var_k=v_var_k, var_N_tilde=v_var_N_tilde, var_N_p=v_var_N_p,
-                           var_mat_N_tilde=v_var_mat_N_tilde)
+        self._set_var_using_var_mat_N_tilde(variable=variables['v'],
+                                            var_dim=mld_info_k.nv,
+                                            var_mat_N_tilde=v_var_mat_N_tilde,
+                                            N_p=N_p, N_tilde=N_tilde)
 
         return variables
 
@@ -267,9 +285,31 @@ class MpcVariables(MpcComponentsBase):
     def _set_var_using_var_N_tilde(variable, var_dim, var_N_tilde, N_p, N_tilde):
         variable.var_N_tilde = var_N_tilde
         variable.var_k = var_N_tilde[:var_dim, :]
-        variable.var_N_p = var_N_tilde[:var_dim * N_p, :]
+
+        if N_p <= N_tilde:
+            variable.var_N_p = var_N_tilde[:var_dim * N_p, :]
+        else:
+            variable.var_N_p = None
+
         variable.var_mat_N_tilde = (
             cvx.reshape(var_N_tilde, (var_dim, N_tilde)) if var_N_tilde.size else np.empty((0, N_tilde)))
+        variable.var_dim = var_dim
+        return variable
+
+    @staticmethod
+    def _set_var_using_var_mat_N_tilde(variable, var_dim, var_mat_N_tilde, N_p, N_tilde):
+        variable.var_mat_N_tilde = var_mat_N_tilde
+        variable.var_N_tilde = var_N_tilde = (
+            cvx.reshape(var_mat_N_tilde, (var_dim * N_tilde, 1)) if var_mat_N_tilde.size else np.empty((0, 1)))
+
+        variable.var_k = var_N_tilde[:var_dim, :]
+
+        if N_p <= N_tilde:
+            variable.var_N_p = var_N_tilde[:var_dim * N_p, :]
+        else:
+            variable.var_N_p = None
+
+        variable.var_dim = var_dim
         return variable
 
     def get_variables_with(self, x_k=None, omega_tilde_k=None):
@@ -311,13 +351,14 @@ class MpcVariables(MpcComponentsBase):
                          mld_numeric_k: MldModel = None, mld_numeric_tilde=None,
                          mld_info_k: MldInfo = None):
 
-        variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1()
+        variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1.fromkeys(self)
         variables_k_neg1_struct_update = StructDict()
-        for var_name in self._var_names:
+        for var_name, variable in self.items():
+            var_k_neg1_update = variables_k_neg1_struct.get(var_name,None)
             var_update = (
-                self._process_parameter_update(name=var_name + "_k_neg1", parameter=self[var_name].var_k_neg1,
-                                               required_shape=(mld_info_k.get_var_dim(var_name), 1),
-                                               new_value=variables_k_neg1_struct[var_name]))
+                self._process_parameter_update(name=var_name + "_k_neg1", parameter=variable.var_k_neg1,
+                                               required_shape=(variable.var_dim, 1),
+                                               new_value=var_k_neg1_update))
             if var_update is not None:
                 variables_k_neg1_struct_update[var_name] = var_update
 
