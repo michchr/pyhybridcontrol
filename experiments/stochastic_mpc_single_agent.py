@@ -55,7 +55,7 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4, q_L1_du=1, solver=cvx.GU
     agent.set_omega_profile(omega_profile)
     agent.set_omega_scenarios(omega_profile)
 
-    q_mu = q_mu#[1e10, 1e8]
+    q_mu = q_mu  # [1e10, 1e8]
     Q_mu = np.array([[10000, 0], [0, 10]])
     agent.mpc_controller.set_std_obj_atoms(q_mu=q_mu)
 
@@ -66,11 +66,12 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4, q_L1_du=1, solver=cvx.GU
         agent.mpc_controller.update_std_obj_atoms(q_u=q_u, q_L1_du=q_L1_du)
         agent.update_omega_tilde_k(k=k, deterministic=deterministic)
         agent.x_k = x_k_mpc
+
+        omega_tilde_scenarios = agent.get_omega_tilde_scenario(k, num_scenarios=num_scenarios)
         agent.mpc_controller.set_constraints(
             other_constraints=[
-                agent.mpc_controller.gen_evo_constraints(x_k=x_k_mpc, omega_tilde_k=agent.get_omega_tilde_scenario(k),
-                                                         N_tilde=N_t_con)
-                for _ in range(num_scenarios)])
+                agent.mpc_controller.gen_evo_constraints(N_tilde=N_t_con, x_k=x_k_mpc,
+                                                         omega_scenarios_k=omega_tilde_scenarios)])
         st = time.clock()
         agent.mpc_controller.build()
         try:
@@ -105,9 +106,9 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4, q_L1_du=1, solver=cvx.GU
         # thermo
         T_h_therm = x_k_therm if x_k_therm > dewh_param_struct.T_w else dewh_param_struct.T_w + 0.1
         mld_therm_sim = agent.sim_model.get_mld_numeric(D_h=D_h, T_h=T_h_therm)
-        if x_k_therm <= dewh_param_struct.T_h_max-np.random.uniform(low=4, high=12):
+        if x_k_therm <= dewh_param_struct.T_h_max - np.random.uniform(low=7, high=11):
             u_k_therm = 1
-        elif x_k_therm >= dewh_param_struct.T_h_max:
+        elif x_k_therm >= dewh_param_struct.T_h_max - 3:
             u_k_therm = 0
         elif u_k_therm_kneg1 == 1:
             u_k_therm = 1
@@ -116,7 +117,7 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4, q_L1_du=1, solver=cvx.GU
 
         sim_therm = mld_therm_sim.lsim_k(x_k=x_k_therm, u_k=u_k_therm, omega_k=D_h)
 
-        #allow thermostatic to cutout intersample
+        # allow thermostatic to cutout intersample
         # while sim_therm.x_k1[0, 0]>dewh_param_struct.T_h_max:
         #     if u_k_therm >= 0:
         #         u_k_therm -= 0.1

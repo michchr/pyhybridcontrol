@@ -1,7 +1,9 @@
 import inspect
-
+from abc import ABCMeta, abstractmethod
+from copy import deepcopy as _deepcopy, copy as _copy
 import sympy as sp
 import wrapt
+import itertools
 
 from utils.func_utils import get_cached_func_spec, make_function
 from structdict import StructDict, OrderedStructDict
@@ -274,45 +276,77 @@ def get_expr_shapes(*exprs, get_max_dim=False):
         return shapes
 
 
-class CallableMatrixMeta(type):
+class CallableMatrixMeta(ABCMeta):
+    def __new__(cls, *args, **kwargs):
+        kls = super(CallableMatrixMeta, cls).__new__(cls, *args, **kwargs)
+        mro = kls.mro()
+        all_slots = set(itertools.chain.from_iterable(klass.__dict__.get("__slots__", ()) for klass in mro))
+        all_slots.discard('__dict__')
+        kls._all_slots = tuple(all_slots)
+        return kls
+
     def __call__(cls, *args, **kwargs):
-        obj = cls.__new__(cls, *args, **kwargs)
-        if kwargs.pop('_create_object', False):
-            obj.__init__(*args, **kwargs)
-        return obj
+        return cls.__new__(cls, *args, **kwargs)
 
 
 class CallableMatrixBase(metaclass=CallableMatrixMeta):
 
-    def __new__(cls, matrix, matrix_name=None, _nan_call=None, _create_object=False):
-        if _create_object:
-            self = super(CallableMatrixBase, cls).__new__(cls, matrix, matrix_name, _nan_call=_nan_call)
-            return self
+    @staticmethod
+    def constant_matrix_func(constant):
+        def _constant_matrix_func():
+            return constant
+        _constant_matrix_func.__qualname__ = _constant_matrix_func.__name__ = 'constant_matrix_func'
+        return _constant_matrix_func
+
+    @classmethod
+    def _constructor(cls, *args, **kwargs):
+        self = super(CallableMatrixBase, cls).__new__(cls)
+        self.__init__(*args, **kwargs)
+        return self
+
+    def _constructor_from_self(self):
+        obj = super(CallableMatrixBase, type(self)).__new__(type(self))
+        for attr in self._all_slots:
+            setattr(obj, attr, getattr(self, attr))
+        obj.__init__(self)
+        return obj
+
+    def copy(self):
+        return self._constructor_from_self()
+
+    __copy__ = copy
+
+    def deepcopy(self, memo=None):
+        return self._constructor_from_self()
+
+    __deepcopy__ = deepcopy
+
+
+    def __new__(cls, matrix, matrix_name=None):
         matrix_func = cls._process_matrix_func(matrix)
         nan_call = cls._nan_call(matrix_func)
         if np.all(np.isfinite(nan_call)):
-            return CallableMatrixConstant(matrix, matrix_name, _nan_call=_nan_call, _create_object=True)
+            return CallableMatrixConstant._constructor(matrix_func, matrix_name, _nan_call=nan_call)
         else:
-            return CallableMatrix(matrix, matrix_name, _nan_call=_nan_call, _create_object=True)
+            return CallableMatrix._constructor(matrix_func, matrix_name, _nan_call=nan_call)
+
+
+    @abstractmethod
+    def __init__(self, *args, **kwargs):
+        super(CallableMatrixBase, self).__init__(*args, **kwargs)
 
     @classmethod
     def _process_matrix_func(cls, matrix):
-        def const_func(constant):
-            def constant_func():
-                return constant
-
-            return constant_func
-
-        if isinstance(matrix, (sp.Expr, sp.Matrix)):
-            system_matrix = sp.Matrix(matrix)
-            param_sym_tup = cls._get_param_sym_tup(system_matrix)
-            func = sp.lambdify(param_sym_tup, system_matrix, modules="numpy", dummify=False)
-        elif inspect.isfunction(matrix):
+        if inspect.isfunction(matrix):
             func = matrix
         elif inspect.ismethod(matrix):
             func = matrix.__func__
+        elif isinstance(matrix, (sp.Expr, sp.Matrix)):
+            system_matrix = sp.Matrix(matrix)
+            param_sym_tup = cls._get_param_sym_tup(system_matrix)
+            func = sp.lambdify(param_sym_tup, system_matrix, modules="numpy", dummify=False)
         else:
-            func = const_func(atleast_2d_col(matrix))
+            func = cls.constant_matrix_func(atleast_2d_col(matrix))
 
         return func
 
@@ -347,19 +381,17 @@ class CallableMatrixBase(metaclass=CallableMatrixMeta):
 
 class CallableMatrix(CallableMatrixBase, wrapt.decorators.AdapterWrapper):
 
+    __slots__ = ('_self_matrix_name', '_self_wrapped_name', '_self_adapter_spec', '_self_shape', '_self_size',
+                 '_self_ndim', '_self_dtype', '_self_nbytes', '_self_itemsize', '_self_is_empty', '_self_is_all_zero',
+                 '_self_is_constant')
+
     def __init__(self, matrix, matrix_name=None, **kwargs):
         if isinstance(matrix, type(self)):
-            super(CallableMatrix, self).__init__(wrapped=matrix.__wrapped__, wrapper=matrix._self_wrapper, enabled=None,
+            matrix_func = matrix.__wrapped__
+            super(CallableMatrix, self).__init__(wrapped=matrix_func, wrapper=matrix._self_wrapper, enabled=None,
                                                  adapter=matrix._self_adapter)
-            nan_call = self._nan_call(matrix.__wrapped__)
         else:
-            _nan_call = kwargs.get('_nan_call')
-            if _nan_call:
-                matrix_func = matrix
-                nan_call = _nan_call
-            else:
-                matrix_func = type(self)._process_matrix_func(matrix)
-                nan_call = self._nan_call(matrix_func)
+            matrix_func = self._process_matrix_func(matrix)
 
             self._self_matrix_name = matrix_name if matrix_name is not None else matrix_func.__name__
             self._self_wrapped_name = matrix_func.__name__
@@ -375,27 +407,25 @@ class CallableMatrix(CallableMatrixBase, wrapt.decorators.AdapterWrapper):
             wrapper = self._matrix_wrapper
             super(CallableMatrix, self).__init__(wrapped=matrix_func, wrapper=wrapper, enabled=None, adapter=adapter)
 
-        try:
-            self.__delattr__('_self_shape')
-        except AttributeError:
-            pass
 
-        self._self_shape = get_expr_shape(nan_call)
-        self._self_size = np.prod(nan_call.size)
-        self._self_ndim = nan_call.ndim
-        self._self_dtype = nan_call.dtype
-        self._self_nbytes = nan_call.nbytes
-        self._self_itemsize = nan_call.itemsize
-        self._self_is_empty = False if self._self_size else True
-        self._self_is_all_zero = np.all(nan_call == 0)
-        self._self_is_constant = np.all(np.isfinite(nan_call))
+            _nan_call = kwargs.get('_nan_call')
+            nan_call = _nan_call if _nan_call is not None else self._nan_call(matrix_func)
+            self._self_shape = get_expr_shape(nan_call)
+            self._self_size = nan_call.size
+            self._self_ndim = nan_call.ndim
+            self._self_dtype = nan_call.dtype
+            self._self_nbytes = nan_call.nbytes
+            self._self_itemsize = nan_call.itemsize
+            self._self_is_empty = False if self._self_size else True
+            self._self_is_all_zero = np.all(nan_call == 0)
+            self._self_is_constant = np.all(np.isfinite(nan_call))
 
-        if self._self_is_constant:
-            if type(self) == CallableMatrix:
-                raise TypeError(f"Cannot initialize {type(self).__name__} object with constant matrix.")
-            self._self_constant = nan_call
-        else:
-            self._self_constant = None
+            if self._self_is_constant:
+                if type(self) == CallableMatrix:
+                    raise TypeError(f"Cannot initialize {type(self).__name__} object with constant matrix.")
+                self._self_constant = nan_call
+            else:
+                self._self_constant = None
 
     def _matrix_wrapper(self, wrapped, instance, args, kwargs):
         param_struct = kwargs.pop('param_struct', None)
@@ -516,7 +546,7 @@ class CallableMatrix(CallableMatrixBase, wrapt.decorators.AdapterWrapper):
 
     def __dir__(self):
         wrapped_dir = set(dir(self.__wrapped__))
-        added_dir = set(type(self).__dict__)
+        added_dir = set(itertools.chain.from_iterable([kls.__dict__ for kls in type(self).mro()]))
         rv = wrapped_dir | added_dir
         return sorted(rv)
 

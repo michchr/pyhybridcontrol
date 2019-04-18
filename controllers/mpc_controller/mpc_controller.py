@@ -123,7 +123,7 @@ class MpcController(MpcBase):
             self._variables: MpcVariables = MpcVariables(mpc_controller=self, x_k=x_k, omega_tilde_k=omega_tilde_k)
             self._std_obj_atoms: MpcObjectiveAtoms = MpcObjectiveAtoms(self)
         else:
-            self._sys_evo_matrices: MpcEvoMatrices  = None
+            self._sys_evo_matrices: MpcEvoMatrices = None
             self._variables: MpcVariables = None
             self._std_obj_atoms: MpcObjectiveAtoms = None
 
@@ -146,14 +146,14 @@ class MpcController(MpcBase):
         if self._variables:
             return self._variables.variables_k
         else:
-            return MpcVariables.VarStruct_k()
+            return MpcVariables.MpcVariablesStruct_k()
 
     @property
     def variables_k_neg1(self):
         if self._variables:
             return self._variables.variables_k_neg1
         else:
-            return MpcVariables.VarStruct_k_neg1()
+            return MpcVariables.MpcVariablesStruct_k_neg1()
 
     @variables_k_neg1.setter
     def variables_k_neg1(self, variables_k_neg1_struct):
@@ -245,7 +245,7 @@ class MpcController(MpcBase):
         else:
             return []
 
-    def gen_evo_constraints(self, x_k=None, omega_tilde_k=None,
+    def gen_evo_constraints(self, x_k=None, omega_tilde_k=None, omega_scenarios_k=ParNotSet,
                             N_p=ParNotSet, N_tilde=ParNotSet, mld_numeric_k=ParNotSet, mld_numeric_tilde=ParNotSet,
                             sys_evo_matrices=ParNotSet):
         # H_v @ v_tilde <= H_x @ x_0 + H_omega @ omega_tilde + H_5
@@ -274,13 +274,21 @@ class MpcController(MpcBase):
             else:
                 sys_evo_matrices = self._sys_evo_matrices.get_evo_matrices_N_tilde(N_tilde=N_tilde)
 
-        if sys_evo_matrices is not None:
-            LHS = (matmul(sys_evo_matrices.constraint['H_v_N_tilde'], self._variables['v']['var_N_tilde']))
-            RHS = (matmul(sys_evo_matrices.constraint['H_x_N_tilde'], x_k) +
-                   matmul(sys_evo_matrices.constraint['H_omega_N_tilde'], omega_tilde_k)
-                   + sys_evo_matrices.constraint['H_5_N_tilde'])
+        if sys_evo_matrices is not None and omega_scenarios_k is not None:
+            if sys_evo_matrices.mld_info_k.n_constraints:
+                if omega_scenarios_k is not ParNotSet:
+                    H_omega_omega = np.min(matmul(sys_evo_matrices.constraint['H_omega_N_tilde'], omega_scenarios_k),
+                                           axis=1, keepdims=True)
+                else:
+                    H_omega_omega = matmul(sys_evo_matrices.constraint['H_omega_N_tilde'], omega_tilde_k)
 
-            return LHS <= RHS
+                LHS = (matmul(sys_evo_matrices.constraint['H_v_N_tilde'], self._variables['v']['var_N_tilde']))
+                RHS = (matmul(sys_evo_matrices.constraint['H_x_N_tilde'], x_k)+ H_omega_omega
+                       + sys_evo_matrices.constraint['H_5_N_tilde'])
+
+                return LHS <= RHS
+            else:
+                return cvx.Constant(0) <= cvx.Constant(0)
         else:
             return None
 

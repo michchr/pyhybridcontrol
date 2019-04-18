@@ -1,5 +1,7 @@
-from models.micro_grid_models import DewhModel, GridModel
+from models.micro_grid_models import DewhModel, GridModel, PvModel, ResDemandModel
 from models.agents import MpcAgent
+
+from typing import List as List_T
 
 from models.mld_model import MldInfo, MldModel
 
@@ -14,10 +16,10 @@ from datetime import datetime as DateTime, timedelta as TimeDelta
 
 import numpy as np
 from utils.matrix_utils import atleast_2d_col
-from structdict import StructPropFixedDictMixin
+from structdict import StructPropDictMixin
 
 
-class MldSimLog(StructPropFixedDictMixin, dict):
+class MldSimLog(StructPropDictMixin, dict):
     _field_names = MldInfo._var_names
     _var_names = _field_names
 
@@ -39,13 +41,17 @@ class MldSimLog(StructPropFixedDictMixin, dict):
 
     def get_concat_log(self):
         concat_log = self.copy()
-        for var_name, var_list in self.items():
-            var_seq = np.array(var_list).squeeze(axis=2)
-            col_index = pd.MultiIndex.from_product(
-                [[var_name], [f'{var_name}_{index}' for index in range(var_seq.shape[1])]])
-            df = pd.DataFrame(var_seq, columns=col_index)
-            df.index.name = 'k'
-            concat_log[var_name] = df
+        for var_name, var_list in list(self.items()):
+            var_seq = np.array(var_list)
+            if var_seq.size:
+                var_seq = var_seq.squeeze(axis=2)
+                col_index = pd.MultiIndex.from_product(
+                    [[var_name], [f'{var_name}_{index}' for index in range(var_seq.shape[1])]])
+                df = pd.DataFrame(var_seq, columns=col_index)
+                df.index.name = 'k'
+                concat_log[var_name] = df
+            else:
+                del concat_log[var_name]
 
         return pd.concat(concat_log.values(), axis=1)
 
@@ -73,6 +79,16 @@ class MicroGridAgentBase(MpcAgent, ABC):
 
         self.forecast_lag = forecast_lag
         self.sim_log = MldSimLog()
+
+        self._variables_k_act = None
+
+    @property
+    def variables_k_opt(self):
+        return self._mpc_controller.variables_k
+
+    @property
+    def variables_k_act(self):
+        return self._variables_k_act
 
     def set_omega_scenarios(self, omega_scenarios_profile=ParNotSet, scenarios_t0=None):
         scenarios_t0 = scenarios_t0 or self.scenarios_t0
@@ -126,7 +142,7 @@ class MicroGridAgentBase(MpcAgent, ABC):
 
     def get_omega_tilde_scenario(self, k, N_tilde=None, num_scenarios=1):
         omega_tilde_scenario = None
-        N_tilde = N_tilde or self.N_tilde
+        N_tilde = N_tilde if N_tilde is not None else self.N_tilde
         if self.omega_scenarios is not None:
             scenarios = self._omega_scenario_values
             nomega = self.mld_info.nomega
@@ -134,10 +150,14 @@ class MicroGridAgentBase(MpcAgent, ABC):
 
             assert (scenarios.flags.f_contiguous)
 
-            limit = scenarios.size - N_tilde * nomega
-            if limit <= 0:
-                raise ValueError("Insufficient number of scenarios")
-            valid_columns = int(np.unravel_index(indices=limit, dims=scenarios.shape, order='F')[1] - 1)
+            limit = scenarios.size - row - (N_tilde * nomega) - 1
+
+            if limit <= 0 or limit < (N_tilde * nomega * num_scenarios):
+                raise ValueError("Insufficient number of scenarios to draw from.")
+
+            valid_columns = int(
+                np.unravel_index(indices=limit, dims=scenarios.shape, order='F')[1]) - 1
+
 
             omega_tilde_scenarios = []
             for column_sel in np.random.randint(low=0, high=valid_columns, size=num_scenarios):
@@ -145,7 +165,8 @@ class MicroGridAgentBase(MpcAgent, ABC):
                 flat_index = scenarios.shape[0] * column_sel + row
                 omega_tilde_scenarios.append(
                     atleast_2d_col(scenarios.ravel(order='F')[flat_index:flat_index + (N_tilde * nomega)]))
-            omega_tilde_scenario = np.hstack(omega_tilde_scenarios)
+            if omega_tilde_scenarios:
+                omega_tilde_scenario = np.hstack(omega_tilde_scenarios)
 
         return omega_tilde_scenario
 
@@ -174,12 +195,14 @@ class MicroGridAgentBase(MpcAgent, ABC):
                                                                         deterministic=deterministic)
 
     def sim_k(self, k, omega_k=None, solver=None):
-        var_k = self.mpc_controller.variables_k
-        omega_k = omega_k if omega_k is not None else self.get_omega_tilde_k_act(k=k)
+        var_k = self.variables_k_opt
+        omega_k = omega_k if omega_k is not None else self.get_omega_tilde_k_act(k=k, N_tilde=1)
         lsim_k = self.sim_model.mld_numeric.lsim_k(x_k=var_k.x,
                                                    u_k=var_k.u,
                                                    omega_k=omega_k,
                                                    mu_k=None, solver=solver)
+
+        self._variables_k_act = lsim_k.copy()
         lsim_k.omega_hat = var_k.omega
         return lsim_k
 
@@ -196,6 +219,11 @@ class MicroGridAgentBase(MpcAgent, ABC):
     @property
     @abstractmethod
     def power_N_tilde(self):
+        pass
+
+    @property
+    @abstractmethod
+    def power_k_act(self):
         pass
 
     @property
@@ -223,17 +251,91 @@ class DewhAgentMpc(MicroGridDeviceAgent):
 
     def __init__(self, device_type='dewh', device_id=None,
                  sim_model=ParNotSet, control_model=ParNotSet,
-                 N_p=None, N_tilde=None):
+                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
         sim_model = sim_model if sim_model is not ParNotSet else DewhModel(const_heat=False)
         control_model = control_model if control_model is not ParNotSet else DewhModel(const_heat=True)
 
         super().__init__(device_type=device_type, device_id=device_id,
                          sim_model=sim_model, control_model=control_model,
-                         N_p=N_p, N_tilde=N_tilde)
+                         N_p=N_p, N_tilde=N_tilde, omega_profile=omega_profile, profile_t0=profile_t0,
+                         omega_scenarios_profile=omega_scenarios_profile, scenarios_t0=scenarios_t0,
+                         forecast_lag=forecast_lag)
+
+    def sim_k(self, k, omega_k=None, solver=None):
+        omega_k = omega_k if omega_k is not None else self.get_omega_tilde_k_act(k=k, N_tilde=1)
+        self.sim_model.update_param_struct(D_h=np.asscalar(omega_k))
+        return super(DewhAgentMpc, self).sim_k(k=k, omega_k=omega_k, solver=solver)
 
     @property
     def power_N_tilde(self):
         return self._mpc_controller.variables.u.var_N_tilde * self.control_model.param_struct.P_h_Nom
+
+    @property
+    def power_k_act(self):
+        return self.variables_k_act.u * self.sim_model.param_struct.P_h_Nom
+
+    @property
+    def objective(self):
+        return self._mpc_controller.objective
+
+    @property
+    def constraints(self):
+        return self._mpc_controller.constraints
+
+
+class PvAgentMpc(MicroGridDeviceAgent):
+    def __init__(self, device_type='pv', device_id=None,
+                 sim_model=ParNotSet, control_model=ParNotSet,
+                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
+        sim_model = sim_model if sim_model is not ParNotSet else PvModel()
+        control_model = control_model if control_model is not ParNotSet else PvModel()
+
+        super().__init__(device_type=device_type, device_id=device_id,
+                         sim_model=sim_model, control_model=control_model,
+                         N_p=N_p, N_tilde=N_tilde, omega_profile=omega_profile, profile_t0=profile_t0,
+                         omega_scenarios_profile=omega_scenarios_profile, scenarios_t0=scenarios_t0,
+                         forecast_lag=forecast_lag)
+
+    @property
+    def power_N_tilde(self):
+        return self._mpc_controller.variables.y.var_N_tilde
+
+    @property
+    def power_k_act(self):
+        return self.variables_k_act.y
+
+    @property
+    def objective(self):
+        return self._mpc_controller.objective
+
+    @property
+    def constraints(self):
+        return self._mpc_controller.constraints
+
+
+class ResDemandAgentMpc(MicroGridDeviceAgent):
+    def __init__(self, device_type='resd', device_id=None,
+                 sim_model=ParNotSet, control_model=ParNotSet,
+                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
+        sim_model = sim_model if sim_model is not ParNotSet else ResDemandModel()
+        control_model = control_model if control_model is not ParNotSet else ResDemandModel()
+
+        super().__init__(device_type=device_type, device_id=device_id,
+                         sim_model=sim_model, control_model=control_model,
+                         N_p=N_p, N_tilde=N_tilde, omega_profile=omega_profile, profile_t0=profile_t0,
+                         omega_scenarios_profile=omega_scenarios_profile, scenarios_t0=scenarios_t0,
+                         forecast_lag=forecast_lag)
+
+    @property
+    def power_N_tilde(self):
+        return self._mpc_controller.variables.y.var_N_tilde
+
+    @property
+    def power_k_act(self):
+        return self.variables_k_act.y
 
     @property
     def objective(self):
@@ -253,7 +355,7 @@ class GridAgentMpc(MicroGridAgentBase):
                          sim_model=grid_model, control_model=grid_model,
                          N_p=N_p, N_tilde=N_tilde)
 
-        self.devices = []
+        self.devices: List_T[MicroGridDeviceAgent] = []
 
     def set_omega_profile(self, omega_profile=ParNotSet, profile_t0=DateTime(2018, 12, 1)):
         return NotImplemented
@@ -261,6 +363,10 @@ class GridAgentMpc(MicroGridAgentBase):
     @property
     def power_N_tilde(self):
         return self._mpc_controller.variables.y.var_N_tilde
+
+    @property
+    def power_k_act(self):
+        return self.variables_k_act.y
 
     @property
     def objective(self):
@@ -277,6 +383,10 @@ class GridAgentMpc(MicroGridAgentBase):
     def grid_device_powers_N_tilde(self):
         powers_N_tilde_mat = cvx.hstack([device.power_N_tilde for device in self.devices]).T
         return cvx.reshape(powers_N_tilde_mat, (powers_N_tilde_mat.size, 1))
+
+    @property
+    def grid_device_powers_k_act(self):
+        return np.vstack([device.power_k_act for device in self.devices])
 
     @property
     def grid_device_objectives(self):
@@ -312,8 +422,27 @@ class GridAgentMpc(MicroGridAgentBase):
         self.mpc_controller.set_constraints(other_constraints=self.grid_device_constraints)
         self.mpc_controller.set_objective(other_objectives=self.grid_device_objectives)
 
+    def sim_k(self, k, omega_k=None, solver=None):
+        if omega_k is None:
+            for device in self.devices:
+                device.sim_k(k=k, solver=None)
+        return super(GridAgentMpc, self).sim_k(k=k, omega_k=omega_k, solver=None)
+
+    def sim_step_k(self, k, omega_k=None, solver=None):
+        for device in self.devices:
+            device.sim_step_k(k=k, solver=None)
+        omega_k = omega_k if omega_k is not None else self.get_omega_tilde_k_act(k=k)
+
+        lsim_k = super(GridAgentMpc, self).sim_step_k(k, omega_k=omega_k)
+        cost = self._mpc_controller.std_obj_atoms.z.Linear_vector.weight.weight_N_tilde[0, 0] * lsim_k.z
+        self.sim_log.append_sim_k(dict(cost=cost))
+        return lsim_k
+
     def get_omega_tilde_k_act(self, k, N_tilde=1):
-        return self.grid_device_powers_N_tilde[:N_tilde * len(self.devices)]
+        if N_tilde == 1:
+            return self.grid_device_powers_k_act
+        else:
+            raise ValueError(f"For {self.__class__.__name__} objects, omega_tilde_act is only available for N_tilde=1")
 
     def get_omega_tilde_k_hat(self, k, N_tilde=1, deterministic=True):
         return NotImplemented

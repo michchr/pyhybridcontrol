@@ -17,7 +17,8 @@ import wrapt
 import cvxpy as cvx
 from cvxpy.expressions import expression as cvx_e
 
-from structdict import StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict
+from structdict import (StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict,
+                        struct_prop_fixed_dict)
 
 from utils.versioning import VersionMixin, increments_version_decor, versioned
 
@@ -640,17 +641,17 @@ class MldModel(MldBase):
 
         return self.LSimStruct(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out, x_out_k1=x_out_k1)
 
-    LSimStruct_k = struct_prop_dict('LSimStruct_k', ['x_k1']+list(MldInfo._var_names)+ ['con'],
+    LSimStruct_k = struct_prop_dict('LSimStruct_k', ['x_k1'] + list(MldInfo._var_names) + ['con'],
                                     sorted_repr=False)
 
     def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None,
                solver=None, cons_tol=1e-6) -> LSimStruct_k:
-        m_dims = self.mld_info.var_dims_struct
-
+        
+        mld_info = self.mld_info
         if x_k is None:
-            x_k = np.zeros((m_dims.x, 1))
+            x_k = np.zeros((mld_info.nx, 1))
         else:
-            x_k = np.asanyarray(x_k).reshape(m_dims.x, 1)
+            x_k = np.asanyarray(x_k).reshape(mld_info.nx, 1)
 
         omega_k = atleast_2d_col(omega_k) if omega_k is not None else np.empty((0, 1))
 
@@ -661,20 +662,20 @@ class MldModel(MldBase):
                     "'u_k', 'delta_k', 'z_k' and 'mu_k', but not both.")
             else:
                 v_k = atleast_2d_col(v_k)
-                u_k = v_k[:m_dims.u]
-                delta_k = v_k[m_dims.u:m_dims.u + m_dims.delta]
-                z_k = v_k[m_dims.u + m_dims.delta:m_dims.u + m_dims.delta + m_dims.z]
-                mu_k = v_k[m_dims.u + m_dims.delta + m_dims.z:]
+                u_k = v_k[:mld_info.nu]
+                delta_k = v_k[mld_info.nu:mld_info.nu + mld_info.ndelta]
+                z_k = v_k[mld_info.nu + mld_info.ndelta:mld_info.nu + mld_info.ndelta + mld_info.nz]
+                mu_k = v_k[mld_info.nu + mld_info.ndelta + mld_info.nz:]
         else:
             u_k = atleast_2d_col(u_k) if u_k is not None else np.empty((0, 1))
-            mu_k = atleast_2d_col(mu_k) if mu_k is not None else np.zeros((m_dims.mu, 1))
-            if is_any_None(delta_k, z_k):
-                delta_k, z_k = (
+            if is_any_None(delta_k, z_k, mu_k):
+                delta_k, z_k, mu_k= (
                     self._compute_aux(x_k=x_k, u_k=u_k, delta_k=delta_k, z_k=z_k, mu_k=mu_k, omega_k=omega_k,
-                                      m_dims=m_dims, solver=solver))
+                                      solver=solver))
             else:
                 delta_k = atleast_2d_col(delta_k)
                 z_k = atleast_2d_col(z_k)
+                mu_k = atleast_2d_col(mu_k)
 
             v_k = np.vstack((u_k, delta_k, z_k, mu_k))
 
@@ -682,35 +683,34 @@ class MldModel(MldBase):
         y_k = (self.C @ x_k + self.D1 @ u_k + self.D2 @ delta_k + self.D3 @ z_k + self.D4 @ omega_k + self.d5)
         con_k = (self.E @ x_k + self.F1 @ u_k + self.F2 @ delta_k
                  + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
-                 self.Psi @ mu_k - self.f5 <= cons_tol)
+                 self.Psi @ (mu_k*0) - self.f5 <= cons_tol)
 
         return self.LSimStruct_k(x_k1=x_k1, x=x_k,
                                  u=u_k, delta=delta_k, z=z_k, mu=mu_k, v=v_k,
                                  y=y_k, omega=omega_k,
                                  con=con_k)
 
-    def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None, m_dims=None,
+    def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None,
                      solver=None):
-
-        if delta_k is None:
-            if m_dims.delta:
-                delta_k = cvx.Variable((m_dims.delta, 1), boolean=True)
+        
+        mld_info = self.mld_info
+        
+        def process_aux(aux, dim, **kwargs):
+            if aux is None:
+                if dim:
+                    return cvx.Variable((dim, 1), **kwargs)
+                else:
+                    return np.empty((0, 1))
             else:
-                delta_k = np.empty((0, 1))
-        else:
-            delta_k = atleast_2d_col(delta_k)
+                return atleast_2d_col(aux)
 
-        if z_k is None:
-            if m_dims.z:
-                z_k = cvx.Variable((m_dims.z, 1))
-            else:
-                z_k = np.empty((0, 1))
-        else:
-            z_k = atleast_2d_col(z_k)
+        delta_k = process_aux(delta_k, mld_info.ndelta, boolean=True)
+        z_k = process_aux(z_k, mld_info.nz)
+        mu_k = process_aux(mu_k, mld_info.nmu, nonneg=True)
 
-        if delta_k.size or z_k.size:
-            if m_dims.y:
-                y_k = cvx.Variable((m_dims.y, 1))
+        if any([isinstance(var, cvx_e.Expression) for var in (delta_k, z_k, mu_k)]):
+            if mld_info.ny:
+                y_k = cvx.Variable((mld_info.ny, 1))
             else:
                 y_k = np.empty((0, 1))
 
@@ -735,7 +735,13 @@ class MldModel(MldBase):
             )
 
             prob = cvx.Problem(cvx.Minimize(cvx.Constant(0)), cons)
-            prob.solve(verbose=False, solver=solver or cvx.GUROBI)
+
+            try:
+                prob.solve(verbose=False, solver=solver or cvx.GUROBI)
+            except cvx.error.SolverError:
+                print(mu_k)
+                prob.solve(verbose=True, solver=cvx.CPLEX, cplex_filename='test.lp')
+                raise
 
             # if prob.status not in (cvx.OPTIMAL, cvx.OPTIMAL_INACCURATE):
             #     raise ValueError(f"mld_model is infeasible")
@@ -744,8 +750,10 @@ class MldModel(MldBase):
                 delta_k = np.abs(delta_k.value) if delta_k.value is not None else atleast_2d_col(np.NaN)
             if isinstance(z_k, cvx_e.Expression) and z_k.size:
                 z_k = z_k.value if z_k.value is not None else atleast_2d_col(np.NaN)
+            if isinstance(mu_k, cvx_e.Expression) and mu_k.size:
+                mu_k = mu_k.value if mu_k.value is not None else atleast_2d_col(np.NaN)
 
-        return delta_k, z_k
+        return delta_k, z_k, mu_k
 
     def to_numeric(self, param_struct=None, dt=ParNotSet, copy=False):
         param_struct = param_struct if param_struct is not None else self.mld_info.param_struct
@@ -894,7 +902,7 @@ class MldModel(MldBase):
             sys_dim = mld_dims[sys_dim_name]
 
             # var is a constant vector in state_input or output equations
-            if var_dim is None and sys_dim and mat_type is not self.MldModelMatTypes.constraint:
+            if var_dim is None and mat_type is not self.MldModelMatTypes.constraint:
                 var_dim = 1
 
             if var_dim and var_dim > 0:
@@ -974,6 +982,9 @@ class MldModel(MldBase):
         concat_mld = MldModel(concat_sys_mats, var_types_struct=concat_var_type_info)
 
         return concat_mld
+
+
+MldMatricesStruct = struct_prop_fixed_dict('MldMatricesStruct', MldModel._sys_mat_names)
 
 
 @versioned(versioned_sub_objects=('mld_numeric', 'mld_callable', 'mld_symbolic'))

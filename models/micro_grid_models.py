@@ -1,7 +1,7 @@
 import numpy as np
 import sympy as sp
 
-from models.mld_model import PvMldSystemModel, MldModel
+from models.mld_model import PvMldSystemModel, MldModel, MldMatricesStruct
 from models.parameters import dewh_param_struct, grid_param_struct, pv_param_struct, res_demand_param_struct
 from structdict import StructDict
 from utils.decorator_utils import cache_hashable_args
@@ -23,7 +23,7 @@ class DewhModel(PvMldSystemModel):
                                         param_struct=param_struct)
 
     @staticmethod
-    @cache_hashable_args(maxsize=2)
+    @cache_hashable_args(maxsize=4)
     def get_dewh_mld_symbolic(const_heat=True, binary_input=True):
         dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
             'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
@@ -56,13 +56,24 @@ class DewhModel(PvMldSystemModel):
         B4 = em * B4_c
         b5 = em * b5_c
 
-        mld_sym_struct = StructDict()
+        mld_sym_struct = MldMatricesStruct()
         mld_sym_struct.A = A
         mld_sym_struct.B1 = B1
         mld_sym_struct.B4 = B4
         mld_sym_struct.b5 = b5
 
         if binary_input:
+            mld_sym_struct.E = np.array([[1,
+                                          -1]]).T
+            mld_sym_struct.F1 = np.array([[0,
+                                           0]]).T
+
+            mld_sym_struct.Psi = np.array([[-1, 0],
+                                           [0, -1]])
+
+            mld_sym_struct.f5 = sp.Matrix([[T_h_max,
+                                            -T_h_min]]).T
+        else:
             mld_sym_struct.E = np.array([[1,
                                           -1,
                                           0,
@@ -79,19 +90,8 @@ class DewhModel(PvMldSystemModel):
 
             mld_sym_struct.f5 = sp.Matrix([[T_h_max,
                                             -T_h_min,
-                                            1.1,
-                                            0.1]]).T
-        else:
-            mld_sym_struct.E = np.array([[1,
-                                          -1]]).T
-            mld_sym_struct.F1 = np.array([[0,
-                                           0]]).T
-
-            mld_sym_struct.Psi = np.array([[-1, 0],
-                                           [0, -1]])
-
-            mld_sym_struct.f5 = sp.Matrix([[T_h_max,
-                                            -T_h_min]]).T
+                                            1.0,
+                                            0.0]]).T
 
         nu_l = 1 if binary_input else 0
 
@@ -133,11 +133,12 @@ class GridModel(PvMldSystemModel):
             self._num_devices = num_devices
 
     @staticmethod
+    @cache_hashable_args(maxsize=10)
     def get_grid_mld_symbolic(num_devices):
         P_g_min, P_g_max = sp.symbols('P_g_min, P_g_max')
         eps = sp.symbols('eps')
 
-        mld_sym_struct = StructDict()
+        mld_sym_struct = MldMatricesStruct()
 
         mld_sym_struct.D4 = np.ones((1, num_devices))
 
@@ -187,13 +188,14 @@ class PvModel(PvMldSystemModel):
                                       param_struct=param_struct)
 
     @staticmethod
+    @cache_hashable_args(maxsize=1)
     def get_pv_mld_symbolic():
         P_pv_max = sp.symbols('P_pv_max')
         P_pv_units = sp.symbols('P_pv_units')
 
-        mld_sym_struct = StructDict()
+        mld_sym_struct = MldMatricesStruct()
 
-        mld_sym_struct.D4 = sp.Matrix([[P_pv_max*P_pv_units]])
+        mld_sym_struct.D4 = sp.Matrix([[-P_pv_max*P_pv_units]])
 
         MldModel_sym = MldModel(mld_sym_struct, dt=0)
 
@@ -216,11 +218,12 @@ class ResDemandModel(PvMldSystemModel):
                                       param_struct=param_struct)
 
     @staticmethod
+    @cache_hashable_args(maxsize=1)
     def get_res_demand_mld_symbolic():
         P_res_ave = sp.symbols('P_res_ave')
         P_res_units = sp.symbols('P_res_units')
 
-        mld_sym_struct = StructDict()
+        mld_sym_struct = MldMatricesStruct()
 
         mld_sym_struct.D4 = sp.Matrix([[P_res_ave*P_res_units]])
 

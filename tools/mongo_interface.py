@@ -425,12 +425,12 @@ if __name__ == '__main__':
     mi.collection.create_index("TimeStamp")
     print("Time taken is {}".format(Timer() - st))
 
-    #
-    # start_date = DateTime(2018, 9, 30, 12, 0)
-    # end_date = DateTime(2018, 10, 30, 12, 3)
-    #
-    # raw_df = mi.get_many_dev_raw_dataframe('pm', [0], start_datetime=start_date, end_datetime=end_date,
-    #                                        fields='all', convert=True)
+
+    start_date = DateTime(2018, 9, 30, 12, 0)
+    end_date = DateTime(2018, 10, 30, 12, 3)
+
+    raw_df = mi.get_many_dev_raw_dataframe('dewh', range(50,100), start_datetime=start_date, end_datetime=end_date,
+                                           fields='all', convert=True)
     #
 
     # raw_df

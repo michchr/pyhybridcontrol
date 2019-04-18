@@ -28,8 +28,8 @@ class MpcVariables(MpcComponentsBase):
     _field_names = _var_names
     _field_names_set = frozenset(_field_names)
 
-    VarStruct_k = struct_prop_fixed_dict('VarStruct_k', _var_names)
-    VarStruct_k_neg1 = struct_prop_fixed_dict('VarStruct_k_neg1', _var_names)
+    MpcVariablesStruct_k = struct_prop_fixed_dict('MpcVariablesStruct_k', _var_names)
+    MpcVariablesStruct_k_neg1 = struct_prop_fixed_dict('VarStruct_k_neg1', _var_names)
 
     __internal_names = ['_x_k', '_custom_variables']
     _internal_names_set = set(__internal_names)
@@ -70,7 +70,7 @@ class MpcVariables(MpcComponentsBase):
 
     @property
     def variables_k(self):
-        vars_k = self.VarStruct_k()
+        vars_k = self.MpcVariablesStruct_k()
         for var_name, var in self.items():
             var_k = var.var_k
             if var_k is not None:
@@ -82,7 +82,7 @@ class MpcVariables(MpcComponentsBase):
 
     @property
     def variables_k_neg1(self):
-        vars_k_neg1 = self.VarStruct_k_neg1()
+        vars_k_neg1 = self.MpcVariablesStruct_k_neg1()
         for var_name, var in self.items():
             var_k_neg1 = var.var_k_neg1
             if var_k_neg1 is not None:
@@ -94,7 +94,7 @@ class MpcVariables(MpcComponentsBase):
 
     @variables_k_neg1.setter
     def variables_k_neg1(self, variables_k_neg1_struct):
-        variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1()
+        variables_k_neg1_struct = variables_k_neg1_struct or self.MpcVariablesStruct_k_neg1()
         self.update(variables_k_neg1_struct=variables_k_neg1_struct)
 
 
@@ -351,7 +351,7 @@ class MpcVariables(MpcComponentsBase):
                          mld_numeric_k: MldModel = None, mld_numeric_tilde=None,
                          mld_info_k: MldInfo = None):
 
-        variables_k_neg1_struct = variables_k_neg1_struct or self.VarStruct_k_neg1.fromkeys(self)
+        variables_k_neg1_struct = variables_k_neg1_struct or self.MpcVariablesStruct_k_neg1.fromkeys(self)
         variables_k_neg1_struct_update = StructDict()
         for var_name, variable in self.items():
             var_k_neg1_update = variables_k_neg1_struct.get(var_name,None)
