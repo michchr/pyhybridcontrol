@@ -641,7 +641,7 @@ class MldModel(MldBase):
 
         return self.LSimStruct(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out, x_out_k1=x_out_k1)
 
-    LSimStruct_k = struct_prop_dict('LSimStruct_k', ['x_k1'] + list(MldInfo._var_names) + ['con'],
+    LSimStruct_k = struct_prop_dict('LSimStruct_k', ['x_k1'] + list(MldInfo._var_names) + ['cons'],
                                     sorted_repr=False)
 
     def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None,
@@ -681,14 +681,14 @@ class MldModel(MldBase):
 
         x_k1 = (self.A @ x_k + self.B1 @ u_k + self.B2 @ delta_k + self.B3 @ z_k + self.B4 @ omega_k + self.b5)
         y_k = (self.C @ x_k + self.D1 @ u_k + self.D2 @ delta_k + self.D3 @ z_k + self.D4 @ omega_k + self.d5)
-        con_k = (self.E @ x_k + self.F1 @ u_k + self.F2 @ delta_k
-                 + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
-                 self.Psi @ (mu_k*0) - self.f5 <= cons_tol)
+        cons_k = (self.E @ x_k + self.F1 @ u_k + self.F2 @ delta_k
+                  + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
+                  self.Psi @ (mu_k*0) - self.f5 <= cons_tol)
 
         return self.LSimStruct_k(x_k1=x_k1, x=x_k,
                                  u=u_k, delta=delta_k, z=z_k, mu=mu_k, v=v_k,
                                  y=y_k, omega=omega_k,
-                                 con=con_k)
+                                 cons=cons_k)
 
     def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None,
                      solver=None):

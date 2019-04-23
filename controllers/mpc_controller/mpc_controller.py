@@ -283,7 +283,7 @@ class MpcController(MpcBase):
                     H_omega_omega = matmul(sys_evo_matrices.constraint['H_omega_N_tilde'], omega_tilde_k)
 
                 LHS = (matmul(sys_evo_matrices.constraint['H_v_N_tilde'], self._variables['v']['var_N_tilde']))
-                RHS = (matmul(sys_evo_matrices.constraint['H_x_N_tilde'], x_k)+ H_omega_omega
+                RHS = (matmul(sys_evo_matrices.constraint['H_x_N_tilde'], x_k) + H_omega_omega
                        + sys_evo_matrices.constraint['H_5_N_tilde'])
 
                 return LHS <= RHS
@@ -318,10 +318,10 @@ class MpcController(MpcBase):
         return self._build_required or self.has_updated_version()
 
     @build_required_decor(set=False)
-    def build(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
+    def build(self, with_std_objective=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
         self._sys_evo_matrices.update()
 
-        if with_std_cost:
+        if with_std_objective:
             self.set_objective(std_objective=None)
         else:
             self.set_objective(std_objective=0)
@@ -344,57 +344,53 @@ class MpcController(MpcBase):
 
         self.update_stored_version()
 
-    def solve(self, solver=None,
-              ignore_dcp=False,
-              warm_start=True,
-              verbose=False,
-              parallel=False, *, method=None, **kwargs):
+    def solve(self, solver=None, verbose=False, warm_start=True, parallel=False,
+              external_solve=None, *, method=None, **kwargs):
 
         if self.build_required:
             raise MpcBuildRequiredError("Mpc problem has not been built or needs to be rebuilt.")
 
-        try:
-            solution = self._problem.solve(solver=solver,
-                                           warm_start=warm_start,
-                                           verbose=verbose,
-                                           parallel=parallel, method=method, **kwargs)
-        except cvx.error.SolverError as se:
-            with io.StringIO() as std_out_redirect:
-                if verbose == False:
-                    with contextlib.redirect_stdout(std_out_redirect):
-                        try:
-                            self._problem.solve(solver=solver,
-                                                ignore_dcp=ignore_dcp,
-                                                warm_start=warm_start,
-                                                verbose=True,
-                                                parallel=parallel, method=method, **kwargs)
-                        except:
-                            pass
-                        std_out_redirect.seek(0)
-                        out = std_out_redirect.read()
-                else:
-                    out = ""
+        if external_solve is None:
+            try:
+                solution = self._problem.solve(solver=solver,
+                                               verbose=verbose,
+                                               warm_start=warm_start,
+                                               parallel=parallel, method=method, **kwargs)
+            except cvx.error.SolverError as se:
+                with io.StringIO() as std_out_redirect:
+                    if verbose == False:
+                        with contextlib.redirect_stdout(std_out_redirect):
+                            try:
+                                self._problem.solve(solver=solver,
+                                                    warm_start=warm_start,
+                                                    verbose=True,
+                                                    parallel=parallel, method=method, **kwargs)
+                            except:
+                                pass
+                            std_out_redirect.seek(0)
+                            out = std_out_redirect.read()
+                    else:
+                        out = ""
 
-            raise MpcSolverError(f"{se.args[0]}\n\n{out}") from se
+                raise MpcSolverError(f"{se.args[0]}\n\n{out}") from se
 
-        if not np.isfinite(solution):
-            raise MpcSolverError(f"solve() failed with objective: '{solution}', and status: {self._problem.status}")
+            if not np.isfinite(solution):
+                raise MpcSolverError(f"solve() failed with objective: '{solution}', and status: {self._problem.status}")
         else:
-            self.variables_k_neg1 = self.variables_k
-            return solution
+            solution = external_solve
+
+        self.variables_k_neg1 = self.variables_k
+        return solution
 
     def feedback(self, x_k=None, omega_tilde_k=None,
-                 solver=None,
-                 ignore_dcp=False, warm_start=True, verbose=False,
-                 parallel=False, *, method=None, **kwargs
-                 ):
+                 solver=None, verbose=False,
+                 warm_start=True, parallel=False, *, method=None, **kwargs):
         if x_k is not None:
             self.x_k = x_k
         if omega_tilde_k is not None:
             self.omega_tilde_k = omega_tilde_k
 
-        self.solve(solver=solver,
-                   ignore_dcp=ignore_dcp, warm_start=warm_start, verbose=verbose,
+        self.solve(solver=solver, warm_start=warm_start, verbose=verbose,
                    parallel=parallel, method=method, **kwargs)
 
         return self.variables_k

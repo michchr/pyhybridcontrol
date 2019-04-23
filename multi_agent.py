@@ -66,23 +66,21 @@ for ind, dev in enumerate(devices):
         dev.set_omega_scenarios(omega_scenarios_profile=omega_profile)
     dev.update_omega_tilde_k(0, deterministic=False)
     grid.add_device(dev)
+    grid.build_grid()
 
-for k in range(0, 200):
+for k in range(0, 10):
     st = time.time()
     for dev in grid.devices:
         dev.update_omega_tilde_k(k, deterministic=False)
         if dev.device_type == 'dewh':
-            omega_tilde_scenarios = dev.get_omega_tilde_scenario(k, num_scenarios=0)
+            omega_tilde_scenarios = dev.get_omega_tilde_scenario(k, num_scenarios=10)
             dev.mpc_controller.set_constraints(
                 other_constraints=[
                     dev.mpc_controller.gen_evo_constraints(N_tilde=N_tilde, omega_scenarios_k=omega_tilde_scenarios)])
 
-    grid.update_omega_tilde_k(k=k)
-    grid.build_grid()
-
     grid.mpc_controller.set_std_obj_atoms(q_z=cost_profile[k:k + N_tilde])
-    grid.mpc_controller.build()
-    grid.mpc_controller.solve(verbose=False, TimeLimit=10)
+    grid.build_grid(k=k)
+    grid.solve_grid_mpc(verbose=False, TimeLimit=10)
     print(f'k={k}, obj={grid.mpc_controller.problem.value}')
     print(f"Time to solve including data transfer:{time.time() - st}\n"
           f"Solvetime: {grid.mpc_controller.problem.solver_stats.solve_time}")

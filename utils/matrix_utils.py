@@ -28,7 +28,7 @@ def matmul(self, other):
         return self @ other
 
 
-def atleast_2d_col(arr, dtype=None, order=None):
+def atleast_2d_col(arr, dtype=None, order=None) -> np.ndarray:
     arr = np.asanyarray(arr, dtype=dtype, order=order)
     if arr.ndim == 0:
         result = arr.reshape(1, 1)

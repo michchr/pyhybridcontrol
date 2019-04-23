@@ -16,44 +16,88 @@ from datetime import datetime as DateTime, timedelta as TimeDelta
 
 import numpy as np
 from utils.matrix_utils import atleast_2d_col
-from structdict import StructPropDictMixin
+from structdict import StructDictMixin, struct_prop_dict
+
+from controllers.mpc_controller.mpc_controller import MpcController, MpcBuildRequiredError
 
 
-class MldSimLog(StructPropDictMixin, dict):
-    _field_names = MldInfo._var_names
-    _var_names = _field_names
+class MldSimLog(StructDictMixin, dict):
+    _internal_names = ['_nan_insert']
+
+    LogEntry_k = struct_prop_dict('LogEntry_k')
 
     def __init__(self):
         super(MldSimLog, self).__init__()
         self._reset()
 
     def _reset(self):
-        self._base_dict_update(self.fromkeys_withfunc(self._field_names, func=lambda k: []))
+        self._base_dict_clear()
+        self._nan_insert = {}
 
-    def append_sim_k(self, sim_k):
+    @staticmethod
+    def _nan_if_num(var):
+        if np.issubsctype(var, np.number) or np.issubsctype(var, np.bool_):
+            return var * np.NaN
+        else:
+            return atleast_2d_col([None] * var.size)
+
+    def set_sim_k(self, k, sim_k=None, **kwargs):
+        try:
+            del self[k]
+        except KeyError:
+            pass
+        self.update_sim_k(k=k, sim_k=sim_k, **kwargs)
+
+    def update_sim_k(self, k, sim_k=None, **kwargs):
+        sim_k = sim_k if sim_k is not None else {}
+        sim_k.update(kwargs)
+
+        insert = self.LogEntry_k(self._nan_insert)
+        if self.get(k):
+            insert.update(self[k])
+
         for var_name, var_k in sim_k.items():
-            var_list = self.get(var_name)
-            if var_list is not None:
-                var_list.append(atleast_2d_col(var_k))
-            else:
-                var_list = [atleast_2d_col(var_k)]
-                self[var_name] = var_list
+            if var_k is not None:
+                var_k = atleast_2d_col(var_k)
+                insert_var = insert.get(var_name)
+                if insert_var is not None and insert_var.shape != var_k.shape:
+                    raise ValueError("shape of var_k must match previous inserts")
+                else:
+                    insert[var_name] = var_k
+
+        self[k] = insert
+
+        if set(insert).difference(self._nan_insert):
+            self._nan_insert = {var_name: self._nan_if_num(var) for var_name, var in insert.items()}
 
     def get_concat_log(self):
-        concat_log = self.copy()
-        for var_name, var_list in list(self.items()):
+        nan_insert = self._nan_insert
+        for k, log_entry_k in self.items():
+            if len(log_entry_k) != len(nan_insert):
+                insert = self.LogEntry_k(nan_insert)
+                insert.update(log_entry_k)
+                self[k] = insert
+
+        index = sorted(self)
+
+        var_lists = {var_name: [] for var_name in nan_insert}
+        for k in index:
+            for var_name in var_lists:
+                var_lists[var_name].append(self[k][var_name])
+
+        dfs = {}
+        for var_name, var_list in var_lists.items():
             var_seq = np.array(var_list)
             if var_seq.size:
                 var_seq = var_seq.squeeze(axis=2)
-                col_index = pd.MultiIndex.from_product(
-                    [[var_name], [f'{var_name}_{index}' for index in range(var_seq.shape[1])]])
-                df = pd.DataFrame(var_seq, columns=col_index)
-                df.index.name = 'k'
-                concat_log[var_name] = df
-            else:
-                del concat_log[var_name]
+                dfs[var_name] = pd.DataFrame(var_seq)
 
-        return pd.concat(concat_log.values(), axis=1)
+        df = pd.concat(dfs, keys=list(dfs), axis=1)
+        df.columns.names = ['var_names', 'var_index']
+        df.index = index
+        df.index.name = 'k'
+
+        return df
 
 
 class MicroGridAgentBase(MpcAgent, ABC):
@@ -158,7 +202,6 @@ class MicroGridAgentBase(MpcAgent, ABC):
             valid_columns = int(
                 np.unravel_index(indices=limit, dims=scenarios.shape, order='F')[1]) - 1
 
-
             omega_tilde_scenarios = []
             for column_sel in np.random.randint(low=0, high=valid_columns, size=num_scenarios):
                 # flat_index = np.ravel_multi_index(multi_index=[row, column_sel], dims=scenarios.shape, order='F')
@@ -213,7 +256,7 @@ class MicroGridAgentBase(MpcAgent, ABC):
         lsim_k = self.sim_k(k=k, omega_k=omega_k, solver=solver)
         self.x_k = lsim_k.x_k1
         self.mpc_controller.variables_k_neg1 = lsim_k
-        self.sim_log.append_sim_k(lsim_k)
+        self.sim_log.set_sim_k(k=k, sim_k=lsim_k)
         return lsim_k
 
     @property
@@ -242,8 +285,10 @@ class MicroGridDeviceAgent(MicroGridAgentBase):
     def set_device_objective_atoms(self, objective_weights_struct=None, **kwargs):
         self._mpc_controller.set_std_obj_atoms(objective_atoms_struct=objective_weights_struct, **kwargs)
 
-    def build_device(self, with_std_cost=True, with_std_constraints=True, sense=None, disable_soft_constraints=False):
-        self._mpc_controller.build(with_std_cost=with_std_cost, with_std_constraints=with_std_constraints, sense=sense,
+    def build_device(self, with_std_objective=True, with_std_constraints=True, sense=None,
+                     disable_soft_constraints=False):
+        self._mpc_controller.build(with_std_objective=with_std_objective, with_std_constraints=with_std_constraints,
+                                   sense=sense,
                                    disable_soft_constraints=disable_soft_constraints)
 
 
@@ -402,25 +447,46 @@ class GridAgentMpc(MicroGridAgentBase):
         else:
             raise TypeError(f"device type must be a subclass of {MicroGridDeviceAgent.__name__}.")
 
-    def build_grid(self, N_p=ParNotSet, N_tilde=ParNotSet):
+
+    def build_grid(self, k=0, N_p=ParNotSet, N_tilde=ParNotSet):
         self.update_horizons(N_p=N_p, N_tilde=N_tilde)
         for device in self.devices:
             if device.N_tilde != self.N_tilde:
                 raise ValueError(
                     f"All devices in self.devices must have 'N_tilde' equal to 'self.N_tilde':{self.N_tilde}")
 
-        if self.sim_model.num_devices != len(self.devices):
+        if self.control_model.num_devices != len(self.devices) or self.sim_model.num_devices != len(self.devices):
             grid_model = GridModel(num_devices=len(self.devices))
             self.update_models(sim_model=grid_model, control_model=grid_model)
 
-        self.update_omega_tilde_k()
-
-        device: MicroGridDeviceAgent
         for device in self.devices:
             device.build_device()
 
         self.mpc_controller.set_constraints(other_constraints=self.grid_device_constraints)
         self.mpc_controller.set_objective(other_objectives=self.grid_device_objectives)
+
+        self.update_omega_tilde_k(k=k)
+        self._mpc_controller.build()
+
+    def solve_grid_mpc(self, solver=None, verbose=False, warm_start=True, parallel=False,
+                       external_solve=None, *, method=None, **kwargs):
+
+        for device in self.devices:
+            if device.mpc_controller.build_required:
+                raise MpcBuildRequiredError(
+                    f'Mpc problem has not been built for device {device.device_type}:{device.device_id}. A full grid '
+                    f'rebuild is required.')
+
+        try:
+            grid_solution = self._mpc_controller.solve(solver=solver, verbose=verbose, warm_start=warm_start,
+                                                       parallel=parallel,
+                                                       external_solve=external_solve, method=method, **kwargs)
+        except MpcBuildRequiredError:
+            raise MpcBuildRequiredError(
+                'Mpc problem has not been built for the grid or a rebuild is required.')
+
+        for device in self.devices:
+            device.mpc_controller.solve(external_solve=grid_solution)
 
     def sim_k(self, k, omega_k=None, solver=None):
         if omega_k is None:
@@ -435,7 +501,7 @@ class GridAgentMpc(MicroGridAgentBase):
 
         lsim_k = super(GridAgentMpc, self).sim_step_k(k, omega_k=omega_k)
         cost = self._mpc_controller.std_obj_atoms.z.Linear_vector.weight.weight_N_tilde[0, 0] * lsim_k.z
-        self.sim_log.append_sim_k(dict(cost=cost))
+        self.sim_log.update_sim_k(k=k, sim_k=dict(cost=cost))
         return lsim_k
 
     def get_omega_tilde_k_act(self, k, N_tilde=1):
