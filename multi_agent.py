@@ -85,7 +85,7 @@ for cname in controllers:
         if cname in mpc_controllers:
             dev.add_controller(cname, MpcController, N_p=N_p)
             if isinstance(dev, DewhAgentMpc):
-                dev.set_device_objective_atoms(controller_name=cname, q_mu=[1e4, 1e3],
+                dev.set_device_objective_atoms(controller_name=cname, q_mu=[1e5, 1e3],
                                                q_L1_du=0)
         elif cname=='thermo':
             if isinstance(dev, DewhAgentMpc):
@@ -99,7 +99,7 @@ for dev in devices:
     if isinstance(dev, DewhAgentMpc):
         dev.x_k = np.random.randint(55, 65)
 
-for k in range(0, 2000):
+for k in range(0, 1000):
     st = time.time()
     prices_tilde = grid.get_price_tilde_k(k=k)
 
@@ -107,7 +107,7 @@ for k in range(0, 2000):
         for dev in itertools.chain([grid], devices):
             if isinstance(dev, DewhAgentMpc):
                 if cname == 'mpc_scenario':
-                    omega_tilde_scenarios = dev.get_omega_tilde_scenario(k, N_tilde=N_tilde, num_scenarios=1000)
+                    omega_tilde_scenarios = dev.get_omega_tilde_scenario(k, N_tilde=N_tilde, num_scenarios=100)
                     dev.controllers[cname].set_constraints(
                         other_constraints=[
                             dev.controllers[cname].gen_evo_constraints(N_tilde=4,
