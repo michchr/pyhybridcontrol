@@ -1,7 +1,7 @@
 from datetime import datetime as DateTime, timedelta as TimeDelta
 from enum import Enum
 from collections import namedtuple
-from structdict import struct_prop_fixed_dict
+from structdict import named_fixed_struct_dict
 import numpy as np
 from utils.matrix_utils import atleast_2d_col
 
@@ -13,7 +13,7 @@ _TARIFF_TYPES = ['low_off_peak',
                  'high_peak']
 
 TariffTypes = namedtuple('TariffTypes', _TARIFF_TYPES)(*_TARIFF_TYPES)
-TariffRatesStruct = struct_prop_fixed_dict('TariffRatesStruct', _TARIFF_TYPES)
+TariffRatesStruct = named_fixed_struct_dict('TariffRatesStruct', _TARIFF_TYPES)
 
 class Day_e(Enum):
     MONDAY = 0

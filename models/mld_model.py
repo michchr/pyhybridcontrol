@@ -5,7 +5,7 @@ from reprlib import recursive_repr as _recursive_repr
 
 from utils.decorator_utils import process_method_args_decor
 from utils.func_utils import get_cached_func_spec, ParNotSet
-from utils.helper_funcs import num_not_None, is_all_None, is_any_None
+from utils.helper_funcs import num_not_None, is_all_None, is_any_None, is_all_val, is_any_val
 from utils.matrix_utils import atleast_2d_col, CallableMatrix, get_expr_shape, get_expr_shapes, matmul
 
 import numpy as np
@@ -17,14 +17,14 @@ import wrapt
 import cvxpy as cvx
 from cvxpy.expressions import expression as cvx_e
 
-from structdict import (StructDict, OrderedStructDict, struct_repr, StructPropDictMixin, struct_prop_dict,
-                        struct_prop_fixed_dict)
+from structdict import (StructDict, OrderedStructDict, struct_repr, NamedStructDictMixin, named_struct_dict,
+                        named_fixed_struct_dict)
 
 from utils.versioning import VersionMixin, increments_version_decor, versioned
 
 
 @versioned
-class MldBase(StructPropDictMixin, dict):
+class MldBase(NamedStructDictMixin, dict):
     __internal_names = ()
 
     _data_types = ()
@@ -191,9 +191,9 @@ class MldInfo(MldBase):
 
     __copy__ = copy
 
-    VarTypesStruct = struct_prop_dict('VarTypesStruct', _var_names, sorted_repr=False)
-    VarDimStruct = struct_prop_dict('VarDimStruct', _var_names, sorted_repr=False)
-    VarBinDimStruct = struct_prop_dict('VarBinDimStruct', _var_names, sorted_repr=False)
+    VarTypesStruct = named_struct_dict('VarTypesStruct', _var_names, sorted_repr=False)
+    VarDimStruct = named_struct_dict('VarDimStruct', _var_names, sorted_repr=False)
+    VarBinDimStruct = named_struct_dict('VarBinDimStruct', _var_names, sorted_repr=False)
 
     @property
     def var_types_struct(self):
@@ -541,7 +541,7 @@ class MldModel(MldBase):
                              var_types_struct=var_types_struct, required_params=required_params, **mld_info_kwargs)
 
     # TODO not finished - needs to include output constraints, interpolation and datetime handling
-    LSimStruct = struct_prop_dict('LSimStruct', ['t_out', 'y_out', 'x_out', 'con_out', 'x_out_k1'], sorted_repr=False)
+    LSimStruct = named_struct_dict('LSimStruct', ['t_out', 'y_out', 'x_out', 'con_out', 'x_out_k1'], sorted_repr=False)
 
     def lsim(self, x_k=None, u=None, delta=None, z=None, mu=None, v=None, omega=None, t=None, dt=ParNotSet):
         dt = dt if dt is not ParNotSet else self.mld_info.dt
@@ -641,22 +641,30 @@ class MldModel(MldBase):
 
         return self.LSimStruct(t_out=t_out, y_out=y_out, x_out=x_out, con_out=con_out, x_out_k1=x_out_k1)
 
-    LSimStruct_k = struct_prop_dict('LSimStruct_k', ['x_k1'] + list(MldInfo._var_names) + ['cons'],
-                                    sorted_repr=False)
+    LSimStruct_k = named_struct_dict('LSimStruct_k', ['x_k1'] + list(MldInfo._var_names) + ['cons'],
+                                     sorted_repr=False)
 
-    def lsim_k(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, v_k=None, omega_k=None,
-               solver=None, cons_tol=1e-6) -> LSimStruct_k:
-        
+    def lsim_k(self, x_k=ParNotSet, u_k=ParNotSet, delta_k=ParNotSet, z_k=ParNotSet, mu_k=ParNotSet, v_k=ParNotSet,
+               omega_k=ParNotSet, solver=None, cons_tol=1e-6) -> LSimStruct_k:
+
         mld_info = self.mld_info
-        if x_k is None:
-            x_k = np.zeros((mld_info.nx, 1))
-        else:
-            x_k = np.asanyarray(x_k).reshape(mld_info.nx, 1)
 
-        omega_k = atleast_2d_col(omega_k) if omega_k is not None else np.empty((0, 1))
+        def process_var(var_name, var, var_dim, zero_if_ParNotSet=False, error_if_ParNotSet=False):
+            if var is None or (zero_if_ParNotSet and var is ParNotSet) or var_dim == 0:
+                return np.zeros((var_dim, 1))
+            elif var is ParNotSet:
+                if error_if_ParNotSet:
+                    raise ValueError(f"variable {var_name} cannot be set to ParNotSet")
+                else:
+                    return ParNotSet
+            else:
+                return atleast_2d_col(var).reshape(var_dim, 1)
 
-        if v_k is not None:
-            if not is_all_None(u_k, delta_k, z_k, mu_k):
+        x_k = process_var('x_k', x_k, mld_info.nx, zero_if_ParNotSet=True)
+        omega_k = process_var('omega_k', omega_k, mld_info.nomega, zero_if_ParNotSet=False, error_if_ParNotSet=True)
+
+        if v_k is not ParNotSet:
+            if not is_all_val(u_k, delta_k, z_k, mu_k, val=ParNotSet):
                 raise ValueError(
                     "Either supply concatenated input in 'v_k' or supply individual inputs "
                     "'u_k', 'delta_k', 'z_k' and 'mu_k', but not both.")
@@ -667,15 +675,15 @@ class MldModel(MldBase):
                 z_k = v_k[mld_info.nu + mld_info.ndelta:mld_info.nu + mld_info.ndelta + mld_info.nz]
                 mu_k = v_k[mld_info.nu + mld_info.ndelta + mld_info.nz:]
         else:
-            u_k = atleast_2d_col(u_k) if u_k is not None else np.empty((0, 1))
-            if is_any_None(delta_k, z_k, mu_k):
-                delta_k, z_k, mu_k= (
+            u_k = process_var('u_k', u_k, mld_info.nu, zero_if_ParNotSet=False, error_if_ParNotSet=True)
+            delta_k = process_var('delta_k', delta_k, mld_info.ndelta, zero_if_ParNotSet=False)
+            z_k = process_var('z_k', z_k, mld_info.nz, zero_if_ParNotSet=False)
+            mu_k = process_var('mu_k', mu_k, mld_info.nmu, zero_if_ParNotSet=False)
+
+            if is_any_val(delta_k, z_k, mu_k, val=ParNotSet):
+                delta_k, z_k, mu_k = (
                     self._compute_aux(x_k=x_k, u_k=u_k, delta_k=delta_k, z_k=z_k, mu_k=mu_k, omega_k=omega_k,
                                       solver=solver))
-            else:
-                delta_k = atleast_2d_col(delta_k)
-                z_k = atleast_2d_col(z_k)
-                mu_k = atleast_2d_col(mu_k)
 
             v_k = np.vstack((u_k, delta_k, z_k, mu_k))
 
@@ -683,24 +691,26 @@ class MldModel(MldBase):
         y_k = (self.C @ x_k + self.D1 @ u_k + self.D2 @ delta_k + self.D3 @ z_k + self.D4 @ omega_k + self.d5)
         cons_k = (self.E @ x_k + self.F1 @ u_k + self.F2 @ delta_k
                   + self.F3 @ z_k + self.F4 @ omega_k + self.G @ y_k +
-                  self.Psi @ (mu_k*0) - self.f5 <= cons_tol)
+                  self.Psi @ (mu_k * 0) - self.f5 <= cons_tol)
 
         return self.LSimStruct_k(x_k1=x_k1, x=x_k,
                                  u=u_k, delta=delta_k, z=z_k, mu=mu_k, v=v_k,
                                  y=y_k, omega=omega_k,
                                  cons=cons_k)
 
-    def _compute_aux(self, x_k=None, u_k=None, delta_k=None, z_k=None, mu_k=None, omega_k=None,
-                     solver=None):
-        
+    def _compute_aux(self, x_k=ParNotSet, u_k=ParNotSet, delta_k=ParNotSet, z_k=ParNotSet, mu_k=ParNotSet,
+                     omega_k=ParNotSet, solver=None):
+
         mld_info = self.mld_info
-        
+
         def process_aux(aux, dim, **kwargs):
-            if aux is None:
+            if aux is ParNotSet:
                 if dim:
                     return cvx.Variable((dim, 1), **kwargs)
                 else:
                     return np.empty((0, 1))
+            elif aux is None:
+                return np.zeros((dim, 1))
             else:
                 return atleast_2d_col(aux)
 
@@ -984,7 +994,7 @@ class MldModel(MldBase):
         return concat_mld
 
 
-MldMatricesStruct = struct_prop_fixed_dict('MldMatricesStruct', MldModel._sys_mat_names)
+MldMatricesStruct = named_fixed_struct_dict('MldMatricesStruct', MldModel._sys_mat_names)
 
 
 @versioned(versioned_sub_objects=('mld_numeric', 'mld_callable', 'mld_symbolic'))

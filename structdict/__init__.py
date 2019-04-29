@@ -1,21 +1,21 @@
 from .core import (
     # MetaClasses
     StructDictMeta,
-    StructPropDictMeta,
+    NamedStructDictMeta,
 
     # Classes
     StructDictMixin,
-    StructPropDictMixin,
-    StructPropFixedDictMixin,
+    NamedStructDictMixin,
+    NamedFixedStructDictMixin,
     StructDict,
     OrderedStructDict,
     SortedStructDict,
 
     # Functions
     struct_repr,
-    struct_prop_dict,
-    struct_prop_fixed_dict,
-    struct_prop_ordereddict,
+    named_struct_dict,
+    named_fixed_struct_dict,
+    named_struct_ordereddict,
 )
 
 from .accessors import AttributeAccessor, ItemAccessorMixin

@@ -59,8 +59,8 @@ grid_param_struct = StructDict(
 )
 
 pv_param_struct = StructDict(
-    P_pv_max = 3000, # W (Joules/s)
-    P_pv_units = 1,
+    P_pv_max = 2000, # W (Joules/s)
+    P_pv_units = 10,
 
     control_dt = control_dt,
     dt = control_dt.seconds
@@ -68,7 +68,7 @@ pv_param_struct = StructDict(
 
 res_demand_param_struct = StructDict(
     P_res_ave = 1200, # W (Joules/s)
-    P_res_units = 1,
+    P_res_units = 10,
 
     control_dt = control_dt,
     dt = control_dt.seconds

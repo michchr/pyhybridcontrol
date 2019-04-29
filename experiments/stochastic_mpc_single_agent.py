@@ -1,8 +1,6 @@
-from models.agents import MpcAgent
-from models.micro_grid_models import DewhModel, GridModel
+from models.micro_grid_models import DewhModel
 from models.micro_grid_agents import DewhAgentMpc
-from models.parameters import dewh_param_struct, grid_param_struct
-from controllers.mpc_controller.mpc_controller import *
+from models.parameters import dewh_param_struct
 import numpy as np
 from matplotlib import pyplot as plt
 import os
@@ -76,15 +74,15 @@ def run_test(N_p=N_p, sim_steps=sim_steps, MIPGap=1e-4, q_L1_du=1, solver=cvx.GU
         agent.mpc_controller.build()
         try:
             if solver is cvx.GUROBI:
-                fb = agent.mpc_controller.feedback(TimeLimit=2,
+                fb = agent.mpc_controller.feedback(k=k, TimeLimit=2,
                                                    MIPGap=MIPGap, verbose=False, solver=solver)
             else:
-                fb = agent.mpc_controller.feedback(verbose=False,
+                fb = agent.mpc_controller.feedback(k=k, verbose=False,
                                                    solver=solver)
         except MpcSolverError as ME1:
             print('solver_error')
             try:
-                agent.mpc_controller.feedback(verbose=False,
+                fb=agent.mpc_controller.feedback(k=k, verbose=False,
                                               solver=cvx.CPLEX,
                                               cplex_filename='test.lp')
             except MpcSolverError:

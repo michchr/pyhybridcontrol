@@ -1,7 +1,6 @@
 from models.agents import MpcAgent
 from models.micro_grid_models import DewhModel, GridModel
 from models.parameters import dewh_param_struct, grid_param_struct
-from controllers.mpc_controller.mpc_controller import *
 import numpy as np
 from matplotlib import pyplot as plt
 import os

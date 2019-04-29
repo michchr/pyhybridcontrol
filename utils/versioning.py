@@ -2,10 +2,10 @@ import wrapt
 import functools
 import itertools
 import inspect
-from structdict import struct_prop_dict
+from structdict import named_struct_dict
 
 _global_version__ = 0
-VersionStruct = struct_prop_dict('VersionStruct', sorted_repr=False)
+VersionStruct = named_struct_dict('VersionStruct', sorted_repr=False)
 
 
 def increment_version(obj):

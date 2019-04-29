@@ -5,7 +5,7 @@ from reprlib import recursive_repr as _recursive_repr
 # import pandas as pd
 # pd.set_option('mode.chained_assignment', 'raise')
 
-from controllers.mpc_controller.mpc_controller import MpcController
+from controllers.mpc_controller import MpcController
 from structdict import StructDict, struct_repr
 from models.mld_model import MldSystemModel
 

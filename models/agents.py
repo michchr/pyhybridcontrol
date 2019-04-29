@@ -5,12 +5,15 @@ from reprlib import recursive_repr as _recursive_repr
 # import pandas as pd
 # pd.set_option('mode.chained_assignment', 'raise')
 
-from controllers.mpc_controller.mpc_controller import MpcController
-from structdict import StructDict, struct_repr
+from controllers.mpc_controller import MpcController
+from controllers.controller_base import ControllerBase
+from structdict import StructDict, struct_repr, named_struct_dict
 from models.mld_model import MldSystemModel, MldModel, MldInfo
 
 from utils.func_utils import ParNotSet
 from utils.helper_funcs import is_all_None
+
+from typing import MutableMapping, AnyStr
 
 
 class Agent:
@@ -29,8 +32,8 @@ class Agent:
         self.update_models(sim_model=sim_model, control_model=control_model)
 
     def update_device_data(self, device_type=None, device_id=None):
-        self._device_type = device_type if device_type is not ParNotSet else self._device_type or 'not_specified'
-        self._device_id = device_id if device_id is not ParNotSet else self._device_id
+        self._device_type = device_type if device_type is not None else self._device_type or 'not_specified'
+        self._device_id = device_id if device_id is not None else self._device_id
 
         if self._device_type in self._device_type_id_struct:
             _id_set = self._device_type_id_struct[self._device_type].id_set
@@ -106,21 +109,42 @@ class Agent:
         return struct_repr(repr_dict, type_name=self.__class__.__name__)
 
 
+class ControlledAgent(Agent):
+    ControllersStruct = named_struct_dict('ControllersStruct')
+
+    def __init__(self, device_type=None, device_id=None, sim_model=None, control_model=None, N_p=None, N_tilde=None):
+        self._controllers: MutableMapping[AnyStr, ControllerBase] = self.ControllersStruct()
+        super().__init__(device_type=device_type, device_id=device_id, sim_model=sim_model, control_model=control_model)
+
+
+    def update_models(self, sim_model: MldSystemModel = ParNotSet,
+                      control_model: MldSystemModel = ParNotSet):
+        super(ControlledAgent, self).update_models(sim_model=sim_model, control_model=control_model)
+        for controller in self.controllers.values():
+            controller.reset_components()
+
+    @property
+    def controllers(self):
+        return self._controllers
+
+    def add_controller(self, name, controller, x_k=None, omega_tilde_k=None, N_p=None, N_tilde=None):
+        self._controllers[name] = controller(agent=self, x_k=x_k, omega_tilde_k=omega_tilde_k, N_p=N_p, N_tilde=N_tilde)
+
+
 class MpcAgent(Agent):
 
     def __init__(self, device_type=None, device_id=None, sim_model=None, control_model=None, N_p=None, N_tilde=None):
         super().__init__(device_type=device_type, device_id=device_id, sim_model=sim_model, control_model=control_model)
 
         self._mpc_controller = MpcController(agent=self, N_p=N_p, N_tilde=N_tilde)
-    
-    
+
     def update_models(self, sim_model: MldSystemModel = ParNotSet,
                       control_model: MldSystemModel = ParNotSet):
         super(MpcAgent, self).update_models(sim_model=sim_model, control_model=control_model)
-        mpc_controller:MpcController = getattr(self, '_mpc_controller', None)
+        mpc_controller: MpcController = getattr(self, '_mpc_controller', None)
         if mpc_controller:
             mpc_controller.reset_components()
-    
+
     def update_horizons(self, N_p=ParNotSet, N_tilde=ParNotSet):
         N_p = N_p if N_p is not ParNotSet else self.N_p or 0
         N_tilde = N_tilde if N_tilde is not ParNotSet else N_p + 1

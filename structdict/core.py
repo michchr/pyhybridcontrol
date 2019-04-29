@@ -387,15 +387,14 @@ class SortedStructDict(StructDictMixin, _SortedDict):
 
 
 # ################################################################################
-# ### struct_prop_dict
+# ### NamedStructDict
 # ################################################################################
 
-#MAYBE RENAME TO StructNamedDict
 
-class StructPropDictMeta(StructDictMeta):
+class NamedStructDictMeta(StructDictMeta):
     def __new__(cls, name, bases, _dict, **kwargs):
 
-        kls = super(StructPropDictMeta, cls).__new__(cls, name, bases, _dict, **kwargs)
+        kls = super(NamedStructDictMeta, cls).__new__(cls, name, bases, _dict, **kwargs)
 
         base_kls = kls.__bases__[0]
         base_mro = base_kls.mro()
@@ -408,7 +407,7 @@ class StructPropDictMeta(StructDictMeta):
             invalid_field_names = set(kls._field_names).intersection(kls._internal_names_set | dir_base_kls)
             if invalid_field_names:
                 raise ValueError(
-                    f"Cannot create StructPropDict with invalid field names, i.e. names contained in "
+                    f"Cannot create NamedStructDict with invalid field names, i.e. names contained in "
                     f"'_internal_names_set or base class __dict__'s : '{invalid_field_names}'")
 
             if '_field_names_set' in kls.__dict__:
@@ -424,7 +423,7 @@ class StructPropDictMeta(StructDictMeta):
         return kls
 
 
-class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
+class NamedStructDictMixin(StructDictMixin, metaclass=NamedStructDictMeta):
     __internal_names = ()
     __slots__ = ()
 
@@ -437,7 +436,7 @@ class StructPropDictMixin(StructDictMixin, metaclass=StructPropDictMeta):
         self._base_dict_init(*args, **kwargs)
 
 
-class StructPropFixedDictMixin(StructPropDictMixin):
+class NamedFixedStructDictMixin(NamedStructDictMixin):
     __internal_names = ()
     __slots__ = ()
     _field_names = ()
@@ -472,7 +471,7 @@ class StructPropFixedDictMixin(StructPropDictMixin):
 
     @abstractmethod
     def clear(self):
-        super(StructPropFixedDictMixin, self).clear()
+        super(NamedFixedStructDictMixin, self).clear()
         self._reset()
 
     @abstractmethod
@@ -493,12 +492,12 @@ from {structdict_module} import {mixin_type} as StructMixin
 if '{base_dict}'!='dict':
     from {structdict_module} import _{base_dict} as BaseDict
 
-class _StructPropDict(StructMixin, BaseDict):
+class _NamedStructDict(StructMixin, BaseDict):
     if BaseDict.__name__ == 'SortedDict':
         __internal_names = list(BaseDict(callable).__dict__.keys())
-        _internal_names_set = StructPropDictMixin._internal_names_set.union(__internal_names)
+        _internal_names_set = NamedStructDictMixin._internal_names_set.union(__internal_names)
    
-class {typename}(_StructPropDict):
+class {typename}(_NamedStructDict):
     '{typename}(*args, {kwargs_map} **kwargs)'
     __slots__ = ()
     _field_names = {field_names!r}
@@ -515,17 +514,17 @@ class {typename}(_StructPropDict):
 """
 
 
-def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, structdict_module=__name__,
-                     base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None, frame_depth=1):
+def named_struct_dict(typename, field_names=None, default=None, fixed=False, *, structdict_module=__name__,
+                      base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None, frame_depth=1):
     """Returns a new subclass of StructDict with all fields as properties."""
 
     # Validate the field names.  At the user's option, either generate an error
     # message or automatically replace the field name with a valid name.
 
     if fixed:
-        mixin_type = StructPropFixedDictMixin.__name__
+        mixin_type = NamedFixedStructDictMixin.__name__
     else:
-        mixin_type = StructDictMixin.__name__
+        mixin_type = NamedStructDictMixin.__name__
 
     if inspect.isclass(base_dict):
         base_dict = base_dict.__name__
@@ -608,24 +607,22 @@ def struct_prop_dict(typename, field_names=None, default=None, fixed=False, *, s
     return result
 
 
-def struct_prop_fixed_dict(typename, field_names=None, default=None, fixed=True, *,
-                           structdict_module=__name__, base_dict=None, sorted_repr=False,
-                           verbose=False, rename=False, module=None, frame_depth=2):
-
-    return struct_prop_dict(typename, field_names=field_names, default=default, fixed=fixed,
-                            structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
-                            verbose=verbose,
-                            rename=rename, module=module, frame_depth=frame_depth)
-
-
-def struct_prop_ordereddict(typename, field_names=None, default=None, fixed=False, *,
-                            structdict_module=__name__, base_dict=_OrderedDict, sorted_repr=False,
+def named_fixed_struct_dict(typename, field_names=None, default=None, fixed=True, *,
+                            structdict_module=__name__, base_dict=None, sorted_repr=False,
                             verbose=False, rename=False, module=None, frame_depth=2):
+    return named_struct_dict(typename, field_names=field_names, default=default, fixed=fixed,
+                             structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
+                             verbose=verbose,
+                             rename=rename, module=module, frame_depth=frame_depth)
 
-    return struct_prop_dict(typename, field_names=field_names, default=default, fixed=fixed,
-                            structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
-                            verbose=verbose,
-                            rename=rename, module=module, frame_depth=frame_depth)
+
+def named_struct_ordereddict(typename, field_names=None, default=None, fixed=False, *,
+                             structdict_module=__name__, base_dict=_OrderedDict, sorted_repr=False,
+                             verbose=False, rename=False, module=None, frame_depth=2):
+    return named_struct_dict(typename, field_names=field_names, default=default, fixed=fixed,
+                             structdict_module=structdict_module, base_dict=base_dict, sorted_repr=sorted_repr,
+                             verbose=verbose,
+                             rename=rename, module=module, frame_depth=frame_depth)
 
 
 if __name__ == '__main__':
