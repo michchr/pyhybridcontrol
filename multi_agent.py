@@ -11,6 +11,8 @@ import pandas as pd
 from datetime import datetime as DateTime
 from tools.tariff_generator import TariffGenerator
 import itertools
+
+from structdict import StructDict
 import cvxpy as cvx
 
 IDX = pd.IndexSlice
@@ -45,7 +47,7 @@ import time
 
 st = time.time()
 
-devices = [DewhAgentMpc(N_p=N_p) for i in range(10)]
+devices = [DewhAgentMpc(N_p=N_p) for i in range(20)]
 
 pvAgent = PvAgentMpc(N_p=N_p)
 pvAgent.set_omega_profile(omega_pv_profile)
@@ -85,7 +87,7 @@ for cname in controllers:
         if cname in mpc_controllers:
             dev.add_controller(cname, MpcController, N_p=N_p)
             if isinstance(dev, DewhAgentMpc):
-                dev.set_device_objective_atoms(controller_name=cname, q_mu=[1e5, 1e3],
+                dev.set_device_objective_atoms(controller_name=cname, q_mu=[1e3, 5],
                                                q_L1_du=0)
         elif cname=='thermo':
             if isinstance(dev, DewhAgentMpc):
@@ -99,7 +101,10 @@ for dev in devices:
     if isinstance(dev, DewhAgentMpc):
         dev.x_k = np.random.randint(55, 65)
 
-for k in range(0, 1000):
+
+prices = StructDict({cname:0 for cname in controllers})
+
+for k in range(0, sim_steps):
     st = time.time()
     prices_tilde = grid.get_price_tilde_k(k=k)
 
@@ -107,19 +112,24 @@ for k in range(0, 1000):
         for dev in itertools.chain([grid], devices):
             if isinstance(dev, DewhAgentMpc):
                 if cname == 'mpc_scenario':
-                    omega_tilde_scenarios = dev.get_omega_tilde_scenario(k, N_tilde=N_tilde, num_scenarios=100)
+                    omega_tilde_scenarios = dev.get_omega_tilde_scenario(k, N_tilde=N_tilde, num_scenarios=20)
                     dev.controllers[cname].set_constraints(
                         other_constraints=[
-                            dev.controllers[cname].gen_evo_constraints(N_tilde=4,
+                            dev.controllers[cname].gen_evo_constraints(N_tilde=2,
                                                                     omega_scenarios_k=omega_tilde_scenarios)])
             elif isinstance(dev, GridAgentMpc) and cname in mpc_controllers:
-                dev.controllers[cname].set_std_obj_atoms(q_L1_y=prices_tilde[cname])
+                dev.controllers[cname].set_std_obj_atoms(q_z=prices_tilde[cname])
 
     grid.build_grid(k=k, deterministic_or_struct=deterministic_struct)
-    grid.solve_grid_mpc(k=k, verbose=False, TimeLimit=20)
+    grid.solve_grid_mpc(k=k, verbose=False, TimeLimit=20, MIPGap=1e-2)
     print(f'k={k}')
-    print(f"Time to solve including data transfer:{time.time() - st}\n")
-    grid.sim_step_k(k=k)
+    print(f"Time to solve including data transfer:{time.time() - st}")
+    l_sim = grid.sim_step_k(k=k)
+
+    for cname in controllers:
+        prices[cname] += l_sim[cname].cost
+    print(prices)
+    print('\n')
 #
 # dfs = [grid.sim_log.get_concat_log()]
 # keys = [(grid.device_type, grid.device_id)]
