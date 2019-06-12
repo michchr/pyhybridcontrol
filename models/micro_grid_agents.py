@@ -18,22 +18,23 @@ from utils.matrix_utils import atleast_2d_col
 
 from controllers.mpc_controller import MpcController
 from controllers.controller_base import (ControllerBase, ControllerBuildRequiredError, ConstraintSolvedController,
-                                         MldSimLog)
+                                         MldSimLog, ControllerSolverError)
 
 from structdict import StructDict, named_struct_dict
 
 import itertools
+
+import warnings
 
 
 class MicroGridAgentBase(ControlledAgent, ABC):
     @abstractmethod
     def __init__(self, device_type=None, device_id=None,
                  sim_model=ParNotSet, control_model=ParNotSet,
-                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_profile=None, profile_t0=DateTime(2018, 12, 3),
                  omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
         super().__init__(device_type=device_type, device_id=device_id,
-                         sim_model=sim_model, control_model=control_model,
-                         N_p=N_p, N_tilde=N_tilde)
+                         sim_model=sim_model, control_model=control_model)
 
         self.omega_profile = None
         self.profile_t0 = profile_t0
@@ -162,20 +163,20 @@ class MicroGridAgentBase(ControlledAgent, ABC):
                 raise ValueError(
                     f"omega_scenarios_profile must have column dimension of 'nomega':{self.mld_info.nomega} not {m}.")
 
-            self.intervals_per_day = intervals_per_day = pd.Timedelta('1D') // pd.Timedelta(seconds=self.mld_info.dt)
+            self.intervals_per_day = intervals_per_day = pd.Timedelta('1D') // pd.Timedelta(seconds=self.mld_info.ts)
             self.num_scenarios = num_scenarios = n // intervals_per_day
 
             omega_scenarios_profile.index = pd.timedelta_range(scenarios_t0, periods=n,
-                                                               freq=pd.Timedelta(seconds=self.mld_info.dt))
+                                                               freq=pd.Timedelta(seconds=self.mld_info.ts))
             omega_scenarios_profile.reindex(pd.timedelta_range(scenarios_t0, periods=num_scenarios * intervals_per_day,
-                                                               freq=pd.Timedelta(seconds=self.mld_info.dt)))
+                                                               freq=pd.Timedelta(seconds=self.mld_info.ts)))
             omega_scenarios_profile.index.name = 'TimeDelta'
 
             omega_scenarios = omega_scenarios_profile.stack().values.reshape(intervals_per_day * m, -1, order='F')
 
             multi_index = pd.MultiIndex.from_product(
                 [pd.timedelta_range(scenarios_t0, periods=intervals_per_day,
-                                    freq=pd.Timedelta(seconds=self.mld_info.dt)),
+                                    freq=pd.Timedelta(seconds=self.mld_info.ts)),
                  [f'omega_{index}' for index in range(m)]])
 
             omega_scenarios = pd.DataFrame(omega_scenarios, index=multi_index)
@@ -196,7 +197,7 @@ class MicroGridAgentBase(ControlledAgent, ABC):
                     f"Omega profile must have column dimension of 'nomega':{self.mld_info.nomega} not {m}.")
 
             omega_profile.columns = [f'omega_{index}' for index in range(m)]
-            omega_profile.index = pd.date_range(profile_t0, periods=n, freq=pd.Timedelta(seconds=self.mld_info.dt))
+            omega_profile.index = pd.date_range(profile_t0, periods=n, freq=pd.Timedelta(seconds=self.mld_info.ts))
             omega_profile.index.name = 'DateTime'
 
         self.omega_profile = omega_profile if omega_profile is not ParNotSet else self.omega_profile
@@ -370,14 +371,14 @@ class DewhAgentMpc(MicroGridDeviceAgent):
 
     def __init__(self, device_type='dewh', device_id=None,
                  sim_model=ParNotSet, control_model=ParNotSet,
-                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_profile=None, profile_t0=DateTime(2018, 12, 3),
                  omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
         sim_model = sim_model if sim_model is not ParNotSet else DewhModel(const_heat=False)
         control_model = control_model if control_model is not ParNotSet else DewhModel(const_heat=True)
 
         super().__init__(device_type=device_type, device_id=device_id,
                          sim_model=sim_model, control_model=control_model,
-                         N_p=N_p, N_tilde=N_tilde, omega_profile=omega_profile, profile_t0=profile_t0,
+                         omega_profile=omega_profile, profile_t0=profile_t0,
                          omega_scenarios_profile=omega_scenarios_profile, scenarios_t0=scenarios_t0,
                          forecast_lag=forecast_lag)
 
@@ -425,14 +426,14 @@ class DewhAgentMpc(MicroGridDeviceAgent):
 class PvAgentMpc(MicroGridDeviceAgent):
     def __init__(self, device_type='pv', device_id=None,
                  sim_model=ParNotSet, control_model=ParNotSet,
-                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_profile=None, profile_t0=DateTime(2018, 12, 3),
                  omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
         sim_model = sim_model if sim_model is not ParNotSet else PvModel()
         control_model = control_model if control_model is not ParNotSet else sim_model
 
         super().__init__(device_type=device_type, device_id=device_id,
                          sim_model=sim_model, control_model=control_model,
-                         N_p=N_p, N_tilde=N_tilde, omega_profile=omega_profile, profile_t0=profile_t0,
+                         omega_profile=omega_profile, profile_t0=profile_t0,
                          omega_scenarios_profile=omega_scenarios_profile, scenarios_t0=scenarios_t0,
                          forecast_lag=forecast_lag)
 
@@ -457,14 +458,14 @@ class PvAgentMpc(MicroGridDeviceAgent):
 class ResDemandAgentMpc(MicroGridDeviceAgent):
     def __init__(self, device_type='resd', device_id=None,
                  sim_model=ParNotSet, control_model=ParNotSet,
-                 N_p=None, N_tilde=None, omega_profile=None, profile_t0=DateTime(2018, 12, 3),
+                 omega_profile=None, profile_t0=DateTime(2018, 12, 3),
                  omega_scenarios_profile=None, scenarios_t0=pd.Timedelta(0), forecast_lag='1D'):
         sim_model = sim_model if sim_model is not ParNotSet else ResDemandModel()
         control_model = control_model if control_model is not ParNotSet else sim_model
 
         super().__init__(device_type=device_type, device_id=device_id,
                          sim_model=sim_model, control_model=control_model,
-                         N_p=N_p, N_tilde=N_tilde, omega_profile=omega_profile, profile_t0=profile_t0,
+                         omega_profile=omega_profile, profile_t0=profile_t0,
                          omega_scenarios_profile=omega_scenarios_profile, scenarios_t0=scenarios_t0,
                          forecast_lag=forecast_lag)
 
@@ -493,7 +494,6 @@ class GridAgentMpc(MicroGridAgentBase):
 
     def __init__(self, device_type='grid', device_id=None,
                  sim_model=ParNotSet, control_model=ParNotSet,
-                 N_p=None, N_tilde=None,
                  price_profile=None, profile_t0=DateTime(2018, 12, 3), forecast_lag='1D'):
 
         sim_model = sim_model if sim_model is not ParNotSet else GridModel(0)
@@ -501,7 +501,7 @@ class GridAgentMpc(MicroGridAgentBase):
 
         super().__init__(device_type=device_type, device_id=device_id,
                          sim_model=sim_model, control_model=control_model, profile_t0=DateTime(2018, 12, 3),
-                         N_p=N_p, N_tilde=N_tilde, forecast_lag=forecast_lag)
+                         forecast_lag=forecast_lag)
 
         self.price_profile = None
         self.set_price_profile(price_profile=price_profile, profile_t0=profile_t0)
@@ -562,7 +562,7 @@ class GridAgentMpc(MicroGridAgentBase):
             #         f"Omega profile must have column dimension of 'nomega':{self.mld_info.nomega} not {m}.")
 
             price_profile.columns = [f'price_{index}' for index in range(m)]
-            price_profile.index = pd.date_range(profile_t0, periods=n, freq=pd.Timedelta(seconds=self.mld_info.dt))
+            price_profile.index = pd.date_range(profile_t0, periods=n, freq=pd.Timedelta(seconds=self.mld_info.ts))
             price_profile.index.name = 'DateTime'
 
         self.price_profile = price_profile if price_profile is not ParNotSet else self.price_profile
@@ -715,6 +715,10 @@ class GridAgentMpc(MicroGridAgentBase):
             except ControllerBuildRequiredError:
                 raise ControllerBuildRequiredError(
                     f'Controller:{cname!r} has not been built for the grid or a rebuild is required.')
+            except ControllerSolverError as e:
+                warnings.warn(f'Solver failed with error: {e.args[0]}\n'
+                              f'Using last solution, will not be optimal.')
+                grid_solution = 0
 
             for device in self.devices:
                 if cname in device.controllers:
@@ -803,7 +807,7 @@ if __name__ == '__main__':
 
     # omega_scenarios_profile = pd.read_pickle(os.path.realpath(r'../experiments/data/dewh_omega_profile_df.pickle'))
     # dewh_a = DewhAgentMpc(N_p=48)
-    # dewh_a.set_omega_scenarios(omega_scenarios_profile / dewh_a.mld_info.dt)
+    # dewh_a.set_omega_scenarios(omega_scenarios_profile / dewh_a.mld_info.ts)
     #
     # dewh_a.set_device_objective_atoms(q_u=1, q_mu=[10e5, 10e4])
     #

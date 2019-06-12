@@ -1,3 +1,5 @@
+import warnings
+
 class AttributeAccessor:
     __slots__ = ('name', 'doc')
 
@@ -76,6 +78,14 @@ class ItemAccessorMixin:
         else:
             return object.__getattribute__(self, key)
 
+    def __delattr__(self, key):
+        if hasattr(type(self), key):
+            return object.__delattr__(self, key)
+        elif isinstance(self, dict):
+            del self[key]
+        else:
+            return object.__delattr__(self, key)
+
 
 _is_using_c = False
 try:
@@ -84,7 +94,9 @@ try:
     ItemAccessorMixin = _accessors.ItemAccessorMixin
     _is_using_c = True
 except (ImportError, AttributeError):
-    raise ImportWarning("Could not import accessors c extension.")
+    with warnings.catch_warnings():
+        warnings.simplefilter('once')
+        warnings.warn("structdict.accessors is not using C extensions - will be slower.", ImportWarning)
 
 
 def is_using_c():

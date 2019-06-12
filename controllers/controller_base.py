@@ -20,6 +20,7 @@ from utils.matrix_utils import matmul
 from utils.versioning import VersionMixin
 from utils.versioning import versioned
 
+import time
 
 class ControllerBuildRequiredError(RuntimeError):
     pass
@@ -28,6 +29,15 @@ class ControllerBuildRequiredError(RuntimeError):
 class ControllerSolverError(RuntimeError):
     pass
 
+
+def record_overall_time(var_name):
+    @wrapt.decorator
+    def wrapper(wrapped, self, args, kwargs):
+        start = time.time()
+        ret = wrapped(*args, **kwargs)
+        setattr(self, var_name, time.time()-start)
+        return ret
+    return wrapper
 
 def build_required_decor(wrapped=None, set=True):
     if wrapped is None:
@@ -167,6 +177,10 @@ class ControllerBase(ABC, VersionMixin):
 
         self._x_k = None
         self._omega_tilde_k = None
+
+        self._solve_time_overall = 0
+        self._solve_time_solver = 0
+
         self.reset_components(x_k=x_k, omega_tilde_k=omega_tilde_k)
 
     def reset_components(self, x_k=None, omega_tilde_k=None):
@@ -229,6 +243,9 @@ class ControllerBase(ABC, VersionMixin):
             var_k_hat = {var_name + "_hat": var for var_name, var in var_k.items()}
             lsim_k.update(var_k_hat)
             self.sim_log.set_sim_k(k=k, sim_k=lsim_k)
+            self.sim_log.update_sim_k(k=k,
+                                      time_solve_overall=self._solve_time_overall,
+                                      time_in_solver=self._solve_time_solver)
             self.x_k = lsim_k.x_k1
         else:
             del lsim_k.x_k1
@@ -241,6 +258,7 @@ class ControllerBase(ABC, VersionMixin):
         self.update_stored_version()
 
     @abstractmethod
+    @record_overall_time(var_name='_solve_time_overall')
     def solve(self, k, x_k=None, omega_tilde_k=None, external_solve=None, *args, **kwargs):
         pass
 
@@ -328,6 +346,7 @@ class ConstraintSolvedController(ControllerBase):
         self._std_evo_constraints = []
         self._other_constraints = []
         self._constraints = []
+        self._problem = None
 
     @property
     def variables(self) -> EvoVariables:
@@ -469,6 +488,7 @@ class ConstraintSolvedController(ControllerBase):
         self._problem = cvx.Problem(cvx.Minimize(cvx.Constant(0)), self._constraints)
         self.update_stored_version()
 
+    @record_overall_time(var_name='_solve_time_overall')
     def solve(self, k, x_k=None, omega_tilde_k=None, external_solve=None,
               solver=None, verbose=False, warm_start=True, parallel=False, *args, method=None, **kwargs):
 
@@ -490,7 +510,9 @@ class ConstraintSolvedController(ControllerBase):
                                                verbose=verbose,
                                                warm_start=warm_start,
                                                parallel=parallel, method=method, **kwargs)
+                self._solve_time_solver = self._problem.solver_stats.solve_time
             except cvx.error.SolverError as se:
+                self._solve_time_solver = np.NaN
                 with io.StringIO() as std_out_redirect:
                     if verbose == False:
                         with contextlib.redirect_stdout(std_out_redirect):
@@ -512,6 +534,7 @@ class ConstraintSolvedController(ControllerBase):
                 raise ControllerSolverError(
                     f"solve() failed with objective: '{solution}', and status: {self._problem.status}")
         else:
+            self._solve_time_solver = 0
             solution = external_solve
 
         return solution

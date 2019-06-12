@@ -103,7 +103,7 @@ class EvoVariables(ComponentBase):
 
 
     #todo still needs work
-    def add_custom_var(self, var_name, var_N_tilde, N_tilde=None, N_p=None):
+    def add_custom_var(self, var_name, var_N_tilde, N_p=None, N_tilde=None):
         if var_name in self:
             raise ValueError(f"Variable with name:{var_name} already exists.")
         elif not isinstance(var_N_tilde, cvx_e.Expression):

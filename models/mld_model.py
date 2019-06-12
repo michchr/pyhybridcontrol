@@ -117,7 +117,7 @@ class MldInfo(MldBase):
 
     # MldInfo Config
     _valid_var_types = {'c', 'b'}
-    _meta_data_names = ['dt', 'param_struct', 'required_params']
+    _meta_data_names = ['ts', 'param_struct', 'required_params']
 
     _sys_dim_names = ['n_states', 'n_outputs', 'n_constraints']
 
@@ -178,11 +178,11 @@ class MldInfo(MldBase):
     _field_names = sorted([data for data_type in _data_layout.values() for data in data_type])
     _field_names_set = frozenset(_field_names)
 
-    def __init__(self, mld_info_data=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def __init__(self, mld_info_data=None, ts=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                  required_params=None, **kwargs):
         super(MldInfo, self).__init__(**kwargs)
 
-        self.update(mld_info_data=mld_info_data, dt=dt, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
+        self.update(mld_info_data=mld_info_data, ts=ts, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
                     var_types_struct=var_types_struct, required_params=required_params, _from_init=True, **kwargs)
 
     def copy(self):
@@ -218,7 +218,7 @@ class MldInfo(MldBase):
 
     @_process_mld_args_decor
     @increments_version_decor
-    def update(self, mld_info_data=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def update(self, mld_info_data=None, ts=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                required_params=None, **kwargs):
 
         _from_init = kwargs.pop('_from_init', False)
@@ -254,8 +254,8 @@ class MldInfo(MldBase):
         if _from_init:
             if mld_dims is None:
                 mld_dims = {dim_name: 0 for dim_name in self._mld_dim_map}
-            if dt is ParNotSet:
-                dt = None
+            if ts is ParNotSet:
+                ts = None
 
         if mld_dims:
             new_mld_info.update(mld_dims)
@@ -264,7 +264,7 @@ class MldInfo(MldBase):
             modified_var_names = set(
                 [self._var_info_to_var_names_map[key] for key in set(bin_dims_struct) | set(var_types_struct)])
 
-        new_mld_info = self._set_metadata(info_data=new_mld_info, dt=dt, param_struct=param_struct,
+        new_mld_info = self._set_metadata(info_data=new_mld_info, ts=ts, param_struct=param_struct,
                                           required_params=required_params)
 
         new_mld_info = self._set_var_info(info_data=new_mld_info, modified_var_names=modified_var_names,
@@ -272,10 +272,10 @@ class MldInfo(MldBase):
 
         super(MldInfo, self).update(new_mld_info)
 
-    def _set_metadata(self, info_data, dt=ParNotSet, param_struct=None, required_params=None):
+    def _set_metadata(self, info_data, ts=ParNotSet, param_struct=None, required_params=None):
 
-        if dt is not ParNotSet:
-            info_data['dt'] = dt
+        if ts is not ParNotSet:
+            info_data['ts'] = ts
 
         if param_struct is not None:
             if isinstance(param_struct, dict):
@@ -425,7 +425,7 @@ class MldModel(MldBase):
     _field_names = sorted(_sys_mat_names | _sys_mat_names_private)
     _field_names_set = frozenset(_field_names)
 
-    def __init__(self, system_matrices=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None,
+    def __init__(self, system_matrices=None, ts=ParNotSet, param_struct=None, bin_dims_struct=None,
                  var_types_struct=None,
                  **kwargs):
         super(MldModel, self).__init__()
@@ -436,7 +436,7 @@ class MldModel(MldBase):
         self._all_empty_mats = set()
         self._all_zero_mats = set()
 
-        self.update(system_matrices=system_matrices, dt=dt, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
+        self.update(system_matrices=system_matrices, ts=ts, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
                     var_types_struct=var_types_struct, from_init=True, **kwargs)
 
     @property
@@ -466,7 +466,7 @@ class MldModel(MldBase):
 
     @_process_mld_args_decor
     @increments_version_decor
-    def update(self, system_matrices=None, dt=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
+    def update(self, system_matrices=None, ts=ParNotSet, param_struct=None, bin_dims_struct=None, var_types_struct=None,
                **kwargs):
         from_init = kwargs.pop('from_init', False)
         mld_info_kwargs = {key: kwargs.pop(key) for key in list(kwargs) if key in MldInfo._field_names_set}
@@ -537,14 +537,14 @@ class MldModel(MldBase):
         else:
             required_params = None
 
-        self.mld_info.update(mld_info_data=mld_dims, dt=dt, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
+        self.mld_info.update(mld_info_data=mld_dims, ts=ts, param_struct=param_struct, bin_dims_struct=bin_dims_struct,
                              var_types_struct=var_types_struct, required_params=required_params, **mld_info_kwargs)
 
     # TODO not finished - needs to include output constraints, interpolation and datetime handling
     LSimStruct = named_struct_dict('LSimStruct', ['t_out', 'y_out', 'x_out', 'con_out', 'x_out_k1'], sorted_repr=False)
 
-    def lsim(self, x_k=None, u=None, delta=None, z=None, mu=None, v=None, omega=None, t=None, dt=ParNotSet):
-        dt = dt if dt is not ParNotSet else self.mld_info.dt
+    def lsim(self, x_k=None, u=None, delta=None, z=None, mu=None, v=None, omega=None, t=None, ts=ParNotSet):
+        ts = ts if ts is not ParNotSet else self.mld_info.ts
         m_dims = self.mld_info.var_dims_struct
         inputs_struct = StructDict()
 
@@ -569,10 +569,10 @@ class MldModel(MldBase):
         max_input_samples = get_expr_shapes(inputs_struct, get_max_dim=True)[0]
         if t is None:
             out_samples = max_input_samples
-            stoptime = (out_samples - 1) * dt
+            stoptime = (out_samples - 1) * ts
         else:
             stoptime = t[-1]
-            out_samples = int(np.floor(stoptime / dt)) + 1
+            out_samples = int(np.floor(stoptime / ts)) + 1
 
         for input_name, input in inputs_struct.items():
             input_dim = m_dims[input_name]
@@ -623,7 +623,7 @@ class MldModel(MldBase):
         # Pre-interpolate inputs into the desired time steps
         # todo interpolate inputs
 
-        # return x_out_k1, u_dt, delta, z, omega
+        # return x_out_k1, u, delta, z, omega
         # Simulate the system
         for k in range(0, out_samples):
             x_out_k1[k + 1, :] = (
@@ -765,21 +765,21 @@ class MldModel(MldBase):
 
         return delta_k, z_k, mu_k
 
-    def to_numeric(self, param_struct=None, dt=ParNotSet, copy=False):
+    def to_numeric(self, param_struct=None, ts=ParNotSet, copy=False):
         param_struct = param_struct if param_struct is not None else self.mld_info.param_struct
 
-        if dt is ParNotSet:
-            if param_struct and param_struct.get('dt', ParNotSet) is not ParNotSet:
-                dt = param_struct['dt']
+        if ts is ParNotSet:
+            if param_struct and param_struct.get('ts', ParNotSet) is not ParNotSet:
+                ts = param_struct['ts']
             else:
-                dt = self.mld_info.dt
+                ts = self.mld_info.ts
 
         if param_struct is not None:
             param_struct = _copy(param_struct)
-            if param_struct.get('dt', ParNotSet) is not ParNotSet:
-                param_struct['dt'] = dt
+            if param_struct.get('ts', ParNotSet) is not ParNotSet:
+                param_struct['ts'] = ts
 
-        if self.mld_info.dt is None and dt is not None:
+        if self.mld_info.ts is None and ts is not None:
             raise NotImplementedError("Discretization required")
             # todo discretisation required
 
@@ -788,7 +788,7 @@ class MldModel(MldBase):
                             self.items()}
         elif self.mld_type == self.MldModelTypes.symbolic:
             print("Performance warning, mld_type is not callable had to convert to callable")
-            callable_mld = self.to_callable(param_struct=param_struct, dt=dt)
+            callable_mld = self.to_callable(param_struct=param_struct, ts=ts)
             return callable_mld.to_numeric(param_struct=param_struct, copy=copy)
         else:
             dict_numeric = _deepcopy(self.as_base_dict()) if copy else self.as_base_dict()
@@ -801,22 +801,22 @@ class MldModel(MldBase):
         numeric_mld = self._constructor_from_self(items=dict_numeric, copy_instance_attr=True,
                                                   deepcopy_instance_attr=copy,
                                                   instance_attr_override={'_mld_type': mld_type})
-        numeric_mld.mld_info._base_dict_update(param_struct=param_struct, dt=dt)
+        numeric_mld.mld_info._base_dict_update(param_struct=param_struct, ts=ts)
         return numeric_mld
 
-    def to_callable(self, param_struct=None, dt=ParNotSet, copy=False):
+    def to_callable(self, param_struct=None, ts=ParNotSet, copy=False):
         param_struct = param_struct if param_struct is not None else self.mld_info.param_struct
 
-        if dt is ParNotSet:
-            if param_struct and param_struct.get('dt', ParNotSet) is not ParNotSet:
-                dt = param_struct['dt']
+        if ts is ParNotSet:
+            if param_struct and param_struct.get('ts', ParNotSet) is not ParNotSet:
+                ts = param_struct['ts']
             else:
-                dt = self.mld_info.dt
+                ts = self.mld_info.ts
 
         if param_struct is not None:
             param_struct = _copy(param_struct)
-            if param_struct.get('dt', ParNotSet) is not ParNotSet:
-                param_struct['dt'] = dt
+            if param_struct.get('ts', ParNotSet) is not ParNotSet:
+                param_struct['ts'] = ts
 
         if self.mld_type in (self.MldModelTypes.numeric, self.MldModelTypes.symbolic):
             dict_callable = {}
@@ -829,7 +829,7 @@ class MldModel(MldBase):
         callable_mld = self._constructor_from_self(items=dict_callable, copy_instance_attr=True,
                                                    deepcopy_instance_attr=copy,
                                                    instance_attr_override={'_mld_type': mld_type})
-        callable_mld.mld_info._base_dict_update(param_struct=param_struct, dt=dt)
+        callable_mld.mld_info._base_dict_update(param_struct=param_struct, ts=ts)
         return callable_mld
 
     def _set_mld_type(self, mld_data):

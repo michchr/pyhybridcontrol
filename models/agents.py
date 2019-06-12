@@ -31,6 +31,11 @@ class Agent:
         self.update_device_data(device_type=device_type, device_id=device_id)
         self.update_models(sim_model=sim_model, control_model=control_model)
 
+    # todo Still needs work
+    @classmethod
+    def delete_all_devices(cls):
+        cls._device_type_id_struct.clear()
+
     def update_device_data(self, device_type=None, device_id=None):
         self._device_type = device_type if device_type is not None else self._device_type or 'not_specified'
         self._device_id = device_id if device_id is not None else self._device_id
@@ -112,10 +117,9 @@ class Agent:
 class ControlledAgent(Agent):
     ControllersStruct = named_struct_dict('ControllersStruct')
 
-    def __init__(self, device_type=None, device_id=None, sim_model=None, control_model=None, N_p=None, N_tilde=None):
+    def __init__(self, device_type=None, device_id=None, sim_model=None, control_model=None):
         self._controllers: MutableMapping[AnyStr, ControllerBase] = self.ControllersStruct()
         super().__init__(device_type=device_type, device_id=device_id, sim_model=sim_model, control_model=control_model)
-
 
     def update_models(self, sim_model: MldSystemModel = ParNotSet,
                       control_model: MldSystemModel = ParNotSet):
@@ -127,8 +131,15 @@ class ControlledAgent(Agent):
     def controllers(self):
         return self._controllers
 
-    def add_controller(self, name, controller, x_k=None, omega_tilde_k=None, N_p=None, N_tilde=None):
-        self._controllers[name] = controller(agent=self, x_k=x_k, omega_tilde_k=omega_tilde_k, N_p=N_p, N_tilde=N_tilde)
+    def add_controller(self, name, controller_type, x_k=None, omega_tilde_k=None, N_p=None, N_tilde=None):
+        self._controllers[name] = controller_type(agent=self, x_k=x_k, omega_tilde_k=omega_tilde_k, N_p=N_p,
+                                                  N_tilde=N_tilde)
+
+    def delete_controller(self, name):
+        del self._controllers[name]
+
+    def delete_all_controllers(self):
+        self._controllers.clear()
 
 
 class MpcAgent(Agent):

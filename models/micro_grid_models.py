@@ -25,8 +25,8 @@ class DewhModel(PvMldSystemModel):
     @staticmethod
     @cache_hashable_args(maxsize=4)
     def get_dewh_mld_symbolic(const_heat=True, binary_input=True):
-        dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
-            'dt, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
+        ts, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom = sp.symbols(
+            'ts, C_w, A_h, U_h, m_h, D_h, T_w, T_inf, P_h_Nom')
         T_h_min, T_h_max = sp.symbols('T_h_min, T_h_max')
         T_h_Nom = sp.symbols('T_h_Nom')
         T_h = sp.symbols('T_h')
@@ -44,14 +44,14 @@ class DewhModel(PvMldSystemModel):
             b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
         else:
             # assume water demand flow rate constant over sampling period
-            A_c = sp.Matrix([-((D_h * (T_h_Nom - T_w) / (T_h - T_w) * C_w) + p1) / p2])
+            A_c = sp.Matrix([-((D_h * C_w * ((T_h_Nom - T_w) / (T_h - T_w))) + p1) / p2])
             B1_c = sp.Matrix([P_h_Nom]) * (p2 ** -1)
             B4_c = sp.Matrix([C_w * T_w * (T_h_Nom - T_w) / (T_h - T_w)]) * (p2 ** -1)
             b5_c = sp.Matrix([p1 * T_inf]) * (p2 ** -1)
 
         # Compute discretized system matrices
-        A = sp.Matrix.exp(A_c * dt)
-        em = A_c.pinv() * (sp.Matrix.exp(A_c * dt) - sp.eye(*A.shape))
+        A = sp.Matrix.exp(A_c * ts)
+        em = A_c.pinv() * (sp.Matrix.exp(A_c * ts) - sp.eye(*A.shape))
         B1 = em * B1_c
         B4 = em * B4_c
         b5 = em * b5_c
@@ -95,7 +95,7 @@ class DewhModel(PvMldSystemModel):
 
         nu_l = 1 if binary_input else 0
 
-        MldModel_sym = MldModel(mld_sym_struct, nu_l=nu_l, dt=0)
+        MldModel_sym = MldModel(mld_sym_struct, nu_l=nu_l, ts=0)
 
         return MldModel_sym
 
@@ -167,7 +167,7 @@ class GridModel(PvMldSystemModel):
                                        -1,
                                        1]]).T
 
-        MldModel_sym = MldModel(mld_sym_struct, dt=0)
+        MldModel_sym = MldModel(mld_sym_struct, ts=0)
 
         return MldModel_sym
 
@@ -197,7 +197,7 @@ class PvModel(PvMldSystemModel):
 
         mld_sym_struct.D4 = sp.Matrix([[-P_pv_max*P_pv_units]])
 
-        MldModel_sym = MldModel(mld_sym_struct, dt=0)
+        MldModel_sym = MldModel(mld_sym_struct, ts=0)
 
 
         return MldModel_sym
@@ -227,6 +227,6 @@ class ResDemandModel(PvMldSystemModel):
 
         mld_sym_struct.D4 = sp.Matrix([[P_res_ave*P_res_units]])
 
-        MldModel_sym = MldModel(mld_sym_struct, dt=0)
+        MldModel_sym = MldModel(mld_sym_struct, ts=0)
 
         return MldModel_sym

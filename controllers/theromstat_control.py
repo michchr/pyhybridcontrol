@@ -1,4 +1,4 @@
-from controllers.controller_base import NonPredictiveController, build_required_decor
+from controllers.controller_base import NonPredictiveController, build_required_decor, record_overall_time
 
 from controllers.components.variables import VariablesStruct_k, VariablesStruct_k_neg1
 
@@ -34,6 +34,7 @@ class DewhTheromstatController(NonPredictiveController):
     def build(self, *args, **kwargs):
         super(DewhTheromstatController, self).build(*args, **kwargs)
 
+    @record_overall_time(var_name='_solve_time_overall')
     def solve(self, k, x_k=None, omega_tilde_k=None, external_solve=None, solver=None, *args, **kwargs):
         if x_k is not None:
             self.x_k = x_k
@@ -45,10 +46,11 @@ class DewhTheromstatController(NonPredictiveController):
         u_k_neg1 = np.asscalar(vars_k_neg1.u)
         T_h = np.asscalar(self.x_k)
         T_h_max = self.sim_model.param_struct.T_h_max
+        T_h_min = self.sim_model.param_struct.T_h_min
 
-        if T_h <= T_h_max - np.random.uniform(low=7, high=11):
+        if T_h <= T_h_max - 12:
             u_k = 1
-        elif T_h >= T_h_max - 3:
+        elif T_h >= T_h_max - 4:
             u_k = 0
         elif u_k_neg1 == 1:
             u_k = 1

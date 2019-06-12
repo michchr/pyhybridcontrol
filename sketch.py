@@ -1,75 +1,40 @@
-import cvxpy as cvx
-
-v = cvx.Variable(50000, nonneg=True)
-p = cvx.Problem(cvx.Minimize(cvx.sum(v)))
-p.solve()
-
-import re as regex
-
-pat = regex.compile('([0-9]+)')
-
-
-import logging
-import sys
-
-console_hand = logging.StreamHandler(sys.stdout)
-console_hand.setLevel(logging.INFO)
-
-
-a = {}
-
-
-class Format(logging.Formatter):
-    def formatMessage(self, record):
-        import inspect
-        import os
-        f = inspect.currentframe()
-
-        if f is not None:
-            f = f.f_back
-        qual_name = record.funcName
-        record_filename = os.path.normcase(record.pathname)
-
-        a['a'] = f
-
-        while hasattr(f, "f_code"):
-            co = f.f_code
-            filename = os.path.normcase(co.co_filename)
-            if filename != record_filename or f.f_lineno!=record.lineno or co.co_name!=record.funcName:
-                a['c'] = f
-                f = f.f_back
-                continue
-            else:
-                f=f.f_back
-                func = f.f_locals.get(record.funcName, None) or getattr(f.f_locals.get(f.f_code.co_names[-1]), record.funcName, None)
-                if func:
-                    qual_name = func.__qualname__
-                break
+# from models.mld_model import MldModel, MldSystemModel
+# from controllers.mpc_controller import MpcController
+# import cvxpy as cvx
+# from models.agents import MpcAgent
+#
+#
+# mld = MldModel(A=[[0.5, 0],[1,1]], B1=[1,0], b5=[10,0],F1=[1,-1],f5=[0,11],dt=1)
+# model = MldSystemModel(mld_numeric=mld)
+# mpc_agent = MpcAgent(sim_model=model, N_p=30)
+#
+# mpc_agent.mpc_controller.set_std_obj_atoms(Q_x_N_p=[[100,0],[0,5]], Q_du=1, Q_u=1000)
+# mpc_agent.mpc_controller.sim_log.update(-1,u=0)
+# mpc_agent.mpc_controller.build()
+#
+# print(mpc_agent.mpc_controller.variables_k_neg1)
+# mpc_agent.x_k=[10,0]
+# for k in range(100):
+#     mpc_agent.mpc_controller.solve(k, solver=cvx.GUROBI)
+#     # print(mpc_agent.mpc_controller.std_obj_atoms.u.Linear_vector_d.variable.var_N_tilde.value[-1])
+#     mpc_agent.mpc_controller.sim_step_k(k)
+#     mpc_agent.mpc_controller.sim_log.update(k,cost=mpc_agent.mpc_controller.problem.objective.value)
+#
+#
+# df = mpc_agent.mpc_controller.sim_log.get_concat_log()
+# print(df)
+#
+# df.x.loc[:,0:0].plot(drawstyle='steps-post')
 
 
 
-        record.qual_name=qual_name
-        return super(Format, self).formatMessage(record)
-
-console_hand.setFormatter(Format(fmt='%(pathname)s:%(lineno)d:\n'
-                                                '%(levelname)s:%(qual_name)s:%(message)s'))
 
 
-logger = logging.getLogger(__name__)
-logger.propagate = False
-if logger.hasHandlers(): logger.handlers = []
-logger.addHandler(console_hand)
-logger.setLevel(logging.INFO)
+from models.parameters import dewh_param_struct
+import os
+import pandas as pd
 
-class A:
-    class B:
-        def __init__(self):
-            logger.info('hello')
+IDX = pd.IndexSlice
 
-    def __init__(self):
-        self.b = self.B()
-
-def hello():
-    def hello2():
-        logger.info('hello')
-    return hello2()
+omega_scenarios_profile = pd.read_pickle(
+    os.path.realpath(r'./experiments/data/dewh_omega_profile_df.pickle')) / dewh_param_struct.dt

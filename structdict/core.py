@@ -515,7 +515,8 @@ class {typename}(_NamedStructDict):
 
 
 def named_struct_dict(typename, field_names=None, default=None, fixed=False, *, structdict_module=__name__,
-                      base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None, frame_depth=1):
+                      base_dict=None, sorted_repr=None, verbose=False, rename=False, module=None, qualname_prefix=None,
+                      frame_depth=1):
     """Returns a new subclass of StructDict with all fields as properties."""
 
     # Validate the field names.  At the user's option, either generate an error
@@ -596,13 +597,22 @@ def named_struct_dict(typename, field_names=None, default=None, fixed=False, *, 
     # _sys._getframe is not defined (Jython for example) or _sys._getframe is not
     # defined for arguments greater than 0 (IronPython), or where the user has
     # specified a particular module.
-    if module is None:
-        try:
-            module = _sys._getframe(frame_depth).f_globals.get('__name__', '__main__')
-        except (AttributeError, ValueError):
-            pass
+
+    try:
+        frame = _sys._getframe(frame_depth)
+    except (AttributeError, ValueError):
+        pass
+    else:
+        if module is None:
+            module = frame.f_globals.get('__name__', '__main__')
+        if qualname_prefix is None:
+            qualname_prefix = frame.f_locals.get('__qualname__', '')
+
     if module is not None:
         result.__module__ = module
+
+    if qualname_prefix:
+        result.__qualname__ = f'{qualname_prefix}.' + result.__qualname__
 
     return result
 

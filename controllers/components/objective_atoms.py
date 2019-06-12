@@ -210,7 +210,7 @@ _objective_atom_types = ['linear', 'quadratic', 'L1', 'L2', 'Linf']
 
 
 class ObjectiveAtomBase(ComponentBase):
-    _field_names = ['weight', 'is_rate_atom', 'cost']
+    _field_names = ['weight', 'is_rate_atom', 'cost', 'variable']
     _field_names_set = frozenset(_field_names)
     _atom_type = 'base'
 
@@ -278,6 +278,7 @@ class ObjectiveAtomBase(ComponentBase):
         else:
             cost = 0
 
+        self.variable = variable
         self.cost = cost
         return cost
 
