@@ -28,5 +28,5 @@ dewh_omega_scenarios_df = pd.DataFrame(
 
 
 
-# path = os.path.realpath(r"./experiments/data/dewh_dhw_demand_scenario_profile_15Min_200Lpd_mean.pickle")
-# df =pd.read_pickle(path)
+# path = os.path.realpath(r"./examples/data/dewh_dhw_demand_scenario_profile_15Min_200Lpd_mean.pickle")
+# df_s =pd.read_pickle(path)

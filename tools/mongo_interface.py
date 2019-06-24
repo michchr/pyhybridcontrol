@@ -436,10 +436,10 @@ if __name__ == '__main__':
     # raw_df
     #
     # st = Timer()
-    # df = raw_df.apply(pd.to_numeric, errors='coerce')
+    # df_s = raw_df.apply(pd.to_numeric, errors='coerce')
     # print("Time taken is {}".format(Timer() - st))
     #
-    # print(df.info())
+    # print(df_s.info())
 
     # raw_df = mi.get_one_dev_cursor('dewh', 5, start_datetime=start_date, end_datetime=end_date)
     # raw_df = list(raw_df)
@@ -496,9 +496,9 @@ if __name__ == '__main__':
     # # plt.figure()
     # # raw_df.Temp.plot()
     # # plt.figure()
-    # fig, ax = plt.subplots(1, 1)
-    # df1.plot(drawstyle="steps-post", ax=ax)
-    # # df2.plot(drawstyle="steps-post", ax=ax)
+    # fig, ax0 = plt.subplots(1, 1)
+    # df1.plot(drawstyle="steps-post", ax0=ax0)
+    # # df2.plot(drawstyle="steps-post", ax0=ax0)
     # # plt.figure()
     # # df1.isNaN.plot(drawstyle="steps-post")
     #
