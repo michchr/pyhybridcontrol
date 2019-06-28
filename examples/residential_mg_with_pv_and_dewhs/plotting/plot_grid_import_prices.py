@@ -1,8 +1,5 @@
 from examples.residential_mg_with_pv_and_dewhs.plotting.plotting_helper import *
-import os
-import glob
-from structdict import OrderedStructDict
-from tools.tariff_generator import TariffGenerator
+from examples.residential_mg_with_pv_and_dewhs.tariff_generator import TariffGenerator
 from examples.residential_mg_with_pv_and_dewhs.modelling.parameters import grid_param_struct
 from datetime import datetime as DateTime
 from matplotlib.ticker import FormatStrFormatter

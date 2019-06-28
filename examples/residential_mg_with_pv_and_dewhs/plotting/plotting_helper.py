@@ -1,6 +1,7 @@
 import matplotlib
 import matplotlib.ticker
 from matplotlib.lines import Line2D
+from matplotlib.markers import MarkerStyle
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ IDX = pd.IndexSlice
 FIG_SAVE_PATH = os.path.abspath(
     r'C:\Users\chris\Documents\University_on_gdrive\Thesis\git_Thesis\Final_Thesis_Report\images\\')
 
-lineWidthNorm = 1.5
+lineWidthNorm = 1
 lineWidthThick = 2
 lineWidthVThick = 3
 fontNormalSize = 11

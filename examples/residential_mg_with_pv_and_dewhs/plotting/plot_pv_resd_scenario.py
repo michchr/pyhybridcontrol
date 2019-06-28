@@ -16,7 +16,7 @@ for path in paths:
 pv_df = dfs['pv_supply_norm_1w_max_15min_from_091218_150219']
 resd_df = dfs['res_demand_norm_1w_mean_15min_from_091218_150219']
 
-dates = IDX['2018-12-10':'2018-12-20']
+dates = IDX['2018-12-10':'2018-12-19']
 pv_df = pv_df.loc[dates]
 resd_df = resd_df[dates]
 
@@ -38,6 +38,6 @@ ax1.legend().remove()
 ##PLOT LABELLING#
 ax0.set_ylabel(tex_s(r'$P_{\text{pv}}\;[\si{\watt}]$'), wrap=True)
 ax1.set_ylabel(tex_s(r'$P_{r}\;[\si{\watt}]$'), wrap=True)
-ax1.set_xlabel("")
+ax1.set_xlabel("Date", labelpad=-10)
 
 fig.savefig(FIG_SAVE_PATH + "plot_pv_resd_scenario.pdf", bbox_inches='tight')

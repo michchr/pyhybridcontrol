@@ -59,7 +59,6 @@ c_exc_reduced = controllers.copy()
 c_exc_reduced.remove('mpc_sb_reduced')
 drop_reduced = [(controller, N_sr) for controller, N_sr in itertools.product(c_exc_reduced, [6, 8])]
 
-
 # PV self consumption
 
 pv_gen = df_select.loc[:, IDXmeta('pv', 1, None, 'y')].sum(axis=0)
@@ -125,22 +124,32 @@ time_solve_df = time_solve_df.reindex(axis=0, level=0, labels=controllers)
 time_solve_df = time_solve_df.drop(axis=0, level=0, labels=['thermo'])
 
 ######################################
-#######  PLOT COST SAVINGS ###########
+#######  PLOT SAVINGS ##############
 ######################################
-fig, axes = get_fig_axes_A4(1, 2, v_scale=1 / 4, h_scale=1, sharey='all')
-ax0 = axes[0]
-ax1 = axes[1]
+fig, axes = get_fig_axes_A4(2, 2, v_scale=0.7, h_scale=1, sharex='all', sharey='row')
+ax0 = axes[0,0]
+ax1 = axes[0,1]
+ax2 = axes[1,0]
+ax3 = axes[1,1]
 
 savings_df_65.plot.bar(ax=ax0)
 ax0.grid(linestyle='-.', alpha=0.5)
 savings_df_80.plot.bar(ax=ax1)
 ax1.grid(linestyle='-.', alpha=0.5)
 
-fig.subplots_adjust(wspace=0.1, top=0.96, bottom=0.2)
+pv_self_increase_65.plot.bar(ax=ax2)
+ax2.grid(linestyle='-.', alpha=0.5)
+pv_self_increase_80.plot.bar(ax=ax3)
+ax3.grid(linestyle='-.', alpha=0.5)
+
+fig.subplots_adjust(wspace=0.1, top=0.96, bottom=0.2, hspace=0.1)
 ## Labelling
 
 ax0.legend().remove()
 ax1.legend().set_title(tex_s('$N_{p}$'))
+
+ax2.legend().remove()
+ax3.legend().set_title(tex_s('$N_{p}$'))
 
 ax0.set_title(tex_s('$T_{h}^{\max} = 65\si{\celsius}$'))
 ax1.set_title(tex_s('$T_{h}^{\max} = 80\si{\celsius}$'))
@@ -155,111 +164,80 @@ xtick_labels = [
     tex_s(r'$\text{SBR-EMPC}\\(N_{\text{SBR}} = 8)$'),
 ]
 
-ax0.set_xticklabels(xtick_labels)
-ax1.set_xticklabels(xtick_labels)
-ax0.set_xlabel('')
-ax1.set_xlabel('')
+ax2.set_xticklabels(xtick_labels)
+ax3.set_xticklabels(xtick_labels)
+ax2.set_xlabel('Controller', labelpad=5)
+ax3.set_xlabel('Controller', labelpad=5)
 
-ax0.set_ylabel(tex_s(r'Cost saving $[\si{\percent}]$'))
+ax0.set_ylabel(tex_s(r'Cost saving $[\si{\percent}]$'), wrap=True)
+ax2.set_ylabel(tex_s(r'Self-consumption increase $[\si{\percent}]$'), wrap=True)
 
-fig.savefig(FIG_SAVE_PATH + "plot_cost_single_bar.pdf", bbox_inches='tight')
+temp_alpha_patch=0.075
+for ax in [ax0,ax2]:
+    ax.patch.set_facecolor('blue')
+    ax.patch.set_alpha(temp_alpha_patch)
+
+for ax in [ax1,ax3]:
+    ax.patch.set_facecolor('red')
+    ax.patch.set_alpha(temp_alpha_patch)
+
+fig.savefig(FIG_SAVE_PATH + "plot_savings_single_bar.pdf", bbox_inches='tight')
 
 
 ######################################
 ### PLOT CONS_VIOLATION            ###
 ######################################
 
-fig2, axes2 = get_fig_axes_A4(1, 2, v_scale=1 / 4, h_scale=1, sharey='all')
-fig3, axes3 = get_fig_axes_A4(1, 2, v_scale=1 / 4, h_scale=1, sharey='all')
+fig2, axes2 = get_fig_axes_A4(2, 2, v_scale=0.7, h_scale=1, sharey='row', sharex='all')
 
-ax2_0 = axes2[0]
-ax2_1 = axes2[1]
+ax2_0 = axes2[0,0]
+ax2_1 = axes2[0,1]
 
-ax3_0 = axes3[0]
-ax3_1 = axes3[1]
+ax2_2 = axes2[1,0]
+ax2_3 = axes2[1,1]
 
 cons_df_over_65.plot.bar(ax=ax2_0)
 ax2_0.grid(linestyle='-.', alpha=0.5)
 cons_df_over_80.plot.bar(ax=ax2_1)
 ax2_1.grid(linestyle='-.', alpha=0.5)
 
-cons_df_under_65.plot.bar(ax=ax3_0)
-ax3_0.grid(linestyle='-.', alpha=0.5)
-cons_df_under_80.plot.bar(ax=ax3_1)
-ax3_1.grid(linestyle='-.', alpha=0.5)
+cons_df_under_65.plot.bar(ax=ax2_2)
+ax2_2.grid(linestyle='-.', alpha=0.5)
+cons_df_under_80.plot.bar(ax=ax2_3)
+ax2_3.grid(linestyle='-.', alpha=0.5)
 
-fig2.subplots_adjust(wspace=0.1, top=0.96, bottom=0.2)
-fig3.subplots_adjust(wspace=0.1, top=0.96, bottom=0.2)
+fig2.subplots_adjust(wspace=0.1, top=0.96, bottom=0.2, hspace=0.1)
 ## Labelling
 
 ax2_0.legend().remove()
 ax2_1.legend().set_title(tex_s('$N_{p}$'))
-ax3_0.legend().remove()
-ax3_1.legend().set_title(tex_s('$N_{p}$'))
+ax2_2.legend().remove()
+ax2_3.legend().set_title(tex_s('$N_{p}$'))
 
 ax2_0.set_title(tex_s('$T_{h}^{\max} = 65\si{\celsius}$'))
 ax2_1.set_title(tex_s('$T_{h}^{\max} = 80\si{\celsius}$'))
-ax3_0.set_title(tex_s('$T_{h}^{\max} = 65\si{\celsius}$'))
-ax3_1.set_title(tex_s('$T_{h}^{\max} = 80\si{\celsius}$'))
 
-xtick_labels_cons = xtick_labels + ['Thermo']
+xtick_labels_cons = xtick_labels + ['TSRB']
 
-ax2_0.set_xticklabels(xtick_labels_cons)
-ax2_1.set_xticklabels(xtick_labels_cons)
-ax2_0.set_xlabel('')
-ax2_1.set_xlabel('')
 
-ax3_0.set_xticklabels(xtick_labels_cons)
-ax3_1.set_xticklabels(xtick_labels_cons)
-ax3_0.set_xlabel('')
-ax3_1.set_xlabel('')
+ax2_2.set_xticklabels(xtick_labels_cons)
+ax2_3.set_xticklabels(xtick_labels_cons)
+ax2_2.set_xlabel('Controller', labelpad=5)
+ax2_3.set_xlabel('Controller', labelpad=5)
 
 ax2_0.set_ylabel(tex_s(r'Sum Violation over $T_{h}^{\max}\;[\si{\celsius\hour}]$'))
-ax3_0.set_ylabel(tex_s(r'Sum Violation below $T_{h}^{\min}\;[\si{\celsius\hour}]$'))
+ax2_2.set_ylabel(tex_s(r'Sum Violation below $T_{h}^{\min}\;[\si{\celsius\hour}]$'))
 
 ax2_0.set_yscale('log')
-ax3_0.set_yscale('log')
+ax2_2.set_yscale('log')
 
-fig2.savefig(FIG_SAVE_PATH + "plot_single_cons_over_bar.pdf", bbox_inches='tight')
-fig3.savefig(FIG_SAVE_PATH + "plot_single_cons_under_bar.pdf", bbox_inches='tight')
+for ax in [ax2_0,ax2_2]:
+    ax.patch.set_facecolor('blue')
+    ax.patch.set_alpha(temp_alpha_patch)
 
+for ax in [ax2_1,ax2_3]:
+    ax.patch.set_facecolor('red')
+    ax.patch.set_alpha(temp_alpha_patch)
 
-#####################################################
-#######  PLOT PV Self Utilization Increase ###########
-#####################################################
-fig4, axes4 = get_fig_axes_A4(1, 2, v_scale=1 / 4, h_scale=1, sharey='all')
-ax4_0 = axes4[0]
-ax4_1 = axes4[1]
+fig2.savefig(FIG_SAVE_PATH + "plot_single_cons_vio_bar.pdf", bbox_inches='tight')
 
-pv_self_increase_65.plot.bar(ax=ax4_0)
-ax4_0.grid(linestyle='-.', alpha=0.5)
-pv_self_increase_80.plot.bar(ax=ax4_1)
-ax4_1.grid(linestyle='-.', alpha=0.5)
-
-fig4.subplots_adjust(wspace=0.1, top=0.96, bottom=0.2)
-## Labelling
-
-ax4_0.legend().remove()
-ax4_1.legend().set_title(tex_s('$N_{p}$'))
-
-ax4_0.set_title(tex_s('$T_{h}^{\max} = 65\si{\celsius}$'))
-ax4_1.set_title(tex_s('$T_{h}^{\max} = 80\si{\celsius}$'))
-
-xtick_labels = [
-    r'PB-EMPC',
-    r'CE-EMPC',
-    r'MM-EMPC',
-    r'SB-EMPC',
-    tex_s(r'$\text{SBR-EMPC}\\(N_{\text{SBR}} = 4)$'),
-    tex_s(r'$\text{SBR-EMPC}\\(N_{\text{SBR}} = 6)$'),
-    tex_s(r'$\text{SBR-EMPC}\\(N_{\text{SBR}} = 8)$'),
-]
-
-ax4_0.set_xticklabels(xtick_labels)
-ax4_1.set_xticklabels(xtick_labels)
-ax4_0.set_xlabel('')
-ax4_1.set_xlabel('')
-
-ax4_0.set_ylabel(tex_s(r'Self-consumption increase $[\si{\percent}]$'))
-
-fig4.savefig(FIG_SAVE_PATH + "plot_single_pv_self_increase.pdf", bbox_inches='tight')

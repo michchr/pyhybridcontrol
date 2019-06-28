@@ -12,7 +12,7 @@ import numpy as np
 import os
 import pandas as pd
 from datetime import datetime as DateTime
-from tools.tariff_generator import TariffGenerator
+from examples.residential_mg_with_pv_and_dewhs.tariff_generator import TariffGenerator
 import itertools
 
 from utils.matrix_utils import atleast_2d_col
@@ -49,7 +49,7 @@ N_tilde_max = N_p_max + 1
 sim_steps_max = 2500
 max_steps = int(sim_steps_max + 2 * N_tilde_max)
 
-N_h = 50
+N_h = 20
 time_0 = DateTime(2018, 12, 10)
 
 
@@ -123,12 +123,12 @@ for dewh in dewh_list:
 
 pv_param_struct_adjusted = pv_param_struct.deepcopy()
 pv_param_struct_adjusted.P_pv_units = N_h
-pvAgent = PvAgentMpc(device_id=1)
+pvAgent = PvAgentMpc(device_id=1, param_struct=pv_param_struct_adjusted)
 pvAgent.set_omega_profile(omega_pv_profile)
 grid.add_device(pvAgent)
 
 res_demand_param_struct_adjusted = res_demand_param_struct.deepcopy()
-res_demand_param_struct.P_res_units = N_h
+res_demand_param_struct_adjusted.P_res_units = N_h
 resdAgent = ResDemandAgentMpc(device_id=1, param_struct=res_demand_param_struct_adjusted)
 resdAgent.set_omega_profile(omega_resd_profile)
 grid.add_device(resdAgent)
@@ -229,7 +229,7 @@ def sim_mpc(N_p=1, sim_steps=1, soft_top_mult=10.0, soft_bot_mult=1.0, num_scena
                         dev.controllers[cname].set_std_obj_atoms(q_z=prices_tilde[cname])
 
         grid.build_grid(k=k, deterministic_or_struct=deterministic_struct)
-        grid.solve_grid_mpc(k=k, verbose=True, TimeLimit=20, MIPGap=1e-2)
+        grid.solve_grid_mpc(k=k, verbose=False, TimeLimit=20, MIPGap=1e-2)
         print(f'k={k}, N_p={N_p}')
         print(f"Time to solve including data transfer:{time.time() - st}")
         l_sim = grid.sim_step_k(k=k)
@@ -253,7 +253,7 @@ def sim_mpc(N_p=1, sim_steps=1, soft_top_mult=10.0, soft_bot_mult=1.0, num_scena
     T_max = int(dewh_param_struct_adjusted.T_h_max)
     T_min = int(dewh_param_struct_adjusted.T_h_min)
     save_path = os.path.realpath(
-        fr'{BASE_FILE}/sim_out/sim_Np_{N_p}_st_{soft_top_mult}_sb_{soft_bot_mult}_Ns_{num_scenarios}_'
+        fr'{BASE_FILE}/sim_out/sim_Np_{N_p}_st_{int(soft_top_mult)}_sb_{int(soft_bot_mult)}_Ns_{num_scenarios}_'
         fr'Nsr_{N_sb_reduced}_Nh_{N_h}_Tmax_{T_max}_Tmin_{T_min}{save_text_postfix}.sim_out')
 
     df_sim.to_pickle(save_path)
@@ -265,8 +265,8 @@ controllers = controllers_choices.get_sub_struct(controller_names)
 
 omega_dewh_profiles_struct = get_actual_omega_dewh_profiles(actual_scenarios=omega_dhw_actual_scenarios.values,
                                                             N_h=50, size=max_steps)
-
-sim_mpc(N_p=24, sim_steps=2016, controllers=controllers, num_scenarios=20, N_sb_reduced=8,
+#
+sim_mpc(N_p=24, sim_steps=2016, controllers=controllers, num_scenarios=20, N_sb_reduced=6,
         save_text_postfix=f'')
 
 #
