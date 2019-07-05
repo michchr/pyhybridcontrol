@@ -33,5 +33,6 @@ ax0.legend().remove()
 ##PLOT LABELLING#
 ax0.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 ax0.set_ylabel(tex_s(r'$c_{g,\text{imp}}\;[\si{R\per\kWh}]$'), wrap=True)
+ax0.set_xlabel('Date', labelpad=-14)
 
 fig.savefig(FIG_SAVE_PATH + "plot_grid_import_prices.pdf", bbox_inches='tight')

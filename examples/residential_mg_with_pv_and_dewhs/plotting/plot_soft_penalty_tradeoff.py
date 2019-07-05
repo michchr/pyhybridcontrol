@@ -44,7 +44,8 @@ for path in paths:
 
 ## Plot
 gridspec_kw={'height_ratios':[3,1]}
-fig, axes = get_fig_axes_A4(2, 1, v_scale=1 / 2.5, h_scale=1, sharex='all', gridspec_kw=gridspec_kw)
+fig, axes = get_fig_axes_A4(2, 1, v_scale=1 / 3.2, h_scale=1, sharex='all', gridspec_kw=gridspec_kw)
+fig.subplots_adjust(top=0.98, bottom=0.02, hspace=0.1)
 
 ax0 = axes[0]
 ax1 = axes[1]
@@ -101,7 +102,7 @@ ax0.legend([fr"$q_{{h}}^{{\mu}}={list(q_values[0])}^{{\top}}$",
 ax0.set_ylabel(tex_s(r'$x_{h}\;[\si{\celsius}]$'))
 
 ax1.set_ylabel(tex_s(r'$\omega_{h}^{\text{nom}}\;[\si{\liter}]$'))
-# ax1.set_xlabel('Date', labelpad=-5)
+ax1.set_xlabel('Date', labelpad=-5)
 ax1.get_legend().remove()
 
 fig.savefig(FIG_SAVE_PATH + "plot_soft_penalty_tradeoff.pdf", bbox_inches='tight')

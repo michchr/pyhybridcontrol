@@ -38,6 +38,6 @@ ax1.legend().remove()
 ##PLOT LABELLING#
 ax0.set_ylabel(tex_s(r'$P_{\text{pv}}\;[\si{\watt}]$'), wrap=True)
 ax1.set_ylabel(tex_s(r'$P_{r}\;[\si{\watt}]$'), wrap=True)
-ax1.set_xlabel("Date", labelpad=-10)
+ax1.set_xlabel("Date", labelpad=-14)
 
 fig.savefig(FIG_SAVE_PATH + "plot_pv_resd_scenario.pdf", bbox_inches='tight')
