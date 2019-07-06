@@ -252,6 +252,11 @@ def sim_mpc(N_p=1, sim_steps=1, soft_top_mult=10.0, soft_bot_mult=1.0, num_scena
 
     T_max = int(dewh_param_struct_adjusted.T_h_max)
     T_min = int(dewh_param_struct_adjusted.T_h_min)
+
+    save_dir = fr'{BASE_FILE}/sim_out'
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
     save_path = os.path.realpath(
         fr'{BASE_FILE}/sim_out/sim_Np_{N_p}_st_{int(soft_top_mult)}_sb_{int(soft_bot_mult)}_Ns_{num_scenarios}_'
         fr'Nsr_{N_sb_reduced}_Nh_{N_h}_Tmax_{T_max}_Tmin_{T_min}{save_text_postfix}.sim_out')
@@ -266,23 +271,5 @@ controllers = controllers_choices.get_sub_struct(controller_names)
 omega_dewh_profiles_struct = get_actual_omega_dewh_profiles(actual_scenarios=omega_dhw_actual_scenarios.values,
                                                             N_h=50, size=max_steps)
 #
-sim_mpc(N_p=24, sim_steps=2016, controllers=controllers, num_scenarios=20, N_sb_reduced=6,
-        save_text_postfix=f'')
-
-#
-# for dewh_scenario in range(7, 11):
-#     print(f"###########################\n"
-#           f"###########################\n"
-#           f"Scenario: {dewh_scenario}\n"
-#           f"#############################"
-#           f"#############################")
-#     dewh_list[0].set_omega_profile(omega_dewh_profiles_struct[dewh_scenario])
-#     for N_p in [12]:
-#         for N_sb_r in [4]:
-#             # if N_p in (12,24) and dewh_scenario==6:
-#             #     continue
-#             # elif N_p == 48 and N_sb_r == 4 and dewh_scenario==6:
-#             #     continue
-#             # else:
-#             sim_mpc(N_p=N_p, sim_steps=2016, controllers=controllers, num_scenarios=20, N_sb_reduced=N_sb_r,
-#                 save_text_postfix=f'dewh_single_dwh_scen_{dewh_scenario}')
+# sim_mpc(N_p=24, sim_steps=5, controllers=controllers, num_scenarios=20, N_sb_reduced=6,
+#         save_text_postfix=f'')
