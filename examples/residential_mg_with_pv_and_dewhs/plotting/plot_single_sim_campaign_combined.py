@@ -225,8 +225,8 @@ ax2_3.set_xticklabels(xtick_labels_cons)
 ax2_2.set_xlabel('Controller', labelpad=5)
 ax2_3.set_xlabel('Controller', labelpad=5)
 
-ax2_0.set_ylabel(tex_s(r'Sum Violation over $T_{h}^{\max}\;[\si{\celsius\hour}]$'))
-ax2_2.set_ylabel(tex_s(r'Sum Violation below $T_{h}^{\min}\;[\si{\celsius\hour}]$'))
+ax2_0.set_ylabel(tex_s(r'Sum violation over $T_{\,\text{vio}}^{\,\text{over}}\;[\si{\celsius\hour}]$'))
+ax2_2.set_ylabel(tex_s(r'Sum violation under $T_{\,\text{vio}}^{\,\text{under}}\;[\si{\celsius\hour}]$'))
 
 ax2_0.set_yscale('log')
 ax2_2.set_yscale('log')
